@@ -1,6 +1,9 @@
 <?php
 require_once 'common.php';
 
+error_reporting(0);
+// TODO: Make sure warnings and errors are surfaced appropriately.
+
 function handleRequest() {
   $logger = Logger::Instance();
   $content = file_get_contents('php://input');
@@ -14,24 +17,13 @@ function handleRequest() {
 
   $db = new Database();  // TODO: Handle failure.
   $config = $db->getConfig();
-  $response = array();
-  try {
-    $db->beginTransaction();
-
-    if (isset($data['title'])) {
-      $db->insertWindowTitle(urldecode($data['title']));
-    }
-
-    $db->commit();
-    $response['status'] = 'ok';
-  } catch (Exception $e) {
-    $db->rollback();
-    $logger->critical('Exception in rx.php: '.$e);
-    $response['status'] = 'failure: '.$e;
+  if (isset($data['title'])) {
+    $db->insertWindowTitle(urldecode($data['title']));
   }
+  $response = "ok\n".$config['sample_interval_seconds']."\n";
   return $response;
 }
 
-$jsonResponse = json_encode(handleRequest());
-echo $jsonResponse;
-Logger::Instance()->debug('RESPONSE: '.$jsonResponse);
+$response = handleRequest();
+echo $response;
+Logger::Instance()->debug('RESPONSE: '.str_replace("\n", '\n', $response));

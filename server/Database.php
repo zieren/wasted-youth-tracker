@@ -21,18 +21,6 @@ class Database {
     }  // else: defaults to debug
   }
   
-  public function beginTransaction() {
-    $this->query('START TRANSACTION');
-  }
-  
-  public function commit() {
-    $this->query('COMMIT');
-  }
-  
-  public function rollback() {
-    $this->query('ROLLBACK');
-  }
-  
   public function createMissingTables() {
     $this->query('SET default_storage_engine=INNODB');
     $this->query( // TODO: 256?

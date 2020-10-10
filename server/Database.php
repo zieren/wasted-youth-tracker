@@ -51,8 +51,8 @@ class Database {
   public function insertWindowTitle($user, $windowTitle) {
     $q = 'REPLACE INTO window_titles (ts, user, title) VALUES ('
             . time()
-            . ',"' . $this->mysqli->real_escape_string($user) . '"'  // TODO: This is verbose
-            . ',"' . $this->mysqli->real_escape_string($windowTitle) . '"'
+            . ',"' . $this->esc($user) . '"'  
+            . ',"' . $this->esc($windowTitle) . '"'
             . ')';
     $this->query($q);
   }
@@ -67,7 +67,7 @@ class Database {
     $fromTime = (new DateTimeImmutable())->setTime(0, 0);
     $toTime = $fromTime->add(new DateInterval('P1D'));
     $result = $this->query('SELECT COUNT(*) FROM window_titles'
-            . ' WHERE user = "' . $this->mysqli->real_escape_string($user) . '"'
+            . ' WHERE user = "' . $this->esc($user) . '"'
             . ' AND ts >= ' . $fromTime->getTimestamp()
             . ' AND ts < ' . $toTime->getTimestamp());
     if ($row = $result->fetch_row()) {
@@ -79,15 +79,16 @@ class Database {
   }
 
   // TODO: For testing...
-  public function echoWindowTitles() {
+  public function echoWindowTitles($user) {
     echo '<p><table border="1">';
-    $q = 'SELECT user, ts, title FROM window_titles ORDER BY user ASC, ts DESC';
+    $q = 'SELECT ts, title FROM window_titles'
+            . ' WHERE user = "' . $this->esc($user) . '" ORDER BY ts DESC';
     $result = $this->query($q);
     while ($row = $result->fetch_row()) {
       // TODO: Format time.
-      echo '<tr><td>' . $row[0]
-      . '</td><td>' . date("Y-m-d H:i:s", $row[1])
-      . '</td><td>' . $row[2] . '</td></tr>';
+      echo
+      '</td><td>' . date("Y-m-d H:i:s", $row[0])
+      . '</td><td>' . $row[1] . '</td></tr>';
     }
     echo '</table></p>';
   }
@@ -162,6 +163,10 @@ class Database {
   private function throwException($message) {
     $this->log->critical($message);
     throw new Exception($message);
+  }
+  
+  private function esc($s) {
+    return $this->mysqli->real_escape_string($s);
   }
 
 }

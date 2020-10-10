@@ -16,16 +16,18 @@ function handleRequest() {
   $logger->debug('Received data with keys: '.implode(array_keys($data), ', '));
 
   $db = new Database();  // TODO: Handle failure.
-  if (isset($data['title'])) {
-    $db->insertWindowTitle(urldecode($data['title']));
-  }
-  $minutesSpentToday = $db->getMinutesSpentToday();
+  if (isset($data['title']) and isset($data['user'])) {
+    $db->insertWindowTitle($data['user'], urldecode($data['title']));
+  } // TODO: else: Do something. We now assume the fields are set anyway.
+  $minutesSpentToday = $db->getMinutesSpentToday($data['user']);
   $config = $db->getConfig();
   // TODO: Override default by weekday and then by date.
   $minutesLeftToday = intval($config['daily_time_default_minutes']) - $minutesSpentToday;
   // TODO: Make trigger time configurable.
   $response = "";
-  if ($minutesLeftToday <= 5) {
+  if ($minutesLeftToday <= 0) {
+    $response .= "time is over, please quit now\n";
+  } elseif ($minutesLeftToday <= 5) {
     // TODO: The client shouldn't pop up a message repeatedly. Maybe just once again?
     $response .= $minutesLeftToday." minutes left today\n";
   } else {

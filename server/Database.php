@@ -23,9 +23,15 @@ class Database {
   }
 
   public function createMissingTables() {
+    // TODO: Tables should have user name.
     $this->query('SET default_storage_engine=INNODB');
     $this->query(// TODO: 256?
-            'CREATE TABLE IF NOT EXISTS window_titles (ts BIGINT PRIMARY KEY, title VARCHAR(256))');
+            'CREATE TABLE IF NOT EXISTS window_titles ('
+            . 'user VARCHAR(32), '
+            . 'ts BIGINT, '
+            . 'title VARCHAR(256), '
+            . 'PRIMARY KEY (user, ts)'
+            . ')');
     $this->query(
             'CREATE TABLE IF NOT EXISTS config (k VARCHAR(200) PRIMARY KEY, v TEXT NOT NULL)');
   }
@@ -42,11 +48,12 @@ class Database {
   }
 
   /** Stores the specified window title. */
-  public function insertWindowTitle($windowTitle) {
-    $q = 'REPLACE INTO window_titles (ts, title) VALUES ('
+  public function insertWindowTitle($user, $windowTitle) {
+    $q = 'REPLACE INTO window_titles (ts, user, title) VALUES ('
             . time()
-            . ',"' . $this->mysqli->real_escape_string($windowTitle)
-            . '")';
+            . ',"' . $this->mysqli->real_escape_string($user) . '"'  // TODO: This is verbose
+            . ',"' . $this->mysqli->real_escape_string($windowTitle) . '"'
+            . ')';
     $this->query($q);
   }
 
@@ -56,11 +63,12 @@ class Database {
    * Caveat: This will yield incorrect results when changing the sampling interval while or after
    * data has been stored.
    */
-  public function getMinutesSpentToday() {
+  public function getMinutesSpentToday($user) {
     $fromTime = (new DateTimeImmutable())->setTime(0, 0);
     $toTime = $fromTime->add(new DateInterval('P1D'));
     $result = $this->query('SELECT COUNT(*) FROM window_titles'
-            . ' WHERE ts >= ' . $fromTime->getTimestamp()
+            . ' WHERE user = "' . $this->mysqli->real_escape_string($user) . '"'
+            . ' AND ts >= ' . $fromTime->getTimestamp()
             . ' AND ts < ' . $toTime->getTimestamp());
     $interval = intval($this->getConfig()['sample_interval_seconds']);
     while ($row = $result->fetch_row()) {
@@ -73,11 +81,13 @@ class Database {
   // TODO: For testing...
   public function echoWindowTitles() {
     echo '<p><table border="1">';
-    $q = 'SELECT ts, title FROM window_titles ORDER BY ts DESC';
+    $q = 'SELECT user, ts, title FROM window_titles ORDER BY user ASC, ts DESC';
     $result = $this->query($q);
     while ($row = $result->fetch_row()) {
       // TODO: Format time.
-      echo '<tr><td>' . date("Y-m-d H:i:s", $row[0]) . '</td><td>' . $row[1] . '</td></tr>';
+      echo '<tr><td>' . $row[0]
+      . '</td><td>' . date("Y-m-d H:i:s", $row[1])
+      . '</td><td>' . $row[2] . '</td></tr>';
     }
     echo '</table></p>';
   }

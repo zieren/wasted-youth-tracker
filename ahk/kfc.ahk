@@ -1,3 +1,7 @@
+; TODO: Ideas:
+; - Watch windows and upload on change.
+; - Try ComObjGet if window title isn't good enough.
+
 RX_URL := "http://zieren.de/kfc/rx.php"
 EnvGet, TMP, TMP ; current user's temp directory
 
@@ -31,6 +35,6 @@ Loop {
     MsgBox, Failed to contact server: %status%
   }
   waitMillis := 1000 * waitSeconds
-  MsgBox, Sleeping %waitMillis%
+  ;MsgBox, Sleeping %waitMillis%
   Sleep, waitMillis
 }

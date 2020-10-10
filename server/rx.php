@@ -16,11 +16,22 @@ function handleRequest() {
   $logger->debug('Received data with keys: '.implode(array_keys($data), ', '));
 
   $db = new Database();  // TODO: Handle failure.
-  $config = $db->getConfig();
   if (isset($data['title'])) {
     $db->insertWindowTitle(urldecode($data['title']));
   }
-  $response = "ok\n".$config['sample_interval_seconds']."\n";
+  $minutesSpentToday = $db->getMinutesSpentToday();
+  $config = $db->getConfig();
+  // TODO: Override default by weekday and then by date.
+  $minutesLeftToday = intval($config['daily_time_default_minutes']) - $minutesSpentToday;
+  // TODO: Make trigger time configurable.
+  $response = "";
+  if ($minutesLeftToday <= 5) {
+    // TODO: The client shouldn't pop up a message repeatedly. Maybe just once again?
+    $response .= $minutesLeftToday." minutes left today\n";
+  } else {
+    $response = "ok\n";
+  }
+  $response .= $config['sample_interval_seconds']."\n";
   return $response;
 }
 

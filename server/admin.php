@@ -16,6 +16,7 @@ function enableDestructiveButtons(toggleCheckbox) {
 require_once 'common.php';
 
 $db = new Database(true /* create missing tables */);
+// TODO: Get rid of "initialized" now that we have other keys.
 if (!array_key_exists('initialized', $db->getConfig())) {  // first run
   echo '<h2>Initializing...</h2><p><i>This seems to be the first run. Setting default config...';
   $db->populateConfig();

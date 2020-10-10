@@ -76,9 +76,8 @@ class Database {
     $q = 'SELECT ts, title FROM window_titles ORDER BY ts DESC';
     $result = $this->query($q);
     while ($row = $result->fetch_row()) {
-      $dateTime = new DateTime('@' . $row[0]);
       // TODO: Format time.
-      echo '<tr><td>' . $dateTime->format("Y-m-d H:i:s") . '</td><td>' . $row[1] . '</td></tr>';
+      echo '<tr><td>' . date("Y-m-d H:i:s", $row[0]) . '</td><td>' . $row[1] . '</td></tr>';
     }
     echo '</table></p>';
   }

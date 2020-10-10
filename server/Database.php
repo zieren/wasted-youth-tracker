@@ -70,8 +70,8 @@ class Database {
             . ' WHERE user = "' . $this->mysqli->real_escape_string($user) . '"'
             . ' AND ts >= ' . $fromTime->getTimestamp()
             . ' AND ts < ' . $toTime->getTimestamp());
-    $interval = intval($this->getConfig()['sample_interval_seconds']);
-    while ($row = $result->fetch_row()) {
+    if ($row = $result->fetch_row()) {
+      $interval = intval($this->getConfig()['sample_interval_seconds']);
       $seconds = $interval * $row[0];
       return $seconds / 60;
     }

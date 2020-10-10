@@ -44,7 +44,6 @@ echo '
 Components:
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license.
 </p>
-<p><a href="../view/">View anemometer</a></p>
 
 <h2>Configuration</h2>';
 $db->echoConfig();

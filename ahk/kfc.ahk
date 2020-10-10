@@ -18,8 +18,19 @@ UrlEncode(s) {
 Loop {
   WinGetTitle, title, A
   title := UrlEncode(title)
-  filename := TMP . "\kfc.txt"
-  Run, cmd /c echo {"title":"%title%"} >"%filename%", , Hide
-  Run, curl --header "Content-Type: application/json" --request POST --data "@%filename%" %RX_URL%, , Hide
-  Sleep, 1000
+  fileRequest := TMP . "\kfc.request"
+  fileResponse := TMP . "\kfc.response"
+  Run, cmd /c echo {"title":"%title%"} >"%fileRequest%", , Hide
+  Run, curl --header "Content-Type: application/json" --request POST --data "@%fileRequest%" %RX_URL% -o "%fileResponse%", , Hide
+  FileRead, responseLines, %fileResponse%
+  response := StrSplit(responseLines, "`n")
+  status := response[1]
+  waitSeconds := response[2]
+  if (status != "ok")
+  {
+    MsgBox, Failed to contact server: %status%
+  }
+  waitMillis := 1000 * waitSeconds
+  MsgBox, Sleeping %waitMillis%
+  Sleep, waitMillis
 }

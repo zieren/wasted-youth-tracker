@@ -56,12 +56,12 @@ class Database {
    * Caveat: This will yield incorrect results when changing the sampling interval while or after
    * data has been stored.
    */
-//  public function getMinutesSpentToday() {
+  public function getMinutesSpentToday() {
     $fromTime = (new DateTimeImmutable())->setTime(0, 0);
     $toTime = $fromTime->add(new DateInterval('P1D'));
     $result = $this->query('SELECT COUNT(*) FROM window_titles'
-                    . ' WHERE ts >= ' . $fromTime->getTimestamp()
-                    . ' AND ts < ' . $toTime->getTimestamp());
+            . ' WHERE ts >= ' . $fromTime->getTimestamp()
+            . ' AND ts < ' . $toTime->getTimestamp());
     $interval = intval($this->getConfig()['sample_interval_seconds']);
     while ($row = $result->fetch_row()) {
       $seconds = $interval * $row[0];
@@ -70,13 +70,15 @@ class Database {
     return 0;
   }
 
-  // TODO: Remove.
+  // TODO: For testing...
   public function echoWindowTitles() {
     echo '<p><table border="1">';
     $q = 'SELECT ts, title FROM window_titles ORDER BY ts DESC';
     $result = $this->query($q);
     while ($row = $result->fetch_row()) {
-      echo '<tr><td>' . $row[0] . '</td><td>' . $row[1] . '</td></tr>';
+      $dateTime = new DateTime('@' . $row[0]);
+      // TODO: Format time.
+      echo '<tr><td>' . $dateTime->format("Y-m-d H:i:s") . '</td><td>' . $row[1] . '</td></tr>';
     }
     echo '</table></p>';
   }

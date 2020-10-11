@@ -1,7 +1,3 @@
-; TODO: Ideas:
-; - Watch windows and upload on change.
-; - Try ComObjGet if window title isn't good enough.
-
 RX_URL := "http://zieren.de/kfc/rx.php"
 USER := "admin"
 EnvGet, TMP, TMP ; current user's temp directory
@@ -20,6 +16,13 @@ UrlEncode(s) {
 	return encoded
 }
 
+ShowMessage(msg) {
+  Gui, +AlwaysOnTop
+  Gui, Add, Text,, %msg%
+  Gui, Add, Button, default w80, OK
+  Gui, Show, NoActivate, KFC
+}
+
 Loop {
   WinGetTitle, title, A
   title := UrlEncode(title)
@@ -31,11 +34,13 @@ Loop {
   response := StrSplit(responseLines, "`n")
   status := response[1]
   waitSeconds := response[2]
-  if (status != "ok")
-  {
-    MsgBox, Warning: %status%
+  if (status != "ok") {
+    ShowMessage(status)
   }
   waitMillis := 1000 * waitSeconds
-  ;MsgBox, Sleeping %waitMillis%
   Sleep, waitMillis
 }
+
+ButtonOK:
+Gui, Destroy
+Return

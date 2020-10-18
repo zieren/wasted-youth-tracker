@@ -33,8 +33,13 @@ Loop {
   FileRead, responseLines, %fileResponse%
   response := StrSplit(responseLines, "`n")
   status := response[1]
-  waitSeconds := response[2]
-  if (status != "ok") {
+  ; Avoid excessive QPS.
+  waitSeconds := response[2] >= 15 ? response[2] : 15
+  if (status = "ok") {
+    ; do nothing
+  } else if (status = "logout") {
+    Shutdown, 0 ; 0 means logout
+  } else {
     ShowMessage(status)
   }
   waitMillis := 1000 * waitSeconds

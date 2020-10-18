@@ -28,8 +28,8 @@ Loop {
   title := UrlEncode(title)
   fileRequest := TMP . "\kfc.request"
   fileResponse := TMP . "\kfc.response"
-  Run, cmd /c echo {"title":"%title%"`,"user":"%USER%"} >"%fileRequest%", , Hide
-  Run, curl --header "Content-Type: application/json" --request POST --data "@%fileRequest%" %RX_URL% -o "%fileResponse%", , Hide
+  RunWait, cmd /c echo {"title":"%title%"`,"user":"%USER%"} >"%fileRequest%", , Hide
+  RunWait, curl --header "Content-Type: application/json" --request POST --data "@%fileRequest%" %RX_URL% -o "%fileResponse%", , Hide
   FileRead, responseLines, %fileResponse%
   response := StrSplit(responseLines, "`n")
   status := response[1]

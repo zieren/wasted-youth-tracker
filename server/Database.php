@@ -65,7 +65,7 @@ class Database {
 
   /**
    * Compute the time spent on the current calendar day, in minutes.
-   * 
+   *
    * Caveat: This will yield incorrect results when changing the sampling interval while or after
    * data has been stored.
    */
@@ -73,8 +73,8 @@ class Database {
     $fromTime = (new DateTimeImmutable())->setTime(0, 0);
     $toTime = $fromTime->add(new DateInterval('P1D'));
     $config = $this->getUserConfig($user);
-    $q = 'SET @prev_ts := 0;' // TODO: Share this query better?
-            . ' SELECT SEC_TO_TIME(SUM(s)) '
+    $q = 'SET @prev_ts := 0;' 
+            . ' SELECT SUM(s) '
             . ' FROM ('
             . '   SELECT'
             . '     if (@prev_ts = 0, 0, ts - @prev_ts) as s,'
@@ -90,7 +90,7 @@ class Database {
     $this->mysqli->next_result();
     $result = $this->mysqli->use_result();
     if ($row = $result->fetch_row()) {
-      return $row[0];
+      return $row[0] / 60.0;
     }
     return 0;
   }

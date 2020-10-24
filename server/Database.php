@@ -72,14 +72,25 @@ class Database {
   public function getMinutesSpentToday($user) {
     $fromTime = (new DateTimeImmutable())->setTime(0, 0);
     $toTime = $fromTime->add(new DateInterval('P1D'));
-    $result = $this->query('SELECT COUNT(*) FROM activity'
-            . ' WHERE user = "' . $this->esc($user) . '"'
-            . ' AND ts >= ' . $fromTime->getTimestamp()
-            . ' AND ts < ' . $toTime->getTimestamp());
+    $config = $this->getUserConfig($user);
+    $q = 'SET @prev_ts := 0;' // TODO: Share this query better?
+            . ' SELECT SEC_TO_TIME(SUM(s)) '
+            . ' FROM ('
+            . '   SELECT'
+            . '     if (@prev_ts = 0, 0, ts - @prev_ts) as s,'
+            . '     @prev_ts := ts'
+            . '   FROM activity'
+            . '   WHERE'
+            . '     user = "' . $this->esc($user) . '"'
+            . '     AND ts >= ' . $fromTime->getTimestamp()
+            . '     AND ts < ' . $toTime->getTimestamp()
+            . ' ) t1'
+            . ' WHERE s <= ' . ($config['sample_interval_seconds'] + 10); // TODO 10 magic
+    $this->multiQuery($q);
+    $this->mysqli->next_result();
+    $result = $this->mysqli->use_result();
     if ($row = $result->fetch_row()) {
-      $interval = intval($this->getConfig()['sample_interval_seconds']);
-      $seconds = $interval * $row[0];
-      return $seconds / 60;
+      return $row[0];
     }
     return 0;
   }

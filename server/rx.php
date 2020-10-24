@@ -7,11 +7,13 @@ error_reporting(0);
 function handleRequest() {
   $logger = Logger::Instance();
   $content = file_get_contents('php://input');
+  
+  // ------------- TODO: What if $content is false? Does this sometimes fail?
+  
   $data = json_decode($content, true);
-  // TODO: limit size of $content before output
   if (!$data) {
     $logger->critical('json decoding failed: "'.$content.'"');
-    return array('status' => 'invalid json: '.$content);
+    return 'invalid json';
   }
   $logger->debug('Received data with keys: '.implode(array_keys($data), ', '));
 
@@ -20,13 +22,13 @@ function handleRequest() {
     $db->insertWindowTitle($data['user'], urldecode($data['title']));
   } // TODO: else: Do something. We now assume the fields are set anyway.
   $minutesSpentToday = $db->getMinutesSpentToday($data['user']);
-  $config = $db->getConfig();
+  $config = $db->getUserConfig($data['user']);
   // TODO: Override default by weekday and then by date.
-  $minutesLeftToday = intval($config['daily_time_default_minutes']) - $minutesSpentToday;
+  $minutesLeftToday = $config['daily_time_default_minutes'] - $minutesSpentToday;
   // TODO: Make trigger time configurable.
   $response = "";
   if ($minutesLeftToday <= 0) {
-    $response .= "time is over, please quit now\n";
+    $response .= "logout\n";
   } elseif ($minutesLeftToday <= 5) {
     // TODO: The client shouldn't pop up a message repeatedly. Maybe just once again?
     $response .= $minutesLeftToday." minutes left today\n";

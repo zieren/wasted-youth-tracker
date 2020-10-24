@@ -16,26 +16,22 @@ function enableDestructiveButtons(toggleCheckbox) {
 require_once 'common.php';
 
 $db = new Database(true /* create missing tables */);
-// TODO: Get rid of "initialized" now that we have other keys.
-if (!array_key_exists('initialized', $db->getConfig())) {  // first run
-  echo '<h2>Initializing...</h2><p><i>This seems to be the first run. Setting default config...';
-  $db->populateConfig();
-  echo ' done.</i></p>';
-}
 
-if (isset($_POST['clearAll'])) {
-  $db->dropTablesExceptConfig();
-  $db->createMissingTables();
-} else if (isset($_POST['configDefaults'])) {
-  $db->populateConfig();
-} else if (isset($_POST['setConfig']) || isset($_POST['clearConfig'])) {
-  // TODO: This should sanitize the user input.
+// TODO: This should sanitize the user input.
+if (isset($_POST['setUserConfig'])) {
+  $user = trim($_POST['configUser']);
   $key = trim($_POST['configKey']);
-  if (isset($_POST['setConfig'])) {
-    $db->setConfig($key, $_POST['configValue']);
-  } else {
-    $db->clearConfig($key);
-  }
+  $db->setUserConfig($user, $key, $_POST['configValue']);
+} else if (isset($_POST['clearUserConfig'])) {
+  $user = trim($_POST['configUser']);
+  $key = trim($_POST['configKey']);
+  $db->clearUserConfig($user, $key);
+} else if (isset($_POST['setGlobalConfig'])) {
+  $key = trim($_POST['configKey']);
+  $db->setGlobalConfig($key, $_POST['configValue']);
+} else if (isset($_POST['clearGlobalConfig'])) {
+  $key = trim($_POST['configKey']);
+  $db->clearGlobalConfig($key);
 }
 
 echo '
@@ -45,21 +41,28 @@ Components:
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license.
 </p>
 
-<h2>Configuration</h2>';
-$db->echoConfig();
+<h2>Configuration</h2>
+
+<p>Users: ';
+echo implode(",", $db->getUsers()).'</p>';
+
+$db->echoUserConfig();
+$db->echoGlobalConfig();
 
 echo 
 '<form method="post" enctype="multipart/form-data">
+  <input type="text" name="configUser" value="" placeholder="user">
   <input type="text" name="configKey" value="" placeholder="key">
   <input type="text" name="configValue" value="" placeholder="value">
-  <input type="submit" name="setConfig" value="Set">
-  <input type="submit" name="clearConfig" value="Clear">
-  <p><input type="submit" name="configDefaults" value="set defaults for missing keys" /></p>
+  <input type="submit" name="setUserConfig" value="Set User Config">
+  <input type="submit" name="clearConfig" value="Clear User Config">
+  <input type="submit" name="setGlobalConfig" value="Set Global Config">
+  <input type="submit" name="clearGlobalConfig" value="Clear Global Config">
   </form>';
 
 echo
 '<hr />
-<h2>Manage Database/Logs</h2>
+<h2>Manage Database/Logs (TO BE IMPLEMENTED)</h2>
 <form action="prune.php" method="get">
   <p>
     PRUNE data and logs older than <input type="text" name="days" value=""> days.

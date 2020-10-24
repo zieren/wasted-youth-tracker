@@ -17,6 +17,7 @@ UrlEncode(s) {
 }
 
 ShowMessage(msg) {
+  Gui, Destroy
   Gui, +AlwaysOnTop
   Gui, Add, Text,, %msg%
   Gui, Add, Button, default w80, OK

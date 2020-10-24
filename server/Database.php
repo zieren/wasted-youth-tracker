@@ -16,42 +16,48 @@ class Database {
       $this->createMissingTables();
     }
     // Configure global logger.
-    $config = $this->getConfig();
+    $config = $this->getGlobalConfig();
     if (array_key_exists('log_level', $config)) {
       $this->log->setLogLevelThreshold(strtolower($config['log_level']));
     }  // else: defaults to debug
   }
 
   public function createMissingTables() {
-    // TODO: Tables should have user name.
     $this->query('SET default_storage_engine=INNODB');
-    $this->query(// TODO: 256?
-            'CREATE TABLE IF NOT EXISTS window_titles ('
+    $this->query(
+            'CREATE TABLE IF NOT EXISTS activity ('
             . 'user VARCHAR(32), '
             . 'ts BIGINT, '
             . 'title VARCHAR(256), '
-            . 'PRIMARY KEY (user, ts)'
-            . ')');
+            . 'PRIMARY KEY (user, ts))');
     $this->query(
-            'CREATE TABLE IF NOT EXISTS config (k VARCHAR(200) PRIMARY KEY, v TEXT NOT NULL)');
+            'CREATE TABLE IF NOT EXISTS user_config ('
+            . 'user VARCHAR(32), '
+            . 'k VARCHAR(200), '
+            . 'v TEXT NOT NULL, '
+            . 'PRIMARY KEY (user, k))');
+    $this->query(
+            'CREATE TABLE IF NOT EXISTS global_config ('
+            . 'k VARCHAR(200), '
+            . 'v TEXT NOT NULL, '
+            . 'PRIMARY KEY (k))');
   }
 
   public function dropTablesExceptConfig() {
-    $this->query('DROP TABLE IF EXISTS window_titles');
+    $this->query('DROP TABLE IF EXISTS activity');
     $this->log->notice('tables dropped');
-    unset($this->config);
   }
 
   /** Delete all records prior to $timestamp. */
   public function pruneTables($timestamp) {
-    $this->query('DELETE FROM window_titles WHERE start_ts < ' . $timestamp);
+    $this->query('DELETE FROM activity WHERE start_ts < ' . $timestamp);
   }
 
   /** Stores the specified window title. */
   public function insertWindowTitle($user, $windowTitle) {
-    $q = 'REPLACE INTO window_titles (ts, user, title) VALUES ('
+    $q = 'REPLACE INTO activity (ts, user, title) VALUES ('
             . time()
-            . ',"' . $this->esc($user) . '"'  
+            . ',"' . $this->esc($user) . '"'
             . ',"' . $this->esc($windowTitle) . '"'
             . ')';
     $this->query($q);
@@ -66,7 +72,7 @@ class Database {
   public function getMinutesSpentToday($user) {
     $fromTime = (new DateTimeImmutable())->setTime(0, 0);
     $toTime = $fromTime->add(new DateInterval('P1D'));
-    $result = $this->query('SELECT COUNT(*) FROM window_titles'
+    $result = $this->query('SELECT COUNT(*) FROM activity'
             . ' WHERE user = "' . $this->esc($user) . '"'
             . ' AND ts >= ' . $fromTime->getTimestamp()
             . ' AND ts < ' . $toTime->getTimestamp());
@@ -78,14 +84,52 @@ class Database {
     return 0;
   }
 
+  public function echoTimeSpentByTitleToday($user) {
+    $fromTime = (new DateTimeImmutable())->setTime(0, 0);
+    $toTime = $fromTime->add(new DateInterval('P1D'));
+    $config = $this->getUserConfig($user);
+    $q = 'SET @prev_ts := 0, @prev_title := "<init>";'
+            . ' SELECT ts, SEC_TO_TIME(SUM(s)), t '
+            . ' FROM ('
+            . '   SELECT'
+            . '     ts,'
+            . '     if (@prev_ts = 0, 0, ts - @prev_ts) as s,'
+            . '     @prev_title as t,'
+            . '     @prev_ts := ts,'
+            . '     @prev_title := title'
+            . '   FROM activity'
+            . '   WHERE'
+            . '     user = "' . $this->esc($user) . '"'
+            . '     AND ts >= ' . $fromTime->getTimestamp()
+            . '     AND ts < ' . $toTime->getTimestamp()
+            . '   ORDER BY ts ASC'
+            . ' ) t1'
+            . ' WHERE s <= ' . ($config['sample_interval_seconds'] + 10) // TODO 10 magic
+            . ' GROUP BY t'
+            . ' ORDER BY ts DESC';
+    $this->multiQuery($q);
+    $this->mysqli->next_result();
+    $result = $this->mysqli->use_result();
+    echo '<table>';
+    while ($row = $result->fetch_row()) {
+      echo '<tr><td>'
+      . date("Y-m-d H:i:s", $row[0])
+      . '</td><td>' . $row[1]
+      . '</td><td>' . htmlentities($row[2], ENT_COMPAT | ENT_HTML401, "Windows-1252")
+      . '</td></tr>' . "\n";
+    }
+    echo '</table>';
+    $result->close();
+  }
+
   // TODO: For testing...
   public function echoWindowTitles($user) {
-    echo '<p><table border="1">';
-    $q = 'SELECT ts, title FROM window_titles'
-            . ' WHERE user = "' . $this->esc($user) . '" ORDER BY ts DESC';
+    $q = 'SELECT ts, title FROM activity'
+            . ' WHERE user = "' . $this->esc($user)
+            . '" ORDER BY ts DESC LIMIT 100';
     $result = $this->query($q);
+    echo '<p><table border="1">';
     while ($row = $result->fetch_row()) {
-      // TODO: Format time.
       echo
       '</td><td>' . date("Y-m-d H:i:s", $row[0])
       . '</td><td>' . $row[1] . '</td></tr>';
@@ -93,52 +137,100 @@ class Database {
     echo '</table></p>';
   }
 
-  /** Updates the specified config value. */
-  public function setConfig($key, $value) {
-    $q = 'REPLACE INTO config (k, v) VALUES ("' . $key . '", "' . $value . '")';
+  /** Updates the specified user config value. */
+  public function setUserConfig($user, $key, $value) {
+    $q = 'REPLACE INTO user_config (user, k, v) VALUES ("'
+            . $user . '", "'
+            . $key . '", "'
+            . $value . '")';
     $this->query($q);
-    unset($this->config);
   }
 
-  /** Deletes the specified config value. */
-  public function clearConfig($key) {
-    $q = 'DELETE FROM config WHERE k="' . $key . '"';
+  /** Updates the specified globalconfig value. */
+  public function setGlobalConfig($key, $value) {
+    $q = 'REPLACE INTO global_config (k, v) VALUES ("'
+            . $key . '", "'
+            . $value . '")';
     $this->query($q);
-    unset($this->config);
   }
 
-  /** Returns application config. Lazily initialized. */
-  public function getConfig() {
-    if (!isset($this->config)) {
-      $this->config = array();
-      $result = $this->query('SELECT k, v FROM config ORDER BY k ASC');
-      while ($row = $result->fetch_assoc()) {
-        $this->config[$row['k']] = $row['v'];
-      }
+  /** Deletes the specified user config value. */
+  public function clearUserConfig($user, $key) {
+    $q = 'DELETE FROM user_config WHERE user="' . $user . '" AND k="' . $key . '"';
+    $this->query($q);
+  }
+
+  /** Deletes the specified global config value. */
+  public function clearGlobalConfig($key) {
+    $q = 'DELETE FROM global_config WHERE k="' . $key . '"';
+    $this->query($q);
+  }
+
+  /** Returns user config. */
+  public function getUserConfig($user) {
+    $result = $this->query('SELECT k, v FROM user_config WHERE user="'
+            . $user . '" ORDER BY k ASC');
+    $config = array();
+    while ($row = $result->fetch_assoc()) {
+      $config[$row['k']] = $row['v'];
     }
-    return $this->config;
+    return $config;
+  }
+
+  /** Returns global config. */
+  public function getGlobalConfig() {
+    $result = $this->query('SELECT k, v FROM global_config ORDER BY k ASC');
+    $config = array();
+    while ($row = $result->fetch_assoc()) {
+      $config[$row['k']] = $row['v'];
+    }
+    return $config;
   }
 
   /** Populate config table from defaults in file, keeping existing values. */
-  public function populateConfig() {
+  /*
+    public function populateUserConfig($user) {
     $cfg = file(CONFIG_DEFAULT_FILENAME, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     $q = '';
     foreach ($cfg as $line) {
-      list($key, $value) = explode('=', $line);
-      if ($q) {
-        $q .= ',';
-      }
-      $q .= '("' . $key . '","' . $value . '")';
+    list($key, $value) = explode('=', $line);
+    if ($q) {
+    $q .= ',';
     }
-    $q = 'INSERT IGNORE INTO config (k, v) VALUES ' . $q;
+    $q .= '("' . $user . '","' . $key . '","' . $value . '")';
+    }
+    $q = 'INSERT IGNORE INTO config (user, k, v) VALUES ' . $q;
     $this->query($q, 'notice');
-    unset($this->config);
+    }
+   */
+
+  public function getUsers() {
+    $users = array();
+    $result = $this->query('SELECT DISTINCT user FROM user_config');
+    while ($row = $result->fetch_row()) {
+      $users[] = $row[0];
+    }
+    return $users;
   }
 
-  public function echoConfig() {
+  public function echoUserConfig() {
+    $result = $this->query('SELECT user, k, v FROM user_config ORDER BY user, k');
     echo '<p><table border="1">';
-    foreach ($this->getConfig() as $k => $v) {
-      echo '<tr><td>' . $k . '</td><td>' . $v . '</td></tr>';
+    while ($row = $result->fetch_assoc()) {
+      echo '<tr><td>' . $row['user'] . '</td><td>'
+      . $row['k'] . '</td><td>'
+      . $row['v'] . '</td></tr>';
+    }
+    echo '</table></p>';
+  }
+
+  public function echoGlobalConfig() {
+    $result = $this->query('SELECT k, v FROM global_config ORDER BY k');
+    echo '<p><table border="1">';
+    while ($row = $result->fetch_assoc()) {
+      echo '<tr><td>'
+      . $row['k'] . '</td><td>'
+      . $row['v'] . '</td></tr>';
     }
     echo '</table></p>';
   }
@@ -149,10 +241,20 @@ class Database {
    */
   private function query($query, $logLevel = 'debug') {
     $this->log->log($logLevel, 'Query: ' . $query);
-    if (($result = $this->mysqli->query($query))) {
+    if ($result = $this->mysqli->query($query)) {
       return $result;
     }
     $this->throwMySqlErrorException($query);
+  }
+
+  /**
+   * TODO
+   */
+  private function multiQuery($multiQuery, $logLevel = 'debug') {
+    $this->log->log($logLevel, 'Multi query: ' . $multiQuery);
+    if (!$this->mysqli->multi_query($multiQuery)) {
+      $this->throwMySqlErrorException($multiQuery);
+    }
   }
 
   private function throwMySqlErrorException($query) {
@@ -164,7 +266,7 @@ class Database {
     $this->log->critical($message);
     throw new Exception($message);
   }
-  
+
   private function esc($s) {
     return $this->mysqli->real_escape_string($s);
   }

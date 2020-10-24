@@ -23,6 +23,12 @@ ShowMessage(msg) {
   Gui, Show, NoActivate, KFC
 }
 
+Beep(t) {
+  Loop, %t% {
+    SoundBeep
+  }
+}
+
 Loop {
   WinGetTitle, title, A
   title := UrlEncode(title)
@@ -39,8 +45,11 @@ Loop {
     ; do nothing
   } else if (status = "logout") {
     Shutdown, 0 ; 0 means logout
+  ; } else if (status = "hibernate") {
+    ; --------------- > Shutdown, 0 ; 0 means logout
   } else {
     ShowMessage(status)
+    Beep(5)
   }
   waitMillis := 1000 * waitSeconds
   Sleep, waitMillis

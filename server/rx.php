@@ -30,6 +30,7 @@ function handleRequest() {
   if ($minutesLeftToday <= 0) {
     $response .= "logout\n";
   } elseif ($minutesLeftToday <= 5) {
+    // TODO: magic 5 should be configurable
     // TODO: The client shouldn't pop up a message repeatedly. Maybe just once again?
     $response .= $minutesLeftToday." minutes left today\n";
   } else {

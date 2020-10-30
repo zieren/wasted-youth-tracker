@@ -21,7 +21,7 @@ function handleRequest() {
   if (isset($data['title']) and isset($data['user'])) {
     $db->insertWindowTitle($data['user'], urldecode($data['title']));
   } // TODO: else: Do something. We now assume the fields are set anyway.
-  $minutesSpentToday = $db->getMinutesSpentToday($data['user']);
+  $minutesSpentToday = $db->getMinutesSpent($data['user'], new DateTime());
   $config = $db->getUserConfig($data['user']);
   // TODO: Override default by weekday and then by date.
   $minutesLeftToday = $config['daily_time_default_minutes'] - $minutesSpentToday;

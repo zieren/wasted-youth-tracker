@@ -69,9 +69,9 @@ class Database {
    * Caveat: This will yield incorrect results when changing the sampling interval while or after
    * data has been stored.
    */
-  public function getMinutesSpentToday($user) {
-    $fromTime = (new DateTimeImmutable())->setTime(0, 0);
-    $toTime = $fromTime->add(new DateInterval('P1D'));
+  public function getMinutesSpent($user, $date) {
+    $fromTime = clone $date;
+    $toTime = (clone $date)->add(new DateInterval('P1D'));
     $config = $this->getUserConfig($user);
     $q = 'SET @prev_ts := 0;' 
             . ' SELECT SUM(s) '

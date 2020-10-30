@@ -32,10 +32,11 @@ var fp = flatpickr("#idDateSelector", {
 </script>';
 
 echo "<h2>Minutes today</h2>";
-echo $db->getMinutesSpent($user, new DateTime($year . "-" . $month . "-" . $day));
+$dateTime = new DateTime($year . "-" . $month . "-" . $day);
+echo $db->getMinutesSpent($user, $dateTime);
 echo "<h2>Window titles</h2>";
-$db->echoTimeSpentByTitleToday($user);
-$db->echoWindowTitles($user);
+$db->echoTimeSpentByTitle($user, $dateTime);
+$db->echoWindowTitles($user, $dateTime);
 ?>
 </body>
 </html>

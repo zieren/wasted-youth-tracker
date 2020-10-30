@@ -95,9 +95,9 @@ class Database {
     return 0;
   }
 
-  public function echoTimeSpentByTitleToday($user) {
-    $fromTime = (new DateTimeImmutable())->setTime(0, 0);
-    $toTime = $fromTime->add(new DateInterval('P1D'));
+  public function echoTimeSpentByTitle($user, $date) {
+    $fromTime = clone $date;
+    $toTime = (clone $date)->add(new DateInterval('P1D'));
     $config = $this->getUserConfig($user);
     $q = 'SET @prev_ts := 0, @prev_title := "<init>";'
             . ' SELECT ts, SEC_TO_TIME(SUM(s)), t '
@@ -134,10 +134,14 @@ class Database {
   }
 
   // TODO: For testing...
-  public function echoWindowTitles($user) {
+  public function echoWindowTitles($user, $date) {
+    $fromTime = clone $date;
+    $toTime = (clone $date)->add(new DateInterval('P1D'));
     $q = 'SELECT ts, title FROM activity'
-            . ' WHERE user = "' . $this->esc($user)
-            . '" ORDER BY ts DESC LIMIT 100';
+            . ' WHERE user = "' . $this->esc($user) . '"'
+            . ' AND ts >= ' . $fromTime->getTimestamp()
+            . ' AND ts < ' . $toTime->getTimestamp()
+            . ' ORDER BY ts DESC';
     $result = $this->query($q);
     echo '<p><table border="1">';
     while ($row = $result->fetch_row()) {

@@ -21,7 +21,7 @@ $users = $db->getUsers();
 $user = get($_GET['user'], get($users[0], ''));
 
 echo '<form action="view.php" method="get">'
-    . '<label for="users">User:</label>'
+    . '<label for="users">User:</label> '
     . '<select name="user" onchange="if (this.value != 0) { this.form.submit(); }">';
 foreach ($users as $u) {
   $selected = $user == $u ? 'selected="selected"' : '';
@@ -31,7 +31,7 @@ echo '</select>'
     . '<input name="date" type="hidden" value="' . $date . '">'
     . '</form>';
 
-echo '<p>Date: <input id="idDateSelector" size="16" placeholder="date" /></p>
+echo '<p>Date: <input id="idDateSelector" placeholder="date" /></p>
 <script type="text/javascript">
 var fp = flatpickr("#idDateSelector", {
   defaultDate: new Date(' . $year. ',' . ($month - 1) . ',' . $day . '),

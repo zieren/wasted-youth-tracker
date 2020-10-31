@@ -34,9 +34,12 @@ var fp = flatpickr("#idDateSelector", {
 });
 </script>';
 
-echo "<h2>Minutes today</h2>";
+echo "<h2>Minutes spent</h2>";
 $dateTime = new DateTime($year . "-" . $month . "-" . $day);
 echo $db->getMinutesSpent($user, $dateTime);
+
+echo "<h3>Minutes left today</h3>";
+echo $db->getMinutesLeft($user);
 
 echo "<h2>Minutes per window title</h2>";
 echoTable($db->queryTimeSpentByTitle($user, $dateTime));

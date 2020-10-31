@@ -1,5 +1,7 @@
 <?php
 
+define('DAILY_LIMIT_MINUTES_PREFIX', 'daily_limit_minutes_');
+
 class Database {
 
   /** Connects to the database, or exits on error. */
@@ -26,21 +28,27 @@ class Database {
     $this->query('SET default_storage_engine=INNODB');
     $this->query(
             'CREATE TABLE IF NOT EXISTS activity ('
-            . 'user VARCHAR(32), '
-            . 'ts BIGINT, '
-            . 'title VARCHAR(256), '
+            . 'user VARCHAR(32) NOT NULL, '
+            . 'ts BIGINT NOT NULL, '
+            . 'title VARCHAR(256) NOT NULL, '
             . 'PRIMARY KEY (user, ts))');
     $this->query(
             'CREATE TABLE IF NOT EXISTS user_config ('
-            . 'user VARCHAR(32), '
-            . 'k VARCHAR(200), '
+            . 'user VARCHAR(32) NOT NULL, '
+            . 'k VARCHAR(200) NOT NULL, '
             . 'v TEXT NOT NULL, '
             . 'PRIMARY KEY (user, k))');
     $this->query(
             'CREATE TABLE IF NOT EXISTS global_config ('
-            . 'k VARCHAR(200), '
+            . 'k VARCHAR(200) NOT NULL, '
             . 'v TEXT NOT NULL, '
             . 'PRIMARY KEY (k))');
+    $this->query(
+            'CREATE TABLE IF NOT EXISTS overrides ('
+            . 'user VARCHAR(32) NOT NULL, '
+            . 'date DATE NOT NULL, '
+            . 'minutes INT NOT NULL, '
+            . 'PRIMARY KEY (user, date))');
   }
 
   public function dropTablesExceptConfig() {
@@ -127,14 +135,14 @@ class Database {
     $timeByTitle = array();
     while ($row = $result->fetch_row()) {
       // TODO: This should use the client's local time format.
-      $timeByTitle[] = array(date("Y-m-d H:i:s", $row[0]), $row[1], 
+      $timeByTitle[] = array(date("Y-m-d H:i:s", $row[0]), $row[1],
           htmlentities($row[2], ENT_COMPAT | ENT_HTML401, "Windows-1252"));
     }
     $result->close();
     return $timeByTitle;
   }
 
-  /** 
+  /**
    * Returns the sequence of window titles for the specified user and date. This will typically be
    * a long array and is intended for debugging.
    */
@@ -154,7 +162,7 @@ class Database {
     }
     return $windowTitles;
   }
-  
+
   // TODO: Reject invalid values like '"'.
 
   /** Updates the specified user config value. */
@@ -185,6 +193,8 @@ class Database {
     $q = 'DELETE FROM global_config WHERE k="' . $key . '"';
     $this->query($q);
   }
+  
+  // TODO: Consider caching frequently used configs.
 
   /** Returns user config. */
   public function getUserConfig($user) {
@@ -207,6 +217,26 @@ class Database {
     return $config;
   }
 
+  // TODO: Add weekly limit (and option whether that includes overrides).
+  public function getMinutesLeft($user) {
+    // Explicit overrides have highest priority.
+    $now = new DateTime();
+    $result = $this->query('SELECT minutes FROM overrides'
+            . ' WHERE user="' . $user . '"'
+            . ' AND date="' . $now->format('Y-m-d') . '"');
+    if ($row = $result->fetch_row()) {
+      return $row[0];
+    }
+    // Next: Weekday specific default.
+    $config = $this->getUserConfig($user);
+    $key = DAILY_LIMIT_MINUTES_PREFIX . strtolower($now->format('D'));
+    if (isset($config[$key])) {
+      return $config[$key];
+    }
+    // Next: Global default.
+    return get($config[DAILY_LIMIT_MINUTES_PREFIX . 'default'], 0);
+  }
+
   /** Populate config table from defaults in file, keeping existing values. */
   /*
     public function populateUserConfig($user) {
@@ -225,8 +255,8 @@ class Database {
    */
 
   public function getUsers() {
-    $users = array();
     $result = $this->query('SELECT DISTINCT user FROM user_config ORDER BY user ASC');
+    $users = array();
     while ($row = $result->fetch_row()) {
       $users[] = $row[0];
     }

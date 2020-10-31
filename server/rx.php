@@ -12,19 +12,26 @@ function handleRequest() {
   
   $data = json_decode($content, true);
   if (!$data) {
-    $logger->critical('json decoding failed: "'.$content.'"');
-    return 'invalid json';
+    $logger->critical('JSON decoding failed: "'.$content.'"');
+    return 'invalid JSON';
   }
   $logger->debug('Received data with keys: '.implode(array_keys($data), ', '));
 
+  $user = get($data['user']);
+  $title = get($data['title']);
+  if ($user == null || $title == null) {
+    $logger->critical('Missing user and/or title in JSON');
+    return 'missing user and/or title in JSON';
+  }
+  // TODO: Make sure the above errors are shown properly on the client.
+
   $db = new Database();  // TODO: Handle failure.
-  if (isset($data['title']) and isset($data['user'])) {
-    $db->insertWindowTitle($data['user'], urldecode($data['title']));
-  } // TODO: else: Do something. We now assume the fields are set anyway.
-  $minutesSpentToday = $db->getMinutesSpent($data['user'], new DateTime());
-  $config = $db->getUserConfig($data['user']);
-  // TODO: Override default by weekday and then by date.
-  $minutesLeftToday = $config['daily_time_default_minutes'] - $minutesSpentToday;
+  
+  $db->insertWindowTitle($user, urldecode($title));
+  
+  $minutesSpentToday = $db->getMinutesSpent($user, new DateTime());
+  $minutesLeftToday = $db->getMinutesLeft($user) - $minutesSpentToday;
+  
   // TODO: Make trigger time configurable.
   $response = "";
   if ($minutesLeftToday <= 0) {
@@ -36,6 +43,7 @@ function handleRequest() {
   } else {
     $response = "ok\n";
   }
+  $config = $db->getUserConfig($user);
   $response .= $config['sample_interval_seconds']."\n";
   return $response;
 }

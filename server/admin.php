@@ -90,7 +90,7 @@ echo
   <input type="text" name="configKey" value="" placeholder="key">
   <input type="text" name="configValue" value="" placeholder="value">
   <input type="submit" name="setUserConfig" value="Set User Config">
-  <input type="submit" name="clearConfig" value="Clear User Config">
+  <input type="submit" name="clearUserConfig" value="Clear User Config">
   <input type="submit" name="setGlobalConfig" value="Set Global Config">
   <input type="submit" name="clearGlobalConfig" value="Clear Global Config">
   </form>';

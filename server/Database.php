@@ -310,8 +310,6 @@ class Database {
     // TODO: This assumes the week starts on Monday.
     $dayOfWeek = ($fromDate->format('w') + 6) % 7;
     $fromDate->sub(new DateInterval('P' . ($dayOfWeek + 7) . 'D'));
-    $toDate = clone $fromDate;
-    $toDate->add(new DateInterval('P4W'));
     $result = $this->query('SELECT user, date,'
             . ' CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,'
             . ' CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END'

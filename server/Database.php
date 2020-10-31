@@ -48,7 +48,7 @@ class Database {
             . 'user VARCHAR(32) NOT NULL, '
             . 'date DATE NOT NULL, '
             . 'minutes INT, '
-            . 'enabled BOOL, '
+            . 'unlocked BOOL, '
             . 'PRIMARY KEY (user, date))');
   }
 
@@ -220,16 +220,25 @@ class Database {
 
   // TODO: Add weekly limit (and option whether that includes overrides).
   public function queryMinutesLeft($user) {
+    $config = $this->getUserConfig($user);
+    $requireUnlock = get($config['require_unlock'], false);
     // Explicit overrides have highest priority.
     $now = new DateTime();
-    $result = $this->query('SELECT minutes FROM overrides'
+    $result = $this->query('SELECT minutes, unlocked FROM overrides'
             . ' WHERE user="' . $user . '"'
             . ' AND date="' . $now->format('Y-m-d') . '"');
-    if ($row = $result->fetch_row()) {
-      return $row[0];
+    // We may have "minutes" and/or "unlocked", so check both.
+    if ($row = $result->fetch_assoc()) {
+      if ($requireUnlock && $row['unlocked'] != 1) {
+        return 0;
+      }
+      if ($row['minutes'] != null) {
+        return $row['minutes'];
+      }
+    } else if ($requireUnlock) {
+      return 0;
     }
     // Next: Weekday specific default.
-    $config = $this->getUserConfig($user);
     $key = DAILY_LIMIT_MINUTES_PREFIX . strtolower($now->format('D'));
     if (isset($config[$key])) {
       return $config[$key];
@@ -284,8 +293,8 @@ class Database {
   /** $date is a String in the format 'YYYY-MM-DD'. */
   public function setOverrideUnlock($user, $date) {
     $this->query('INSERT INTO overrides SET'
-            . ' user="'.$this->esc($user).'", date="'.$date.'", enabled=1'
-            . ' ON DUPLICATE KEY UPDATE enabled=1');
+            . ' user="'.$this->esc($user).'", date="'.$date.'", unlocked=1'
+            . ' ON DUPLICATE KEY UPDATE unlocked=1');
   }
 
   /** $date is a String in the format 'YYYY-MM-DD'. */
@@ -304,7 +313,7 @@ class Database {
     $toDate = clone $fromDate;
     $toDate->add(new DateInterval('P4W'));
     $result = $this->query('SELECT user, date, minutes,'
-            . ' CASE WHEN enabled = 1 THEN "unlocked" ELSE "default" END'
+            . ' CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END'
             . ' FROM overrides'
             . ' WHERE user="' . $user . '"'
             . ' AND date >= "' . $fromDate->format('Y-m-d') . '"'

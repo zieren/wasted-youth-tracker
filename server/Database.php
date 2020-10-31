@@ -73,7 +73,7 @@ class Database {
     $fromTime = clone $date;
     $toTime = (clone $date)->add(new DateInterval('P1D'));
     $config = $this->getUserConfig($user);
-    $q = 'SET @prev_ts := 0;' 
+    $q = 'SET @prev_ts := 0;'
             . ' SELECT SUM(s) '
             . ' FROM ('
             . '   SELECT'
@@ -95,17 +95,20 @@ class Database {
     return 0;
   }
 
-  public function echoTimeSpentByTitle($user, $date) {
+  /* Returns the time spent by window title, ordered by the amount of time. */
+  public function queryTimeSpentByTitle($user, $date) {
     $fromTime = clone $date;
     $toTime = (clone $date)->add(new DateInterval('P1D'));
     $config = $this->getUserConfig($user);
+    // TODO: Remove "<init>" placeholder.
     $q = 'SET @prev_ts := 0, @prev_title := "<init>";'
-            . ' SELECT ts, SEC_TO_TIME(SUM(s)), t '
+            // TODO: Should the client handle SEC_TO_TIME?
+            . ' SELECT ts, SEC_TO_TIME(SUM(s)) as total, title '
             . ' FROM ('
             . '   SELECT'
             . '     ts,'
             . '     if (@prev_ts = 0, 0, ts - @prev_ts) as s,'
-            . '     @prev_title as t,'
+            . '     @prev_title as title,'
             . '     @prev_ts := ts,'
             . '     @prev_title := title'
             . '   FROM activity'
@@ -116,25 +119,26 @@ class Database {
             . '   ORDER BY ts ASC'
             . ' ) t1'
             . ' WHERE s <= ' . ($config['sample_interval_seconds'] + 10) // TODO 10 magic
-            . ' GROUP BY t'
-            . ' ORDER BY ts DESC';
+            . ' GROUP BY title'
+            . ' ORDER BY total DESC';
     $this->multiQuery($q);
     $this->mysqli->next_result();
     $result = $this->mysqli->use_result();
-    echo '<table>';
+    $timeByTitle = array();
     while ($row = $result->fetch_row()) {
-      echo '<tr><td>'
-      . date("Y-m-d H:i:s", $row[0])
-      . '</td><td>' . $row[1]
-      . '</td><td>' . htmlentities($row[2], ENT_COMPAT | ENT_HTML401, "Windows-1252")
-      . '</td></tr>' . "\n";
+      // TODO: This should use the client's local time format.
+      $timeByTitle[] = array(date("Y-m-d H:i:s", $row[0]), $row[1], 
+          htmlentities($row[2], ENT_COMPAT | ENT_HTML401, "Windows-1252"));
     }
-    echo '</table>';
     $result->close();
+    return $timeByTitle;
   }
 
-  // TODO: For testing...
-  public function echoWindowTitles($user, $date) {
+  /** 
+   * Returns the sequence of window titles for the specified user and date. This will typically be
+   * a long array and is intended for debugging.
+   */
+  public function queryAllTitles($user, $date) {
     $fromTime = clone $date;
     $toTime = (clone $date)->add(new DateInterval('P1D'));
     $q = 'SELECT ts, title FROM activity'
@@ -143,13 +147,12 @@ class Database {
             . ' AND ts < ' . $toTime->getTimestamp()
             . ' ORDER BY ts DESC';
     $result = $this->query($q);
-    echo '<p><table border="1">';
+    $windowTitles = array();
     while ($row = $result->fetch_row()) {
-      echo
-      '</td><td>' . date("Y-m-d H:i:s", $row[0])
-      . '</td><td>' . $row[1] . '</td></tr>';
+      // TODO: This should use the client's local time format.
+      $windowTitles[] = array(date("Y-m-d H:i:s", $row[0]), $row[1]);
     }
-    echo '</table></p>';
+    return $windowTitles;
   }
 
   /** Updates the specified user config value. */

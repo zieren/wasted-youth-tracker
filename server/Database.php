@@ -303,7 +303,9 @@ class Database {
     $fromDate->sub(new DateInterval('P' . ($dayOfWeek + 7) . 'D'));
     $toDate = clone $fromDate;
     $toDate->add(new DateInterval('P4W'));
-    $result = $this->query('SELECT user, date, minutes, enabled FROM overrides'
+    $result = $this->query('SELECT user, date, minutes,'
+            . ' CASE WHEN enabled = 1 THEN "unlocked" ELSE "default" END'
+            . ' FROM overrides'
             . ' WHERE user="' . $user . '"'
             . ' AND date >= "' . $fromDate->format('Y-m-d') . '"'
             . ' ORDER BY date ASC');

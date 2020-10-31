@@ -7,9 +7,9 @@ error_reporting(0);
 function handleRequest() {
   $logger = Logger::Instance();
   $content = file_get_contents('php://input');
-  
+
   // ------------- TODO: What if $content is false? Does this sometimes fail?
-  
+
   $data = json_decode($content, true);
   if (!$data) {
     $logger->critical('JSON decoding failed: "'.$content.'"');
@@ -25,12 +25,12 @@ function handleRequest() {
   }
 
   $db = new Database();  // TODO: Handle failure.
-  
+
   $db->insertWindowTitle($user, urldecode($title));
-  
-  $minutesSpentToday = $db->getMinutesSpent($user, new DateTime());
-  $minutesLeftToday = $db->getMinutesLeft($user) - $minutesSpentToday;
-  
+
+  $minutesSpentToday = $db->queryMinutesSpent($user, new DateTime());
+  $minutesLeftToday = $db->queryMinutesLeft($user) - $minutesSpentToday;
+
   // TODO: Make trigger time configurable.
   $response = "";
   if ($minutesLeftToday <= 0) {

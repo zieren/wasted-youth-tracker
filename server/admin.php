@@ -61,6 +61,19 @@ if (isset($_POST['setUserConfig'])) {
 } else if (isset($_POST['clearGlobalConfig'])) {
   $key = trim($_POST['configKey']);
   $db->clearGlobalConfig($key);
+} else if (isset($_POST['setMinutes'])) {
+  $user = $_POST['user'];
+  $date = $_POST['date'];
+  $minutes = get($_POST['overrideMinutes'], 0);
+  $db->setOverrideMinutes($user, $date, $minutes);
+} else if (isset($_POST['unlock'])) {
+  $user = $_POST['user'];
+  $date = $_POST['date'];
+  $db->setOverrideUnlock($user, $date, 1);
+} else if (isset($_POST['clear'])) {
+  $user = $_POST['user'];
+  $date = $_POST['date'];
+  $db->clearOverride($user, $date);
 }
 
 echo '
@@ -68,13 +81,38 @@ echo '
 <p>(c) 2020 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
 Components:
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license.
-<a href="https://github.com/flatpickr/flatpickr">flatpickr</a>, MIT license. 
+<a href="https://github.com/flatpickr/flatpickr">flatpickr</a>, MIT license.
 </p>
 
 <h2>Configuration</h2>
 
 <h3>Users</h3>';
-echo implode(",", $db->getUsers());
+$users = $db->getUsers();
+echo implode(",", $users);
+
+$now = new DateTime();
+echo '
+<h3>Overrides</h3>
+  <form action="admin.php" method="post">
+    <label for="idUser">User:</label>
+    <select id="idUser" name="user">';
+foreach ($users as $u) {
+  echo '<option value="' . $u . '">' . $u . '</option>';
+}
+echo '
+    </select>
+  <input type="date" name="date" value="' . $now->format('Y-m-d') . '">
+  <label for="idOverrideMinutes">Minutes: </label>
+  <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
+  <input type="submit" value="Set Minutes" name="setMinutes">
+  <input type="submit" value="Unlock" name="unlock">
+  <input type="submit" value="Clear" name="clear">
+</form>';
+
+foreach ($users as $u) {
+  echo '<h3>' . $u . '</h3>';
+  echoTable($db->queryOverrides($u));
+}
 
 echo '<h3>User config</h3>';
 echoTable($db->queryConfigAllUsers());
@@ -84,7 +122,7 @@ echoTable($db->queryConfigGlobal());
 
 echo '<h3>Update</h3>';
 
-echo 
+echo
 '<form method="post" enctype="multipart/form-data">
   <input type="text" name="configUser" value="" placeholder="user">
   <input type="text" name="configKey" value="" placeholder="key">

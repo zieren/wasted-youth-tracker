@@ -47,7 +47,8 @@ class Database {
             'CREATE TABLE IF NOT EXISTS overrides ('
             . 'user VARCHAR(32) NOT NULL, '
             . 'date DATE NOT NULL, '
-            . 'minutes INT NOT NULL, '
+            . 'minutes INT, '
+            . 'enabled BOOL, '
             . 'PRIMARY KEY (user, date))');
   }
 
@@ -77,7 +78,7 @@ class Database {
    * Caveat: This will yield incorrect results when changing the sampling interval while or after
    * data has been stored.
    */
-  public function getMinutesSpent($user, $date) {
+  public function queryMinutesSpent($user, $date) {
     $fromTime = clone $date;
     $toTime = (clone $date)->add(new DateInterval('P1D'));
     $config = $this->getUserConfig($user);
@@ -193,7 +194,7 @@ class Database {
     $q = 'DELETE FROM global_config WHERE k="' . $key . '"';
     $this->query($q);
   }
-  
+
   // TODO: Consider caching frequently used configs.
 
   /** Returns user config. */
@@ -218,7 +219,7 @@ class Database {
   }
 
   // TODO: Add weekly limit (and option whether that includes overrides).
-  public function getMinutesLeft($user) {
+  public function queryMinutesLeft($user) {
     // Explicit overrides have highest priority.
     $now = new DateTime();
     $result = $this->query('SELECT minutes FROM overrides'
@@ -270,6 +271,42 @@ class Database {
 
   public function queryConfigGlobal() {
     $result = $this->query('SELECT k, v FROM global_config ORDER BY k');
+    return $result->fetch_all();
+  }
+
+  /** $date is a String in the format 'YYYY-MM-DD'. */
+  public function setOverrideMinutes($user, $date, $minutes) {
+    $this->query('INSERT INTO overrides SET'
+            .' user="'.$this->esc($user).'", date="'.$date.'", minutes='.$minutes
+            .' ON DUPLICATE KEY UPDATE minutes='.$minutes);
+  }
+
+  /** $date is a String in the format 'YYYY-MM-DD'. */
+  public function setOverrideUnlock($user, $date) {
+    $this->query('INSERT INTO overrides SET'
+            . ' user="'.$this->esc($user).'", date="'.$date.'", enabled=1'
+            . ' ON DUPLICATE KEY UPDATE enabled=1');
+  }
+
+  /** $date is a String in the format 'YYYY-MM-DD'. */
+  public function clearOverride($user, $date) {
+    $this->query('DELETE FROM overrides '
+            . ' WHERE user="'.$this->esc($user).'" AND date="'.$date.'"');
+  }
+
+  // TODO: Allow setting the date range. For now this covers last week until 20 entries in the
+  // future.
+  public function queryOverrides($user) {
+    $fromDate = new DateTime();
+    // TODO: This assumes the week starts on Monday.
+    $dayOfWeek = ($fromDate->format('w') + 6) % 7;
+    $fromDate->sub(new DateInterval('P' . ($dayOfWeek + 7) . 'D'));
+    $toDate = clone $fromDate;
+    $toDate->add(new DateInterval('P4W'));
+    $result = $this->query('SELECT user, date, minutes, enabled FROM overrides'
+            . ' WHERE user="' . $user . '"'
+            . ' AND date >= "' . $fromDate->format('Y-m-d') . '"'
+            . ' ORDER BY date ASC');
     return $result->fetch_all();
   }
 

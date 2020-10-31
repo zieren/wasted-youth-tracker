@@ -21,8 +21,8 @@ $users = $db->getUsers();
 $user = get($_GET['user'], get($users[0], ''));
 
 echo '<form action="view.php" method="get">'
-    . '<label for="users">User:</label> '
-    . '<select name="user" onchange="if (this.value != 0) { this.form.submit(); }">';
+    . '<label for="idUsers">User:</label> '
+    . '<select id="idUsers" name="user" onchange="if (this.value != 0) { this.form.submit(); }">';
 foreach ($users as $u) {
   $selected = $user == $u ? 'selected="selected"' : '';
   echo '<option value="' . $u . '" ' . $selected . '>' . $u . '</option>';
@@ -48,10 +48,10 @@ var fp = flatpickr("#idDateSelector", {
 
 echo "<h2>Minutes spent</h2>";
 $dateTime = new DateTime($year . "-" . $month . "-" . $day);
-echo $db->getMinutesSpent($user, $dateTime);
+echo $db->queryMinutesSpent($user, $dateTime);
 
 echo "<h3>Minutes left today</h3>";
-echo $db->getMinutesLeft($user);
+echo $db->queryMinutesLeft($user);
 
 echo "<h2>Minutes per window title</h2>";
 echoTable($db->queryTimeSpentByTitle($user, $dateTime));

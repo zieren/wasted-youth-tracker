@@ -13,7 +13,7 @@ function handleRequest() {
   $data = json_decode($content, true);
   if (!$data) {
     $logger->critical('JSON decoding failed: "'.$content.'"');
-    return 'invalid JSON';
+    return 'Invalid JSON';
   }
   $logger->debug('Received data with keys: '.implode(array_keys($data), ', '));
 
@@ -21,9 +21,8 @@ function handleRequest() {
   $title = get($data['title']);
   if ($user == null || $title == null) {
     $logger->critical('Missing user and/or title in JSON');
-    return 'missing user and/or title in JSON';
+    return 'Missing user and/or title in JSON';
   }
-  // TODO: Make sure the above errors are shown properly on the client.
 
   $db = new Database();  // TODO: Handle failure.
   

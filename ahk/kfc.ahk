@@ -48,7 +48,7 @@ Loop {
     Shutdown, 0 ; 0 means logout
   ; } else if (status = "hibernate") {
     ; --------------- > Shutdown, 0 ; 0 means logout
-  } else {
+  } else { ; an error message
     ShowMessage(status)
     Beep(5)
   }

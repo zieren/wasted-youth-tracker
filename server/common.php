@@ -13,24 +13,6 @@ function autoloader($class) {
 
 spl_autoload_register('autoloader');
 
-function checkRequirements() {
-  $unmet = array();
-  if (version_compare(PHP_VERSION, PHP_MIN_VERSION) < 0) {
-    $unmet[] = 'PHP version ' . PHP_MIN_VERSION . ' is required, but this is ' . PHP_VERSION . '.';
-  }
-  if (!function_exists('mysqli_connect')) {
-    $unmet[] = 'The mysqli extension is missing.';
-  }
-  if (!$unmet) {
-    return;
-  }
-  echo '<p><b>Please follow these steps to complete the installation:</b></p>'
-  . '<ul><li>' . implode('</li><li>', $unmet) . '</li></ul><hr />';
-  throw new Exception(implode($unmet));
-}
-
-checkRequirements();
-
 require_once CONFIG_PHP;
 
 // Logger must be initialized before used in kfcFatalErrorHandler; see
@@ -52,16 +34,6 @@ function kfcFatalErrorHandler() {
 }
 
 register_shutdown_function('kfcFatalErrorHandler');
-
-// TODO: Unused?
-function minutesToMillis($minutes) {
-  return $minutes * 60 * 1000;
-}
-
-// TODO: Unused?
-function daysToMillis($days) {
-  return $days * 24 * 60 * 60 * 1000;
-}
 
 function get(&$value, $default = null) {
   return isset($value) ? $value : $default;

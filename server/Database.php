@@ -154,6 +154,8 @@ class Database {
     }
     return $windowTitles;
   }
+  
+  // TODO: Reject invalid values like '"'.
 
   /** Updates the specified user config value. */
   public function setUserConfig($user, $key, $value) {
@@ -224,33 +226,21 @@ class Database {
 
   public function getUsers() {
     $users = array();
-    $result = $this->query('SELECT DISTINCT user FROM user_config');
+    $result = $this->query('SELECT DISTINCT user FROM user_config ORDER BY user ASC');
     while ($row = $result->fetch_row()) {
       $users[] = $row[0];
     }
     return $users;
   }
 
-  public function echoUserConfig() {
+  public function queryConfigAllUsers() {
     $result = $this->query('SELECT user, k, v FROM user_config ORDER BY user, k');
-    echo '<p><table border="1">';
-    while ($row = $result->fetch_assoc()) {
-      echo '<tr><td>' . $row['user'] . '</td><td>'
-      . $row['k'] . '</td><td>'
-      . $row['v'] . '</td></tr>';
-    }
-    echo '</table></p>';
+    return $result->fetch_all();
   }
 
-  public function echoGlobalConfig() {
+  public function queryConfigGlobal() {
     $result = $this->query('SELECT k, v FROM global_config ORDER BY k');
-    echo '<p><table border="1">';
-    while ($row = $result->fetch_assoc()) {
-      echo '<tr><td>'
-      . $row['k'] . '</td><td>'
-      . $row['v'] . '</td></tr>';
-    }
-    echo '</table></p>';
+    return $result->fetch_all();
   }
 
   /**

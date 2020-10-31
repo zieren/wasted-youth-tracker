@@ -1,4 +1,13 @@
 <html>
+<head>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<style>
+table, th, td {
+  border: 1px solid black;
+}
+</style>
+</head>
 <body>
 <script type="text/javascript">
 function enableDestructiveButtons(toggleCheckbox) {
@@ -13,7 +22,27 @@ function enableDestructiveButtons(toggleCheckbox) {
 }
 </script>
 <?php
+// TODO: Extract CSS.
 require_once 'common.php';
+require_once 'html_util.php';
+
+function checkRequirements() {
+  $unmet = array();
+  if (version_compare(PHP_VERSION, PHP_MIN_VERSION) < 0) {
+    $unmet[] = 'PHP version ' . PHP_MIN_VERSION . ' is required, but this is ' . PHP_VERSION . '.';
+  }
+  if (!function_exists('mysqli_connect')) {
+    $unmet[] = 'The mysqli extension is missing.';
+  }
+  if (!$unmet) {
+    return;
+  }
+  echo '<p><b>Please follow these steps to complete the installation:</b></p>'
+  . '<ul><li>' . implode('</li><li>', $unmet) . '</li></ul><hr />';
+  throw new Exception(implode($unmet));
+}
+
+checkRequirements();
 
 $db = new Database(true /* create missing tables */);
 
@@ -39,15 +68,21 @@ echo '
 <p>(c) 2020 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
 Components:
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license.
+<a href="https://github.com/flatpickr/flatpickr">flatpickr</a>, MIT license. 
 </p>
 
 <h2>Configuration</h2>
 
-<p>Users: ';
-echo implode(",", $db->getUsers()).'</p>';
+<h3>Users</h3>';
+echo implode(",", $db->getUsers());
 
-$db->echoUserConfig();
-$db->echoGlobalConfig();
+echo '<h3>User config</h3>';
+echoTable($db->queryConfigAllUsers());
+
+echo '<h3>Global config</h3>';
+echoTable($db->queryConfigGlobal());
+
+echo '<h3>Update</h3>';
 
 echo 
 '<form method="post" enctype="multipart/form-data">

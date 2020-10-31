@@ -10,9 +10,12 @@ table, th, td {
 </head>
 <body>
 <?php
+// TODO: Extract CSS.
 require_once 'common.php';
+require_once 'html_util.php';
 
 $db = new Database(false/* create missing tables */);
+$users = $db->getUsers();
 $user = get($_GET["user"], "default"); // TODO proper user selector
 $date = get($_GET["date"], date("Y-m-d"));
 list($year, $month, $day) = explode("-", $date);
@@ -36,20 +39,10 @@ $dateTime = new DateTime($year . "-" . $month . "-" . $day);
 echo $db->getMinutesSpent($user, $dateTime);
 
 echo "<h2>Minutes per window title</h2>";
-$timeByTitle = $db->queryTimeSpentByTitle($user, $dateTime);
-echo "<table>\n";
-foreach($timeByTitle as $t) {
-  echo "<tr><td>" . implode("</td><td>", $t) . "</td></tr>\n";
-}
-echo "</table>\n";
+echoTable($db->queryTimeSpentByTitle($user, $dateTime));
 
 echo "<h2>Window title sequence (for debugging)</h2>";
-$windowTitles = $db->queryAllTitles($user, $dateTime);
-echo "<table>\n";
-foreach($windowTitles as $w) {
-  echo "<tr><td>" . implode("</td><td>", $w) . "</td></tr>\n";
-}
-echo "</table>\n";
+echoTable($db->queryAllTitles($user, $dateTime));
 
 ?>
 </body>

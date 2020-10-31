@@ -15,14 +15,26 @@ require_once 'common.php';
 require_once 'html_util.php';
 
 $db = new Database(false/* create missing tables */);
+$date = get($_GET['date'], date('Y-m-d'));
+list($year, $month, $day) = explode('-', $date);
 $users = $db->getUsers();
-$user = get($_GET["user"], "default"); // TODO proper user selector
-$date = get($_GET["date"], date("Y-m-d"));
-list($year, $month, $day) = explode("-", $date);
-echo 'Date: <input id="idDateSelector" size="16" placeholder="date" />
+$user = get($_GET['user'], get($users[0], ''));
+
+echo '<form action="view.php" method="get">'
+    . '<label for="users">User:</label>'
+    . '<select name="user" onchange="if (this.value != 0) { this.form.submit(); }">';
+foreach ($users as $u) {
+  $selected = $user == $u ? 'selected="selected"' : '';
+  echo '<option value="' . $u . '" ' . $selected . '>' . $u . '</option>';
+}
+echo '</select>'
+    . '<input name="date" type="hidden" value="' . $date . '">'
+    . '</form>';
+
+echo '<p>Date: <input id="idDateSelector" size="16" placeholder="date" /></p>
 <script type="text/javascript">
 var fp = flatpickr("#idDateSelector", {
-  defaultDate: new Date(' . $year. ',' . ($month - 1) . ',' . $day . '), 
+  defaultDate: new Date(' . $year. ',' . ($month - 1) . ',' . $day . '),
   allowInput: true,
   locale: {
     firstDayOfWeek: 1

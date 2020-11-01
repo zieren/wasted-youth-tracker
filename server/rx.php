@@ -1,21 +1,20 @@
 <?php
+
 require_once 'common.php';
 
 error_reporting(0);
+
 // TODO: Make sure warnings and errors are surfaced appropriately.
 
 function handleRequest() {
   $logger = Logger::Instance();
   $content = file_get_contents('php://input');
-
-  // ------------- TODO: What if $content is false? Does this sometimes fail?
-
   $data = json_decode($content, true);
   if (!$data) {
-    $logger->critical('JSON decoding failed: "'.$content.'"');
+    $logger->critical('JSON decoding failed: "' . substr($content, 999) . '"');
     return 'Invalid JSON';
   }
-  $logger->debug('Received data with keys: '.implode(array_keys($data), ', '));
+  $logger->debug('Received data with keys: ' . implode(array_keys($data), ', '));
 
   $user = get($data['user']);
   $title = get($data['title']);
@@ -24,29 +23,25 @@ function handleRequest() {
     return 'Missing user and/or title in JSON';
   }
 
-  $db = new Database();  // TODO: Handle failure.
-
+  $db = new Database();
   $db->insertWindowTitle($user, urldecode($title));
-
-  $minutesSpentToday = $db->queryMinutesSpent($user, new DateTime());
-  $minutesLeftToday = $db->queryMinutesLeft($user) - $minutesSpentToday;
+  $minutesLeftToday = $db->queryMinutesLeftToday($user);
 
   // TODO: Make trigger time configurable.
-  $response = "";
   if ($minutesLeftToday <= 0) {
-    $response .= "logout\n";
+    $response = "logout\n";
   } elseif ($minutesLeftToday <= 5) {
-    // TODO: magic 5 should be configurable
-    // TODO: The client shouldn't pop up a message repeatedly. Maybe just once again?
-    $response .= $minutesLeftToday." minutes left today\n";
+    // TODO: The client shouldn't pop up a message repeatedly. Maybe handle that on the client
+    // with two buttons for "snooze" and "dismiss"?
+    $response = $minutesLeftToday . " minutes left today\n";
   } else {
     $response = "ok\n";
   }
   $config = $db->getUserConfig($user);
-  $response .= $config['sample_interval_seconds']."\n";
+  $response .= $config['sample_interval_seconds'] . "\n";
   return $response;
 }
 
 $response = handleRequest();
 echo $response;
-Logger::Instance()->debug('RESPONSE: '.str_replace("\n", '\n', $response));
+Logger::Instance()->debug('RESPONSE: ' . str_replace("\n", '\n', $response));

@@ -35,6 +35,30 @@ function kfcFatalErrorHandler() {
 
 register_shutdown_function('kfcFatalErrorHandler');
 
+/** Returns the specified value if it is set, or $default otherwise. */
 function get(&$value, $default = null) {
   return isset($value) ? $value : $default;
+}
+
+/**
+ * Returns a DateTime pointing to the start of the week (currently always Monday 0:00) in which
+ * $date lies.
+ */
+function getWeekStart($date) {
+  // TODO: This assumes the week starts on Monday.
+  $dayOfWeek = ($date->format('w') + 6) % 7;
+  $weekStart = clone $date;
+  $weekStart->sub(new DateInterval('P' . ($dayOfWeek + 7) . 'D'));
+  $weekStart->setTime(0, 0);
+  return $weekStart;
+}
+
+/** Returns a DateTime set to 0:00 of today. */
+function getTodayStart() {
+  return (new DateTime())->setTime(0, 0);
+}
+
+/** Returns the date from the specified DateTime, in YYYY-MM-DD format. */
+function getDateString($dateTime) {
+  return $dateTime->format('Y-m-d');
 }

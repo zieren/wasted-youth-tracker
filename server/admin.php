@@ -101,7 +101,7 @@ foreach ($users as $u) {
 }
 echo '
     </select>
-  <input type="date" name="date" value="' . $now->format('Y-m-d') . '">
+  <input type="date" name="date" value="' . getDateString($now) . '">
   <label for="idOverrideMinutes">Minutes: </label>
   <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
   <input type="submit" value="Set Minutes" name="setMinutes">
@@ -115,15 +115,13 @@ foreach ($users as $u) {
 }
 
 echo '<h3>User config</h3>';
-echoTable($db->queryConfigAllUsers());
+echoTable($db->getAllUsersConfig());
 
 echo '<h3>Global config</h3>';
-echoTable($db->queryConfigGlobal());
+echoTable($db->getGlobalConfig());
 
-echo '<h3>Update</h3>';
-
-echo
-'<form method="post" enctype="multipart/form-data">
+echo '<h3>Update</h3>
+<form method="post" enctype="multipart/form-data">
   <input type="text" name="configUser" value="" placeholder="user">
   <input type="text" name="configKey" value="" placeholder="key">
   <input type="text" name="configValue" value="" placeholder="value">
@@ -131,10 +129,10 @@ echo
   <input type="submit" name="clearUserConfig" value="Clear User Config">
   <input type="submit" name="setGlobalConfig" value="Set Global Config">
   <input type="submit" name="clearGlobalConfig" value="Clear Global Config">
-  </form>';
+</form>
 
-echo
-'<hr />
+<hr />
+
 <h2>Manage Database/Logs (TO BE IMPLEMENTED)</h2>
 <form action="prune.php" method="get">
   <p>

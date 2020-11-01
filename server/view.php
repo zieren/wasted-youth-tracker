@@ -15,8 +15,8 @@ require_once 'common.php';
 require_once 'html_util.php';
 
 $db = new Database(false/* create missing tables */);
-$date = get($_GET['date'], date('Y-m-d'));
-list($year, $month, $day) = explode('-', $date);
+$dateString = get($_GET['date'], date('Y-m-d'));
+list($year, $month, $day) = explode('-', $dateString);
 $users = $db->getUsers();
 $user = get($_GET['user'], get($users[0], ''));
 
@@ -28,9 +28,10 @@ foreach ($users as $u) {
   echo '<option value="' . $u . '" ' . $selected . '>' . $u . '</option>';
 }
 echo '</select>'
-    . '<input name="date" type="hidden" value="' . $date . '">'
+    . '<input name="date" type="hidden" value="' . $dateString . '">'
     . '</form>';
 
+// TODO: Use default date picker (?).
 echo '<p>Date: <input id="idDateSelector" placeholder="date" /></p>
 <script type="text/javascript">
 var fp = flatpickr("#idDateSelector", {
@@ -46,18 +47,20 @@ var fp = flatpickr("#idDateSelector", {
 });
 </script>';
 
-echo "<h2>Minutes spent</h2>";
-$dateTime = new DateTime($year . "-" . $month . "-" . $day);
-echo $db->queryMinutesSpent($user, $dateTime);
-
 echo "<h3>Minutes left today</h3>";
-echo $db->queryMinutesLeft($user);
+echo $db->queryMinutesLeftToday($user);
+
+echo "<h2>Minutes spent on selected date</h2>";
+$fromTime = new DateTime($dateString);
+$toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+$minutesSpentByDate = $db->queryMinutesSpentByDate($user, $fromTime, $toTime);
+echo get($minutesSpentByDate[$dateString], 0);
 
 echo "<h2>Minutes per window title</h2>";
-echoTable($db->queryTimeSpentByTitle($user, $dateTime));
+echoTable($db->queryTimeSpentByTitle($user, $fromTime));
 
 echo "<h2>Window title sequence (for debugging)</h2>";
-echoTable($db->queryAllTitles($user, $dateTime));
+echoTable($db->queryTitleSequence($user, $fromTime));
 
 ?>
 </body>

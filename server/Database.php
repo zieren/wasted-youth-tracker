@@ -24,6 +24,8 @@ class Database {
     }  // else: defaults to debug
   }
 
+  // ---------- TABLE MANAGEMENT ----------
+
   public function createMissingTables() {
     $this->query('SET default_storage_engine=INNODB');
     $this->query(
@@ -52,62 +54,149 @@ class Database {
             . 'PRIMARY KEY (user, date))');
   }
 
-  public function dropTablesExceptConfig() {
+  public function dropAllTablesExceptConfig() {
     $this->query('DROP TABLE IF EXISTS activity');
+    $this->query('DROP TABLE IF EXISTS overrides');
     $this->log->notice('tables dropped');
   }
 
-  /** Delete all records prior to $timestamp. */
-  public function pruneTables($timestamp) {
-    $this->query('DELETE FROM activity WHERE start_ts < ' . $timestamp);
+  /** Delete all records prior to DateTime $date. */
+  public function pruneTables($date) {
+    $this->query('DELETE FROM activity WHERE ts < ' . $date->getTimestamp());
+    $this->query('DELETE FROM overrides WHERE date < ' . getDateString($date));
+    $this->log->notice('tables pruned up to ' . $date->format(DateTimeInterface::ATOM));
   }
+
+  // ---------- WRITE ACTIVITY QUERIES ----------
 
   /** Stores the specified window title. */
   public function insertWindowTitle($user, $windowTitle) {
     $q = 'REPLACE INTO activity (ts, user, title) VALUES ('
             . time()
             . ',"' . $this->esc($user) . '"'
-            . ',"' . $this->esc($windowTitle) . '"'
-            . ')';
+            . ',"' . $this->esc($windowTitle) . '")';
     $this->query($q);
   }
 
-  /**
-   * Compute the time spent on the current calendar day, in minutes.
+  // ---------- CONFIG QUERIES ----------
+  // TODO: Reject invalid values like '"'.
+
+  /** Updates the specified user config value. */
+  public function setUserConfig($user, $key, $value) {
+    $q = 'REPLACE INTO user_config (user, k, v) VALUES ("'
+            . $user . '", "' . $key . '", "' . $value . '")';
+    $this->query($q);
+  }
+
+  /** Updates the specified global config value. */
+  public function setGlobalConfig($key, $value) {
+    $q = 'REPLACE INTO global_config (k, v) VALUES ("' . $key . '", "' . $value . '")';
+    $this->query($q);
+  }
+
+  /** Deletes the specified user config value. */
+  public function clearUserConfig($user, $key) {
+    $q = 'DELETE FROM user_config WHERE user="' . $user . '" AND k="' . $key . '"';
+    $this->query($q);
+  }
+
+  /** Deletes the specified global config value. */
+  public function clearGlobalConfig($key) {
+    $q = 'DELETE FROM global_config WHERE k="' . $key . '"';
+    $this->query($q);
+  }
+
+  // TODO: Consider caching the config(s).
+
+  /** Returns user config. */
+  public function getUserConfig($user) {
+    $result = $this->query('SELECT k, v FROM user_config WHERE user="'
+            . $user . '" ORDER BY k');
+    $config = array();
+    while ($row = $result->fetch_assoc()) {
+      $config[$row['k']] = $row['v'];
+    }
+    return $config;
+  }
+
+  /** Returns the config for all users. */
+  public function getAllUsersConfig() {
+    $result = $this->query('SELECT user, k, v FROM user_config ORDER BY user, k');
+    return $result->fetch_all();
+  }
+
+  /** Returns the global config. */
+  public function getGlobalConfig() {
+    $result = $this->query('SELECT k, v FROM global_config ORDER BY k');
+    return $result->fetch_all();
+  }
+
+  /** Returns all users, i.e. all distinct user keys present in the config. */
+  public function getUsers() {
+    $result = $this->query('SELECT DISTINCT user FROM user_config ORDER BY user ASC');
+    $users = array();
+    while ($row = $result->fetch_row()) {
+      $users[] = $row[0];
+    }
+    return $users;
+  }
+
+  // ---------- TIME SPENT/LEFT QUERIES ----------
+
+  /** TODO: REMOVE, PROBABLY
+   * Computes the time spent on the current calendar day, in minutes.
    *
    * Caveat: This will yield incorrect results when changing the sampling interval while or after
    * data has been stored.
-   */
-  public function queryMinutesSpent($user, $date) {
+   * /
+    public function queryMinutesSpentOnDay($user, $date) {
     $fromTime = clone $date;
+    $fromTime->setTime(0, 0);
     $toTime = (clone $date)->add(new DateInterval('P1D'));
+    return $this->queryMinutesSpent($user, $fromTime, $toTime);
+    }
+
+    // TODO: This may not be needed; we should also have one generic query.
+    public function queryMinutesSpentInWeek($user, $date) {
+    $fromTime = getWeekStart($date);
+    $toTime = (clone $fromTime)->add(new DateInterval('P1W'));
+    return $this->queryMinutesSpent($user, $fromTime, $toTime);
+    } */
+
+  /** Returns the time spent between $fromTime and $toTime, as a sparse array keyed by date. */
+  public function queryMinutesSpentByDate($user, $fromTime, $toTime) {
     $config = $this->getUserConfig($user);
     $q = 'SET @prev_ts := 0;'
-            . ' SELECT SUM(s) '
+            . ' SELECT date, SUM(s) / 60 '
             . ' FROM ('
             . '   SELECT'
             . '     if (@prev_ts = 0, 0, ts - @prev_ts) as s,'
-            . '     @prev_ts := ts'
+            . '     @prev_ts := ts,'
+            . '     DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") as date'
             . '   FROM activity'
             . '   WHERE'
             . '     user = "' . $this->esc($user) . '"'
             . '     AND ts >= ' . $fromTime->getTimestamp()
             . '     AND ts < ' . $toTime->getTimestamp()
             . ' ) t1'
-            . ' WHERE s <= ' . ($config['sample_interval_seconds'] + 10); // TODO 10 magic
+            . ' WHERE s <= ' . ($config['sample_interval_seconds'] + 10) // TODO: 10 magic
+            . ' GROUP BY date';
     $this->multiQuery($q);
-    $this->mysqli->next_result();
-    $result = $this->mysqli->use_result();
-    if ($row = $result->fetch_row()) {
-      return $row[0] / 60.0;
+    $result = $this->multiQueryGetNextResult();
+    $minutesByDay = array();
+    while ($row = $result->fetch_row()) {
+      $minutesByDay[$row[0]] = $row[1];
     }
-    return 0;
+    $result->close();
+    return $minutesByDay;
   }
 
-  /* Returns the time spent by window title, ordered by the amount of time. */
-  public function queryTimeSpentByTitle($user, $date) {
-    $fromTime = clone $date;
-    $toTime = (clone $date)->add(new DateInterval('P1D'));
+  /**
+   * Returns the time spent by window title, ordered by the amount of time, starting at $fromTime
+   * and ending 1d (i.e. usually 24h) later. $date should therefore usually have a time of 0:00.
+   */
+  public function queryTimeSpentByTitle($user, $fromTime) {
+    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     $config = $this->getUserConfig($user);
     // TODO: Remove "<init>" placeholder.
     $q = 'SET @prev_ts := 0, @prev_title := "<init>";'
@@ -127,189 +216,101 @@ class Database {
             . '     AND ts < ' . $toTime->getTimestamp()
             . '   ORDER BY ts ASC'
             . ' ) t1'
-            . ' WHERE s <= ' . ($config['sample_interval_seconds'] + 10) // TODO 10 magic
+            . ' WHERE s <= ' . ($config['sample_interval_seconds'] + 10) // TODO: 10 magic
+            . ' AND s > 0'
             . ' GROUP BY title'
             . ' ORDER BY total DESC';
     $this->multiQuery($q);
-    $this->mysqli->next_result();
-    $result = $this->mysqli->use_result();
+    $result = $this->multiQueryGetNextResult();
     $timeByTitle = array();
-    while ($row = $result->fetch_row()) {
+    while ($row = $result->fetch_assoc()) {
       // TODO: This should use the client's local time format.
-      $timeByTitle[] = array(date("Y-m-d H:i:s", $row[0]), $row[1],
-          htmlentities($row[2], ENT_COMPAT | ENT_HTML401, "Windows-1252"));
+      $timeByTitle[] = array(
+          date("Y-m-d H:i:s", $row['ts']),
+          $row['total'],
+          htmlentities($row['title'], ENT_COMPAT | ENT_HTML401, 'Windows-1252'));
     }
     $result->close();
     return $timeByTitle;
   }
 
   /**
-   * Returns the sequence of window titles for the specified user and date. This will typically be
-   * a long array and is intended for debugging.
+   * Returns the minutes left today. In order of decreasing priority, this considers the unlock
+   * requirement, an override limit, the limit configured for the day of the week, and the default
+   * daily limit. For the last two, a possible weekly limit is additionally applied.
    */
-  public function queryAllTitles($user, $date) {
-    $fromTime = clone $date;
-    $toTime = (clone $date)->add(new DateInterval('P1D'));
-    $q = 'SELECT ts, title FROM activity'
-            . ' WHERE user = "' . $this->esc($user) . '"'
-            . ' AND ts >= ' . $fromTime->getTimestamp()
-            . ' AND ts < ' . $toTime->getTimestamp()
-            . ' ORDER BY ts DESC';
-    $result = $this->query($q);
-    $windowTitles = array();
-    while ($row = $result->fetch_row()) {
-      // TODO: This should use the client's local time format.
-      $windowTitles[] = array(date("Y-m-d H:i:s", $row[0]), $row[1]);
-    }
-    return $windowTitles;
-  }
-
-  // TODO: Reject invalid values like '"'.
-
-  /** Updates the specified user config value. */
-  public function setUserConfig($user, $key, $value) {
-    $q = 'REPLACE INTO user_config (user, k, v) VALUES ("'
-            . $user . '", "'
-            . $key . '", "'
-            . $value . '")';
-    $this->query($q);
-  }
-
-  /** Updates the specified globalconfig value. */
-  public function setGlobalConfig($key, $value) {
-    $q = 'REPLACE INTO global_config (k, v) VALUES ("'
-            . $key . '", "'
-            . $value . '")';
-    $this->query($q);
-  }
-
-  /** Deletes the specified user config value. */
-  public function clearUserConfig($user, $key) {
-    $q = 'DELETE FROM user_config WHERE user="' . $user . '" AND k="' . $key . '"';
-    $this->query($q);
-  }
-
-  /** Deletes the specified global config value. */
-  public function clearGlobalConfig($key) {
-    $q = 'DELETE FROM global_config WHERE k="' . $key . '"';
-    $this->query($q);
-  }
-
-  // TODO: Consider caching frequently used configs.
-
-  /** Returns user config. */
-  public function getUserConfig($user) {
-    $result = $this->query('SELECT k, v FROM user_config WHERE user="'
-            . $user . '" ORDER BY k ASC');
-    $config = array();
-    while ($row = $result->fetch_assoc()) {
-      $config[$row['k']] = $row['v'];
-    }
-    return $config;
-  }
-
-  /** Returns global config. */
-  public function getGlobalConfig() {
-    $result = $this->query('SELECT k, v FROM global_config ORDER BY k ASC');
-    $config = array();
-    while ($row = $result->fetch_assoc()) {
-      $config[$row['k']] = $row['v'];
-    }
-    return $config;
-  }
-
-  // TODO: Add weekly limit (and option whether that includes overrides).
-  public function queryMinutesLeft($user) {
+  public function queryMinutesLeftToday($user) {
     $config = $this->getUserConfig($user);
     $requireUnlock = get($config['require_unlock'], false);
-    // Explicit overrides have highest priority.
     $now = new DateTime();
+    $weekStart = getWeekStart($now);
+    $minutesSpentByDate = $this->queryMinutesSpentByDate($user, $weekStart, $now);
+    $minutesSpentToday = get($minutesSpentByDate[getDateString($now)], 0);
+
+    // Explicit overrides have highest priority.
     $result = $this->query('SELECT minutes, unlocked FROM overrides'
             . ' WHERE user="' . $user . '"'
-            . ' AND date="' . $now->format('Y-m-d') . '"');
+            . ' AND date="' . getDateString($now) . '"');
     // We may have "minutes" and/or "unlocked", so check both.
     if ($row = $result->fetch_assoc()) {
       if ($requireUnlock && $row['unlocked'] != 1) {
         return 0;
       }
-      if ($row['minutes'] != null) {
-        return $row['minutes'];
+      if (isset($row['minutes'])) {
+        return $row['minutes'] - $minutesSpentToday;
       }
     } else if ($requireUnlock) {
       return 0;
     }
-    // Next: Weekday specific default.
+
+    $minutesLimitToday = get($config[DAILY_LIMIT_MINUTES_PREFIX . 'default'], 0);
+    // Weekday-specific limit overrides default limit.
     $key = DAILY_LIMIT_MINUTES_PREFIX . strtolower($now->format('D'));
     if (isset($config[$key])) {
-      return $config[$key];
+      $minutesLimitToday = $config[$key];
     }
-    // Next: Global default.
-    return get($config[DAILY_LIMIT_MINUTES_PREFIX . 'default'], 0);
+
+    $minutesLeftToday = $minutesLimitToday - $minutesSpentToday;
+
+    // A weekly limit can shorten the daily limit, but not extend it.
+    if (isset($config['weekly_limit'])) {
+      $minutesLeftInWeek = $config['weekly_limit'] - array_sum($minutesSpentByDate);
+      $minutesLeftToday = min($minutesLeftToday, $minutesLeftInWeek);
+    }
+
+    return $minutesLeftToday;
   }
 
-  /** Populate config table from defaults in file, keeping existing values. */
-  /*
-    public function populateUserConfig($user) {
-    $cfg = file(CONFIG_DEFAULT_FILENAME, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    $q = '';
-    foreach ($cfg as $line) {
-    list($key, $value) = explode('=', $line);
-    if ($q) {
-    $q .= ',';
-    }
-    $q .= '("' . $user . '","' . $key . '","' . $value . '")';
-    }
-    $q = 'INSERT IGNORE INTO config (user, k, v) VALUES ' . $q;
-    $this->query($q, 'notice');
-    }
-   */
+  // ---------- OVERRIDE QUERIES ----------
 
-  public function getUsers() {
-    $result = $this->query('SELECT DISTINCT user FROM user_config ORDER BY user ASC');
-    $users = array();
-    while ($row = $result->fetch_row()) {
-      $users[] = $row[0];
-    }
-    return $users;
-  }
-
-  public function queryConfigAllUsers() {
-    $result = $this->query('SELECT user, k, v FROM user_config ORDER BY user, k');
-    return $result->fetch_all();
-  }
-
-  public function queryConfigGlobal() {
-    $result = $this->query('SELECT k, v FROM global_config ORDER BY k');
-    return $result->fetch_all();
-  }
-
-  /** $date is a String in the format 'YYYY-MM-DD'. */
+  /** Overrides the minutes limit for $date, which is a String in the format 'YYYY-MM-DD'. */
   public function setOverrideMinutes($user, $date, $minutes) {
     $this->query('INSERT INTO overrides SET'
-            .' user="'.$this->esc($user).'", date="'.$date.'", minutes='.$minutes
-            .' ON DUPLICATE KEY UPDATE minutes='.$minutes);
+            . ' user="' . $this->esc($user) . '", date="' . $date . '", minutes=' . $minutes
+            . ' ON DUPLICATE KEY UPDATE minutes=' . $minutes);
   }
 
-  /** $date is a String in the format 'YYYY-MM-DD'. */
+  /** Unlocks the specified $date, which is a String in the format 'YYYY-MM-DD'. */
   public function setOverrideUnlock($user, $date) {
     $this->query('INSERT INTO overrides SET'
-            . ' user="'.$this->esc($user).'", date="'.$date.'", unlocked=1'
+            . ' user="' . $this->esc($user) . '", date="' . $date . '", unlocked=1'
             . ' ON DUPLICATE KEY UPDATE unlocked=1');
   }
 
-  /** $date is a String in the format 'YYYY-MM-DD'. */
+  /**
+   * Clears all overrides (minutes and unlock) for $date, which is a String in the format
+   * 'YYYY-MM-DD'.
+   */
   public function clearOverride($user, $date) {
-    $this->query('DELETE FROM overrides '
-            . ' WHERE user="'.$this->esc($user).'" AND date="'.$date.'"');
+    $this->query('DELETE FROM overrides'
+            . ' WHERE user="' . $this->esc($user) . '" AND date="' . $date . '"');
   }
 
-  // TODO: Allow setting the date range. For now this covers last week until 20 entries in the
-  // future.
+  /** Returns all overrides for the specified user, starting the week before the current week. */
+  // TODO: Allow setting the date range.
   public function queryOverrides($user) {
-    $fromDate = new DateTime();
-    // TODO: This assumes the week starts on Monday.
-    $dayOfWeek = ($fromDate->format('w') + 6) % 7;
-    $fromDate->sub(new DateInterval('P' . ($dayOfWeek + 7) . 'D'));
+    $fromDate = getWeekStart(new DateTime());
+    $fromDate->sub(new DateInterval('P1W'));
     $result = $this->query('SELECT user, date,'
             . ' CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,'
             . ' CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END'
@@ -320,8 +321,32 @@ class Database {
     return $result->fetch_all();
   }
 
+  // ---------- DEBUG/SPECIAL/DUBIOUS/OBNOXIOUS QUERIES ----------
+
   /**
-   * Runs the specified query, throwing an Exception on failure. Logs the query unconditionally with
+   * Returns the sequence of window titles for the specified user and date. This will typically be
+   * a long array and is intended for debugging.
+   */
+  public function queryTitleSequence($user, $fromTime) {
+    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+    $q = 'SELECT ts, title FROM activity'
+            . ' WHERE user = "' . $this->esc($user) . '"'
+            . ' AND ts >= ' . $fromTime->getTimestamp()
+            . ' AND ts < ' . $toTime->getTimestamp()
+            . ' ORDER BY ts DESC';
+    $result = $this->query($q);
+    $windowTitles = array();
+    while ($row = $result->fetch_assoc()) {
+      // TODO: This should use the client's local time format.
+      $windowTitles[] = array(date("Y-m-d H:i:s", $row['ts']), $row['title']);
+    }
+    return $windowTitles;
+  }
+
+  // ---------- MYSQL LOW LEVEL HELPERS ----------
+
+  /**
+   * Runs the specified query, throwing an exception on failure. Logs the query unconditionally with
    * the specified level (specify null to disable logging).
    */
   private function query($query, $logLevel = 'debug') {
@@ -333,13 +358,27 @@ class Database {
   }
 
   /**
-   * TODO
+   * Like query() above, but using mysqli::multi_query. Returns the first query result, throwing an
+   * exception on failure. Subsequent results are available via multiQueryGetNextResult() below.
    */
   private function multiQuery($multiQuery, $logLevel = 'debug') {
     $this->log->log($logLevel, 'Multi query: ' . $multiQuery);
+    $this->multiQuery = $multiQuery;
     if (!$this->mysqli->multi_query($multiQuery)) {
       $this->throwMySqlErrorException($multiQuery);
     }
+    return $this->mysqli->use_result();
+  }
+
+  /**
+   * Returns the second, third etc. result from calling multiQuery() above, throwing an exception on
+   * failure.
+   */
+  private function multiQueryGetNextResult() {
+    if (!$this->mysqli->next_result()) {
+      $this->throwMySqlErrorException($this->multiQuery);
+    }
+    return $this->mysqli->use_result();
   }
 
   private function throwMySqlErrorException($query) {
@@ -352,7 +391,9 @@ class Database {
     throw new Exception($message);
   }
 
+  /** Escapes the specified String for MySQL use. */
   private function esc($s) {
+    // This needs the instance because it considers the character set of the connection.
     return $this->mysqli->real_escape_string($s);
   }
 

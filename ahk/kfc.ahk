@@ -4,7 +4,7 @@ EnvGet, TMP, TMP ; current user's temp directory
 
 ; This is really used to escape strings in JSON, not actually for URLs.
 UrlEncode(s) {
-	Loop, Parse, s 
+	Loop, Parse, s
   {
 		if A_LoopField is alnum
 		{
@@ -32,6 +32,9 @@ Beep(t) {
 
 Loop {
   WinGetTitle, title, A
+  if (!title) {
+    title = "<none>"
+  }
   title := UrlEncode(title)
   fileRequest := TMP . "\kfc.request"
   fileResponse := TMP . "\kfc.response"

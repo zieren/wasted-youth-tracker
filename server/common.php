@@ -46,9 +46,9 @@ function get(&$value, $default = null) {
  */
 function getWeekStart($date) {
   // TODO: This assumes the week starts on Monday.
-  $dayOfWeek = ($date->format('w') + 6) % 7;
+  $dayOfWeek = ($date->format('w') + 6) % 7; // 0 = Sun
   $weekStart = clone $date;
-  $weekStart->sub(new DateInterval('P' . ($dayOfWeek + 7) . 'D'));
+  $weekStart->sub(new DateInterval('P' . $dayOfWeek . 'D'));
   $weekStart->setTime(0, 0);
   return $weekStart;
 }

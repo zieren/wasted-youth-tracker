@@ -143,27 +143,10 @@ class Database {
 
   // ---------- TIME SPENT/LEFT QUERIES ----------
 
-  /** TODO: REMOVE, PROBABLY
-   * Computes the time spent on the current calendar day, in minutes.
-   *
-   * Caveat: This will yield incorrect results when changing the sampling interval while or after
-   * data has been stored.
-   * /
-    public function queryMinutesSpentOnDay($user, $date) {
-    $fromTime = clone $date;
-    $fromTime->setTime(0, 0);
-    $toTime = (clone $date)->add(new DateInterval('P1D'));
-    return $this->queryMinutesSpent($user, $fromTime, $toTime);
-    }
-
-    // TODO: This may not be needed; we should also have one generic query.
-    public function queryMinutesSpentInWeek($user, $date) {
-    $fromTime = getWeekStart($date);
-    $toTime = (clone $fromTime)->add(new DateInterval('P1W'));
-    return $this->queryMinutesSpent($user, $fromTime, $toTime);
-    } */
-
-  /** Returns the time spent between $fromTime and $toTime, as a sparse array keyed by date. */
+  /**
+   * Returns the time spent between $fromTime and $toTime, as a sparse array keyed by date. $toTime
+   * may be null to omit the upper limit.
+   */
   public function queryMinutesSpentByDate($user, $fromTime, $toTime) {
     $config = $this->getUserConfig($user);
     $q = 'SET @prev_ts := 0;'
@@ -177,7 +160,9 @@ class Database {
             . '   WHERE'
             . '     user = "' . $this->esc($user) . '"'
             . '     AND ts >= ' . $fromTime->getTimestamp()
-            . '     AND ts < ' . $toTime->getTimestamp()
+            . ($toTime ?
+              '     AND ts < ' . $toTime->getTimestamp()
+            : '')
             . ' ) t1'
             . ' WHERE s <= ' . ($config['sample_interval_seconds'] + 10) // TODO: 10 magic
             . ' GROUP BY date';
@@ -243,14 +228,15 @@ class Database {
     $config = $this->getUserConfig($user);
     $requireUnlock = get($config['require_unlock'], false);
     $now = new DateTime();
+    $nowString = getDateString($now);
     $weekStart = getWeekStart($now);
-    $minutesSpentByDate = $this->queryMinutesSpentByDate($user, $weekStart, $now);
-    $minutesSpentToday = get($minutesSpentByDate[getDateString($now)], 0);
+    $minutesSpentByDate = $this->queryMinutesSpentByDate($user, $weekStart, null);
+    $minutesSpentToday = get($minutesSpentByDate[$nowString], 0);
 
     // Explicit overrides have highest priority.
     $result = $this->query('SELECT minutes, unlocked FROM overrides'
             . ' WHERE user="' . $user . '"'
-            . ' AND date="' . getDateString($now) . '"');
+            . ' AND date="' . $nowString . '"');
     // We may have "minutes" and/or "unlocked", so check both.
     if ($row = $result->fetch_assoc()) {
       if ($requireUnlock && $row['unlocked'] != 1) {

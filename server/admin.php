@@ -110,7 +110,7 @@ echo '
 </form>';
 
 foreach ($users as $u) {
-  echo '<h3>' . $u . '</h3>';
+  echo '<h4>' . $u . '</h4>';
   echoTable($db->queryOverrides($u));
 }
 

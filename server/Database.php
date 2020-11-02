@@ -273,8 +273,8 @@ class Database {
     $minutesLeftToday = $minutesLimitToday - $minutesSpentToday;
 
     // A weekly limit can shorten the daily limit, but not extend it.
-    if (isset($config['weekly_limit'])) {
-      $minutesLeftInWeek = $config['weekly_limit'] - array_sum($minutesSpentByDate);
+    if (isset($config['weekly_limit_minutes'])) {
+      $minutesLeftInWeek = $config['weekly_limit_minutes'] - array_sum($minutesSpentByDate);
       $minutesLeftToday = min($minutesLeftToday, $minutesLeftInWeek);
     }
 

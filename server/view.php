@@ -1,7 +1,5 @@
 <html>
 <head>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <style>
 table, th, td {
   border: 1px solid black;
@@ -22,30 +20,18 @@ $user = get($_GET['user'], get($users[0], ''));
 
 echo '<form action="view.php" method="get">'
     . '<label for="idUsers">User:</label> '
-    . '<select id="idUsers" name="user" onchange="if (this.value != 0) { this.form.submit(); }">';
+    . '<select id="idUsers" name="user" onChange="if (this.value != 0) { this.form.submit(); }">';
 foreach ($users as $u) {
   $selected = $user == $u ? 'selected="selected"' : '';
   echo '<option value="' . $u . '" ' . $selected . '>' . $u . '</option>';
 }
-echo '</select>'
-    . '<input name="date" type="hidden" value="' . $dateString . '">'
-    . '</form>';
+echo '</select>
+      <p>Date: <input type="date" value="' . $dateString
+        . '" name="date" onInput="this.form.submit()"/></p>
+      </form>';
 
-// TODO: Use default date picker (?).
-echo '<p>Date: <input id="idDateSelector" placeholder="date" /></p>
-<script type="text/javascript">
-var fp = flatpickr("#idDateSelector", {
-  defaultDate: new Date(' . $year. ',' . ($month - 1) . ',' . $day . '),
-  allowInput: true,
-  locale: {
-    firstDayOfWeek: 1
-  },
-  onClose: function(selectedDates, dateStr, instance) {
-    window.location.href = window.location.origin + window.location.pathname
-      + "?user='. $user . '&date=" + dateStr;
-  }
-});
-</script>';
+// TODO: Add "Today" button
+
 
 echo "<h3>Minutes left today</h3>";
 echo $db->queryMinutesLeftToday($user);

@@ -81,7 +81,6 @@ echo '
 <p>(c) 2020 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
 Components:
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license.
-<a href="https://github.com/flatpickr/flatpickr">flatpickr</a>, MIT license.
 </p>
 
 <h2>Configuration</h2>

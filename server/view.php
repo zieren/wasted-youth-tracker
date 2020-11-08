@@ -26,12 +26,17 @@ foreach ($users as $u) {
   echo '<option value="' . $u . '" ' . $selected . '>' . $u . '</option>';
 }
 echo '</select>
-      <p>Date: <input type="date" value="' . $dateString
-        . '" name="date" onInput="this.form.submit()"/></p>
-      </form>';
-
-// TODO: Add "Today" button
-
+      <p>Date: <input id="idDate" type="date" value="' . $dateString
+        . '" name="date" onInput="this.form.submit()"/>
+      <button onClick="setToday()">Today</button>
+      </p>
+      </form>
+<script type="text/javascript">
+function setToday() {
+  var dateInput = document.querySelector("#idDate");
+  dateInput.value = "' . date('Y-m-d') . '";
+}
+</script>';
 
 echo "<h3>Minutes left today</h3>";
 echo $db->queryMinutesLeftToday($user);

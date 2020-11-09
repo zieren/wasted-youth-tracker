@@ -1,5 +1,5 @@
-RX_URL := "http://zieren.de/kfc/rx.php"
-USER := "admin"
+URL := "http://zieren.de/kfc"
+USER := "zzz"
 EnvGet, TMP, TMP ; current user's temp directory
 
 ; This is really used to escape strings in JSON, not actually for URLs.
@@ -39,7 +39,7 @@ Loop {
   fileRequest := TMP . "\kfc.request"
   fileResponse := TMP . "\kfc.response"
   RunWait, cmd /c echo {"title":"%title%"`,"user":"%USER%"} >"%fileRequest%", , Hide
-  RunWait, curl --header "Content-Type: application/json" --request POST --data "@%fileRequest%" %RX_URL% -o "%fileResponse%", , Hide
+  RunWait, curl --header "Content-Type: application/json" --request POST --data "@%fileRequest%" %URL%/rx/ -o "%fileResponse%", , Hide
   FileRead, responseLines, %fileResponse%
   response := StrSplit(responseLines, "`n")
   status := response[1]

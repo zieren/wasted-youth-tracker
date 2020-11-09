@@ -15,6 +15,8 @@ require_once '../common/html_util.php';
 $db = new Database(false/* create missing tables */);
 $dateString = get($_GET['date'], date('Y-m-d'));
 list($year, $month, $day) = explode('-', $dateString);
+// TODO: Catch invalid date.
+// TODO: Date needs to be pretty for the input (2-digit month/day etc.)
 $users = $db->getUsers();
 $user = get($_GET['user'], get($users[0], ''));
 
@@ -38,7 +40,7 @@ function setToday() {
 }
 </script>';
 
-echo "<h3>Minutes left today</h3>";
+echo "<h2>Minutes left today</h2>";
 echo $db->queryMinutesLeftToday($user);
 
 echo "<h2>Minutes spent on selected date</h2>";
@@ -50,8 +52,10 @@ echo get($minutesSpentByDate[$dateString], 0);
 echo "<h2>Minutes per window title</h2>";
 echoTable($db->queryTimeSpentByTitle($user, $fromTime));
 
-echo "<h2>Window title sequence (for debugging)</h2>";
-echoTable($db->queryTitleSequence($user, $fromTime));
+if (get($_GET['debug'])) {
+  echo "<h2>Window title sequence</h2>";
+  echoTable($db->queryTitleSequence($user, $fromTime));
+}
 
 ?>
 </body>

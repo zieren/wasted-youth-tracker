@@ -92,7 +92,7 @@ echo implode(",", $users);
 $now = new DateTime();
 echo '
 <h3>Overrides</h3>
-  <form action="admin.php" method="post">
+  <form action="index.php" method="post">
     <label for="idUser">User:</label>
     <select id="idUser" name="user">';
 foreach ($users as $u) {

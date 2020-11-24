@@ -1,12 +1,7 @@
 <html>
 <head>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<style>
-table, th, td {
-  border: 1px solid black;
-}
-</style>
+  <title>KFC Admin</title>
+  <link rel="stylesheet" href="../common/kfc.css">
 </head>
 <body>
 <script type="text/javascript">
@@ -22,7 +17,6 @@ function enableDestructiveButtons(toggleCheckbox) {
 }
 </script>
 <?php
-// TODO: Extract CSS.
 require_once '../common/common.php';
 require_once '../common/html_util.php';
 
@@ -80,8 +74,8 @@ echo '
 <h1>'.KFC_SERVER_HEADING.'</h1>
 <p>(c) 2020 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
 Components:
-<a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license.
-</p>
+<a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license.</p>
+<p><a href="../view/">View activity</a></p>
 
 <h2>Configuration</h2>
 

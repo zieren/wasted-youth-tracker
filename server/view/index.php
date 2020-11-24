@@ -1,16 +1,16 @@
 <html>
 <head>
-<style>
-table, th, td {
-  border: 1px solid black;
-}
-</style>
+  <title>KFC View</title>
+  <link rel="stylesheet" href="../common/kfc.css">
 </head>
 <body>
 <?php
-// TODO: Extract CSS.
 require_once '../common/common.php';
 require_once '../common/html_util.php';
+
+echo '<h2>Links</h2>
+  <a href="../admin/">Admin page</a>
+  <h2>View</h2>';
 
 $db = new Database(false/* create missing tables */);
 $dateString = get($_GET['date'], date('Y-m-d'));
@@ -40,16 +40,16 @@ function setToday() {
 }
 </script>';
 
-echo "<h2>Minutes left today</h2>";
+echo "<h3>Minutes left today</h3>";
 echo $db->queryMinutesLeftToday($user);
 
-echo "<h2>Minutes spent on selected date</h2>";
+echo "<h3>Minutes spent on selected date</h3>";
 $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
 $minutesSpentByDate = $db->queryMinutesSpentByDate($user, $fromTime, $toTime);
 echo get($minutesSpentByDate[$dateString], 0);
 
-echo "<h2>Minutes per window title</h2>";
+echo "<h3>Minutes per window title</h3>";
 echoTable($db->queryTimeSpentByTitle($user, $fromTime));
 
 if (get($_GET['debug'])) {

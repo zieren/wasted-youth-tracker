@@ -57,17 +57,22 @@ if (isset($_POST['setUserConfig'])) {
   $db->clearGlobalConfig($key);
 } else if (isset($_POST['setMinutes'])) {
   $user = $_POST['user'];
-  $date = $_POST['date'];
+  $dateString = $_POST['dateOverride'];
   $minutes = get($_POST['overrideMinutes'], 0);
-  $db->setOverrideMinutes($user, $date, $minutes);
+  $db->setOverrideMinutes($user, $dateString, $minutes);
 } else if (isset($_POST['unlock'])) {
   $user = $_POST['user'];
-  $date = $_POST['date'];
-  $db->setOverrideUnlock($user, $date, 1);
+  $dateString = $_POST['dateOverride'];
+  $db->setOverrideUnlock($user, $dateString, 1);
 } else if (isset($_POST['clear'])) {
   $user = $_POST['user'];
-  $date = $_POST['date'];
-  $db->clearOverride($user, $date);
+  $dateString = $_POST['dateOverride'];
+  $db->clearOverride($user, $dateString);
+} else if (isset($_POST['prune'])) {
+  $dateString = $_POST['datePrune'];
+  $dateTime = DateTime::createFromFormat("Y-m-d", $dateString);
+  $db->pruneTables($dateTime);
+  echo '<b>Tables pruned before ' . getDateString($dateTime) . '</b></hr>';
 }
 
 echo '
@@ -86,7 +91,7 @@ echo implode(",", $users);
 $now = new DateTime();
 echo '
 <h3>Overrides</h3>
-  <form action="index.php" method="post">
+  <form method="post">
     <label for="idUser">User:</label>
     <select id="idUser" name="user">';
 foreach ($users as $u) {
@@ -94,7 +99,7 @@ foreach ($users as $u) {
 }
 echo '
     </select>
-  <input type="date" name="date" value="' . getDateString($now) . '">
+  <input type="dateOverride" name="date" value="' . getDateString($now) . '">
   <label for="idOverrideMinutes">Minutes: </label>
   <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
   <input type="submit" value="Set Minutes" name="setMinutes">
@@ -127,12 +132,13 @@ echo '<h3>Update</h3>
 <hr />
 
 <h2>Manage Database/Logs (TO BE IMPLEMENTED)</h2>
-<form action="prune.php" method="get">
-  <p>
-    PRUNE data and logs older than <input type="text" name="days" value=""> days.
-    <input class="kfcDestructive" type="submit" value="PRUNE" disabled />
-  </p>
-</form>
+<p>
+  PRUNE data and logs before
+  <form method="post">
+    <input type="date" name="datePrune" value="' . getDateString($now) . '">
+    <input class="kfcDestructive" type="submit" value="PRUNE" name="prune" disabled />
+  </form>
+</p>
 <form method="post">
   <p>
     CLEAR ALL DATA except config

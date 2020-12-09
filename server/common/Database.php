@@ -63,7 +63,7 @@ class Database {
   /** Delete all records prior to DateTime $date. */
   public function pruneTables($date) {
     $this->query('DELETE FROM activity WHERE ts < ' . $date->getTimestamp());
-    $this->query('DELETE FROM overrides WHERE date < ' . getDateString($date));
+    $this->query('DELETE FROM overrides WHERE date < "' . getDateString($date) . '"');
     $this->log->notice('tables pruned up to ' . $date->format(DateTimeInterface::ATOM));
   }
 

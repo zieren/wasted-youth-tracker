@@ -64,7 +64,7 @@ if (isset($_POST['setUserConfig'])) {
   $user = $_POST['user'];
   $dateString = $_POST['dateOverride'];
   $db->setOverrideUnlock($user, $dateString, 1);
-} else if (isset($_POST['clear'])) {
+} else if (isset($_POST['clearOverride'])) {
   $user = $_POST['user'];
   $dateString = $_POST['dateOverride'];
   $db->clearOverride($user, $dateString);
@@ -73,6 +73,9 @@ if (isset($_POST['setUserConfig'])) {
   $dateTime = DateTime::createFromFormat("Y-m-d", $dateString);
   $db->pruneTables($dateTime);
   echo '<b>Tables pruned before ' . getDateString($dateTime) . '</b></hr>';
+} else if (isset($_POST['clearAll'])) {
+  $db->dropAllTablesExceptConfig();
+  echo '<b>Tables dropped</b></hr>';
 }
 
 echo '
@@ -99,12 +102,12 @@ foreach ($users as $u) {
 }
 echo '
     </select>
-  <input type="dateOverride" name="date" value="' . getDateString($now) . '">
+  <input type="date" name="dateOverride" value="' . getDateString($now) . '">
   <label for="idOverrideMinutes">Minutes: </label>
   <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
   <input type="submit" value="Set Minutes" name="setMinutes">
   <input type="submit" value="Unlock" name="unlock">
-  <input type="submit" value="Clear" name="clear">
+  <input type="submit" value="Clear" name="clearOverride">
 </form>';
 
 foreach ($users as $u) {
@@ -131,7 +134,7 @@ echo '<h3>Update</h3>
 
 <hr />
 
-<h2>Manage Database/Logs (TO BE IMPLEMENTED)</h2>
+<h2>Manage Database</h2>
 <p>
   PRUNE data and logs before
   <form method="post">

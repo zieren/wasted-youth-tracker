@@ -33,7 +33,7 @@ Beep(t) {
 Loop {
   WinGetTitle, title, A
   if (!title) {
-    title = "<none>"
+    title: = "<none>"
   }
   title := UrlEncode(title)
   fileRequest := TMP . "\kfc.request"

@@ -213,7 +213,7 @@ class Database {
       $timeByTitle[] = array(
           date("Y-m-d H:i:s", $row['ts']),
           $row['total'],
-          htmlentities($row['title'], ENT_COMPAT | ENT_HTML401, 'Windows-1252'));
+          htmlentities($row['title'], ENT_COMPAT | ENT_HTML401, 'UTF-8'));
     }
     $result->close();
     return $timeByTitle;
@@ -324,6 +324,7 @@ class Database {
     $windowTitles = array();
     while ($row = $result->fetch_assoc()) {
       // TODO: This should use the client's local time format.
+      // TODO: Titles are in UTF-8 format
       $windowTitles[] = array(date("Y-m-d H:i:s", $row['ts']), $row['title']);
     }
     return $windowTitles;

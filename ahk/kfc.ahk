@@ -1,23 +1,17 @@
-IniRead, URL, kfc.ini, account, url
-IniRead, USER, kfc.ini, account, user
-EnvGet, TMP, TMP ; current user's temp directory
-
+; Hard coded parameters that probably don't need to be configurable.
 GRACE_PERIOD_MILLIS := -30000 ; negative for SetTimer semantics
 KILL_AFTER_SECONDS := 30
+SAMPLE_INTERVAL_SECONDS := 15
 
-; This is really used to escape strings in JSON, not actually for URLs.
-UrlEncode(s) {
-	Loop, Parse, s
-  {
-		if A_LoopField is alnum
-		{
-			encoded .= A_LoopField
-			continue
-		}
-    encoded .= "%" . Format("{:02X}", Asc(A_LoopField))
-	}
-	return encoded
-}
+INI_FILE := "kfc.ini"
+IniRead, URL, %INI_FILE%, account, url
+IniRead, USER, %INI_FILE%, account, user
+IniRead, DEBUG_NO_ENFORCE, %INI_FILE%, debug, disableEnforcement, 0
+
+EnvGet, TMP, TMP ; current user's temp directory
+FILE_REQUEST := TMP . "\kfc.request"
+FILE_RESPONSE := TMP . "\kfc.response"
+FileEncoding, UTF-8-RAW
 
 ShowMessage(msg) {
   Gui, Destroy
@@ -40,7 +34,7 @@ Beep(t) {
 closingWindows := {}
 
 class Terminator {
-	terminate(title) {
+  terminate(title) {
     global KILL_AFTER_SECONDS
     global closingWindows
     WinGet, id, ID, %title%
@@ -49,11 +43,15 @@ class Terminator {
       WinClose, ahk_id %id%, , %KILL_AFTER_SECONDS%
       id2 := WinExist("ahk_id" . id)
       if (id2) {
-        Process, Close, %pid%
+        if (DEBUG_NO_ENFORCE) {
+          ShowMessage("enforcement disabled: kill process " pid)
+        } else {
+          Process, Close, %pid%
+        }
       }
       closingWindows.Delete(title)
     }
-	}
+  }
 }
 
 Loop {
@@ -61,35 +59,34 @@ Loop {
   if (!windowTitle) {
     windowTitle := "<none>"
   }
-  windowTitleUrlEncoded := UrlEncode(windowTitle)
-  fileRequest := TMP . "\kfc.request"
-  fileResponse := TMP . "\kfc.response"
-  RunWait, cmd /c echo {"title":"%windowTitleUrlEncoded%"`,"user":"%USER%"} >"%fileRequest%", , Hide
-  RunWait, curl --header "Content-Type: application/json" --request POST --data "@%fileRequest%" %URL%/rx/ -o "%fileResponse%", , Hide
-  FileRead, responseLines, %fileResponse%
-  response := StrSplit(responseLines, "`n")
-  status := response[1]
-  ; Avoid excessive QPS.
-  waitSeconds := response[2] >= 15 ? response[2] : 15
+  file := FileOpen(FILE_REQUEST, "w")
+  file.Write(USER "|" windowTitle)
+  file.Close()
+  RunWait, curl --header "Content-Type: text/plain; charset=utf-8" --request POST --data "@%FILE_REQUEST%" %URL%/rx/ -o "%FILE_RESPONSE%", , Hide
+  FileRead, response, %FILE_RESPONSE%
+  responseLines:= StrSplit(response, "`n")
+  status := responseLines[1]
   if (status = "ok") {
     ; do nothing
   } else if (status = "close") {
     if (!closingWindows.HasKey(windowTitle)) {
       Beep(2)
-      ShowMessage("Time is up, please close now: " windowTitle)
+      ShowMessage("Time is up, please close now:\n" windowTitle)
       terminateWindow := ObjBindMethod(Terminator, "terminate", windowTitle)
       closingWindows[windowTitle] := 1
       SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
     }
   } else if (status = "logout") {
-    Shutdown, 0 ; 0 means logout
-  ; } else if (status = "hibernate") {
-    ; --------------- > Shutdown, 0 ; 0 means logout
+    if (DEBUG_NO_ENFORCE) {
+      ShowMessage("enforcement disabled: logout")
+    } else {
+      Shutdown, 0 ; 0 means logout
+    }
   } else { ; an error message
-    ShowMessage(status)
+    ShowMessage(response)
     Beep(5)
   }
-  waitMillis := 1000 * waitSeconds
+  waitMillis := SAMPLE_INTERVAL_SECONDS * 1000
   Sleep, waitMillis
 }
 

@@ -9,37 +9,29 @@ error_reporting(0);
 function handleRequest() {
   $logger = Logger::Instance();
   $content = file_get_contents('php://input');
-  $data = json_decode($content, true);
-  if (!$data) {
-    $logger->critical('JSON decoding failed: "' . substr($content, 999) . '"');
-    return 'Invalid JSON';
+  $data = explode("|", $content, 2);
+  $logger->debug('Received data: ' . implode($data, '|'));
+  if (count($data) != 2) {
+    $logger->error('Invalid request content: ' . $content);
+    return "error\nInvalid request content\n";
   }
-  $logger->debug('Received data with keys: ' . implode(array_keys($data), ', '));
 
-  $user = get($data['user']);
-  $title = get($data['title']);
-  if ($user == null || $title == null) {
-    $logger->critical('Missing user and/or title in JSON');
-    return 'Missing user and/or title in JSON';
-  }
+  $user = $data[0];
+  $title = $data[1];
 
   $db = new Database();
-  $db->insertWindowTitle($user, urldecode($title));
+  $db->insertWindowTitle($user, $title);
   $minutesLeftToday = $db->queryMinutesLeftToday($user);
 
   // TODO: Make trigger time configurable.
   if ($minutesLeftToday <= 0) {
-    $response = "logout\n";
+    return "logout\n";
   } elseif ($minutesLeftToday <= 5) {
     // TODO: The client shouldn't pop up a message repeatedly. Maybe handle that on the client
     // with two buttons for "snooze" and "dismiss"?
-    $response = $minutesLeftToday . " minutes left today\n";
-  } else {
-    $response = "ok\n";
+    return "message\n" . minutesLeftToday . " minutes left today\n";
   }
-  $config = $db->getUserConfig($user);
-  $response .= $config['sample_interval_seconds'] . "\n";
-  return $response;
+  return "ok\n";
 }
 
 $response = handleRequest();

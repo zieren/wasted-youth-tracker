@@ -80,7 +80,7 @@ if (isset($_POST['setUserConfig'])) {
 
 echo '
 <h1>'.KFC_SERVER_HEADING.'</h1>
-<p>(c) 2020 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
+<p>(c) 2021 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
 Components:
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license.</p>
 <p><a href="../view/">View activity</a></p>

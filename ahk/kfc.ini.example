@@ -1,3 +1,6 @@
 [account]
 url=https://webuser:pass@server.com/kfc
 user=kfcuser
+
+[debug]
+disableEnforcement=0

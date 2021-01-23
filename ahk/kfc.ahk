@@ -1,5 +1,5 @@
-URL := "http://zieren.de/kfc"
-USER := "zzz"
+IniRead, URL, kfc.ini, account, url
+IniRead, USER, kfc.ini, account, user
 EnvGet, TMP, TMP ; current user's temp directory
 
 GRACE_PERIOD_MILLIS := -30000 ; negative for SetTimer semantics

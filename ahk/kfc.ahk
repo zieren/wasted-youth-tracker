@@ -89,7 +89,9 @@ Loop {
     } else {
       Shutdown, 0 ; 0 means logout
     }
-  } else { ; an error message
+  } else if (status = "message") {
+    ShowMessage(responseLines[2])
+  } else { ; an error message - TODO: Handle "error" status explicitly
     ShowMessage(response)
     Beep(5)
   }

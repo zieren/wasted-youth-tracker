@@ -13,7 +13,7 @@ function handleRequest() {
   $logger->debug('Received data: ' . implode($data, '|'));
   if (count($data) != 2) {
     $logger->error('Invalid request content: ' . $content);
-    return "error\nInvalid request content\n";
+    return "error\nInvalid request content";
   }
 
   $user = $data[0];
@@ -25,13 +25,13 @@ function handleRequest() {
 
   // TODO: Make trigger time configurable.
   if ($minutesLeftToday <= 0) {
-    return "logout\n";
+    return "logout";
   } elseif ($minutesLeftToday <= 5) {
     // TODO: The client shouldn't pop up a message repeatedly. Maybe handle that on the client
     // with two buttons for "snooze" and "dismiss"?
-    return "message\n" . minutesLeftToday . " minutes left today\n";
+    return "message\n" . $minutesLeftToday . " minutes left today";
   }
-  return "ok\n";
+  return "ok";
 }
 
 $response = handleRequest();

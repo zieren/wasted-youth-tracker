@@ -1,14 +1,21 @@
 ; Hard coded parameters that probably don't need to be configurable.
+; Time the user has to manually close a window for which time has expired.
+; After this time the script attempts to close the window.
 GRACE_PERIOD_MILLIS := -30000 ; negative for SetTimer semantics
+; Time the script allows for closing the window. After this time the process
+; is killed.
 KILL_AFTER_SECONDS := 30
+; Contact the server every x seconds.
 SAMPLE_INTERVAL_SECONDS := 15
 
-INI_FILE := "kfc.ini"
+EnvGet, TMP, TMP ; current user's temp directory
+EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
+
+INI_FILE := USERPROFILE "\kfc.ini"
 IniRead, URL, %INI_FILE%, account, url
 IniRead, USER, %INI_FILE%, account, user
 IniRead, DEBUG_NO_ENFORCE, %INI_FILE%, debug, disableEnforcement, 0
 
-EnvGet, TMP, TMP ; current user's temp directory
 FILE_REQUEST := TMP . "\kfc.request"
 FILE_RESPONSE := TMP . "\kfc.response"
 FileEncoding, UTF-8-RAW
@@ -71,7 +78,7 @@ Loop {
   } else if (status = "close") {
     if (!closingWindows.HasKey(windowTitle)) {
       Beep(2)
-      ShowMessage("Time is up, please close now:\n" windowTitle)
+      ShowMessage("Time is up for this app, please close it now:\n" windowTitle)
       terminateWindow := ObjBindMethod(Terminator, "terminate", windowTitle)
       closingWindows[windowTitle] := 1
       SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%

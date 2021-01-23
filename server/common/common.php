@@ -4,7 +4,6 @@
 define('PHP_MIN_VERSION', '7.3');
 define('LOG_DIR', '../logs');
 define('CONFIG_PHP', 'config.php');
-define('CONFIG_DEFAULT_FILENAME', 'default.cfg');
 define('KFC_SERVER_HEADING', 'Kids Freedom & Control 0.0.0');
 
 function autoloader($class) {

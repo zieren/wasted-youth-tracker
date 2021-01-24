@@ -20,8 +20,8 @@ function handleRequest() {
   $title = $data[1];
 
   $db = new Database();
-  $db->insertWindowTitle($user, $title);
-  $minutesLeftToday = $db->queryMinutesLeftToday($user);
+  $budgetId = $db->insertWindowTitle($user, $title);
+  $minutesLeftToday = $db->queryMinutesLeftToday($user, $budgetId);
 
   // TODO: Make trigger time configurable.
   if ($minutesLeftToday <= 0) {

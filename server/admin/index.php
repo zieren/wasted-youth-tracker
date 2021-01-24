@@ -112,7 +112,7 @@ echo '
 
 foreach ($users as $u) {
   echo '<h4>' . $u . '</h4>';
-  echoTable($db->queryOverrides($u));
+  echoTable($db->queryRecentOverrides($u));
 }
 
 echo '<h3>User config</h3>';

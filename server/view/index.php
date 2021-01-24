@@ -41,13 +41,20 @@ function setToday() {
 </script>';
 
 echo "<h3>Minutes left today</h3>";
-echo $db->queryMinutesLeftToday($user);
+$minutesLeftByBudget = $db->queryMinutesLeftTodayAllBudgets($user);
+echoTable(array(array_keys($minutesLeftByBudget), array_values($minutesLeftByBudget)));
 
 echo "<h3>Minutes spent on selected date</h3>";
 $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-$minutesSpentByDate = $db->queryMinutesSpentByDate($user, $fromTime, $toTime);
-echo get($minutesSpentByDate[$dateString], 0);
+$minutesSpentByBudgetAndDate = $db->queryMinutesSpentByBudgetAndDate($user, $fromTime, $toTime);
+$minutesSpentByBudget = array();
+foreach ($minutesSpentByBudgetAndDate as $budgetId=>$minutesSpentByDate) {
+  $minutesSpentByBudget[$budgetId] = get($minutesSpentByDate[$dateString], 0);
+}
+echoTable(array(
+    array_keys($minutesSpentByBudget),
+    array_values($minutesSpentByBudget)));
 
 echo "<h3>Minutes per window title</h3>";
 echoTable($db->queryTimeSpentByTitle($user, $fromTime));

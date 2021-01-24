@@ -117,6 +117,36 @@ class Database {
     return "0"; // synthetic catch-all budget
   }
 
+  // TODO: Decide how to treat disabled (non-enabled!?) budgets. Then check callers.
+
+  /** Returns budget config. */
+  public function getBudgetConfig($user, $budgetId) {
+    $result = $this->query('SELECT k, v FROM budget_config'
+            . ' WHERE user="' . $user . '" AND budget_id="' . $budgetId . '"'
+            . ' ORDER BY k');
+    $config = array();
+    while ($row = $result->fetch_assoc()) {
+      $config[$row['k']] = $row['v'];
+    }
+    return $config;
+  }
+
+  /** Returns all budget configs. */
+  public function getAllBudgetConfigs($user) {
+    $result = $this->query('SELECT budget_id, k, v FROM budget_config'
+            . ' WHERE user="' . $user . '"'
+            . ' ORDER BY budget_id, k');
+    $configs = array();
+    while ($row = $result->fetch_assoc()) {
+      $budgetId = $row['budget_id'];
+      if (!array_key_exists($budgetId, $configs)) {
+        $configs[$budgetId] = array();
+      }
+      $configs[$budgetId][$row['k']] = $row['v'];
+    }
+    return $configs;
+  }
+
   // ---------- WRITE ACTIVITY QUERIES ----------
 
   /** Stores the specified window title. Returns the matched budget ID. */
@@ -161,7 +191,6 @@ class Database {
 
   // TODO: Consider caching the config(s).
 
-  // TODO: This is now (all!?) in the budget config.
   /** Returns user config. */
   public function getUserConfig($user) {
     $result = $this->query('SELECT k, v FROM user_config WHERE user="'
@@ -198,17 +227,18 @@ class Database {
   // ---------- TIME SPENT/LEFT QUERIES ----------
 
   /**
-   * Returns the time spent between $fromTime and $toTime, as a sparse array keyed by date. $toTime
-   * may be null to omit the upper limit.
+   * Returns the time spent between $fromTime and $toTime, as an array keyed by date and budget ID.
+   * $toTime may be null to omit the upper limit.
    */
-  public function queryMinutesSpentByDate($user, $fromTime, $toTime) {
+  public function queryMinutesSpentByBudgetAndDate($user, $fromTime, $toTime) {
     $q = 'SET @prev_ts := 0;'
-            . ' SELECT date, SUM(s) / 60 '
+            . ' SELECT date, budget_id, SUM(s) / 60 AS minutes'
             . ' FROM ('
             . '   SELECT'
-            . '     if (@prev_ts = 0, 0, ts - @prev_ts) as s,'
+            . '     IF (@prev_ts = 0, 0, ts - @prev_ts) AS s,'
             . '     @prev_ts := ts,'
-            . '     DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") as date'
+            . '     DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") AS date,'
+            . '     budget_id'
             . '   FROM activity'
             . '   WHERE'
             . '     user = "' . $this->esc($user) . '"'
@@ -218,20 +248,29 @@ class Database {
             : '')
             . ' ) t1'
             . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
-            . ' GROUP BY date';
+            . ' GROUP BY date, budget_id'
+            . ' ORDER BY minutes DESC';
     $this->multiQuery($q);
     $result = $this->multiQueryGetNextResult();
-    $minutesByDay = array();
-    while ($row = $result->fetch_row()) {
-      $minutesByDay[$row[0]] = $row[1];
+    $minutesByBudgetAndDate = array();
+    while ($row = $result->fetch_assoc()) {
+      $date = $row['date'];
+      $budgetId = $row['budget_id'];
+      $minutes = $row['minutes'];
+      if (!array_key_exists($budgetId, $minutesByBudgetAndDate)) {
+        $minutesByBudgetAndDate[$budgetId] = array();
+      }
+      $minutesByBudgetAndDate[$budgetId][$date] = $minutes;
     }
     $result->close();
-    return $minutesByDay;
+    ksort($minutesByBudgetAndDate, SORT_NUMERIC);
+    return $minutesByBudgetAndDate;
   }
 
   /**
-   * Returns the time spent by window title, ordered by the amount of time, starting at $fromTime
-   * and ending 1d (i.e. usually 24h) later. $date should therefore usually have a time of 0:00.
+   * Returns the time spent by window title and budget ID, ordered by the amount of time, starting
+   * at $fromTime and ending 1d (i.e. usually 24h) later. $date should therefore usually have a time
+   * of 0:00.
    */
   public function queryTimeSpentByTitle($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
@@ -279,32 +318,64 @@ class Database {
    * requirement, an override limit, the limit configured for the day of the week, and the default
    * daily limit. For the last two, a possible weekly limit is additionally applied.
    */
-  public function queryMinutesLeftToday($user) {
-    $config = $this->getUserConfig($user);
-    $requireUnlock = get($config['require_unlock'], false);
+  public function queryMinutesLeftToday($user, $budgetId) {
+    $config = $this->getBudgetConfig($user, $budgetId);
     $now = new DateTime();
-    $nowString = getDateString($now);
-    $weekStart = getWeekStart($now);
-    $minutesSpentByDate = $this->queryMinutesSpentByDate($user, $weekStart, null);
+
+    $overrides = $this->queryOverrides($user, $budgetId, $now);
+
+    $minutesSpentByBudgetAndDate =
+        $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
+    $minutesSpentByDate = get($minutesSpentByBudgetAndDate[$budgetId], array());
+
+    return $this->computeMinutesLeftToday(
+        $config, $now, $overrides, $minutesSpentByDate, $budgetId);
+  }
+
+  /**
+   * Like queryMinutesLeftToday() above, but returns results for all budgets in an array keyed by
+   * budget ID.
+   */
+  public function queryMinutesLeftTodayAllBudgets($user) {
+    $configs = $this->getAllBudgetConfigs($user);
+    $now = new DateTime();
+
+    $overridesByBudget = $this->queryOverridesByBudget($user, $now);
+
+    $minutesSpentByBudgetAndDate =
+        $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
+
+    $minutesLeftByBudget = array();
+    foreach ($minutesSpentByBudgetAndDate as $budgetId => $minutesSpentByDate) {
+      $overrides = get($overridesByBudget[$budgetId], array());
+      $config = get($configs[$budgetId], array());
+      $minutesLeftByBudget[$budgetId] = $this->computeMinutesLeftToday(
+          $config, $now, $overrides, $minutesSpentByDate, $budgetId);
+    }
+    ksort($minutesLeftByBudget, SORT_NUMERIC);
+    return $minutesLeftByBudget;
+  }
+
+  // TODO: Placement
+  private function computeMinutesLeftToday($config, $now, $overrides, $minutesSpentByDate) {
+    $nowString = getDateString($now); // TODO: Add to signature?
     $minutesSpentToday = get($minutesSpentByDate[$nowString], 0);
 
     // Explicit overrides have highest priority.
-    $result = $this->query('SELECT minutes, unlocked FROM overrides'
-            . ' WHERE user="' . $user . '"'
-            . ' AND date="' . $nowString . '"');
-    // We may have "minutes" and/or "unlocked", so check both.
-    if ($row = $result->fetch_assoc()) {
-      if ($requireUnlock && $row['unlocked'] != 1) {
+    $requireUnlock = get($config['require_unlock'], false);
+    if ($overrides) {
+      if ($requireUnlock && $overrides['unlocked'] != 1) {
         return 0;
       }
-      if (isset($row['minutes'])) {
-        return $row['minutes'] - $minutesSpentToday;
+      if ($overrides['minutes'] != null) {
+        return $overrides['minutes'] - $minutesSpentToday;
       }
     } else if ($requireUnlock) {
       return 0;
     }
 
     $minutesLimitToday = get($config[DAILY_LIMIT_MINUTES_PREFIX . 'default'], 0);
+
     // Weekday-specific limit overrides default limit.
     $key = DAILY_LIMIT_MINUTES_PREFIX . strtolower($now->format('D'));
     if (isset($config[$key])) {
@@ -349,7 +420,7 @@ class Database {
 
   /** Returns all overrides for the specified user, starting the week before the current week. */
   // TODO: Allow setting the date range.
-  public function queryOverrides($user) {
+  public function queryRecentOverrides($user) {
     $fromDate = getWeekStart(new DateTime());
     $fromDate->sub(new DateInterval('P1W'));
     $result = $this->query('SELECT user, date,'
@@ -362,6 +433,32 @@ class Database {
     return $result->fetch_all();
   }
 
+  /** Returns overrides in an associative array, or an empty array if none are defined. */
+  private function queryOverrides($user, $budgetId, $dateTime) {
+    $result = $this->query('SELECT budget_id, minutes, unlocked FROM overrides'
+            . ' WHERE user="' . $user . '"'
+            . ' AND date="' . getDateString($dateTime) . '"'
+            . ' AND budget_id="' . $budgetId . '"');
+    if ($row = $result->fetch_assoc()) {
+      return array('minutes'=>$row['minutes'], 'unlocked'=>$row['unlocked']);
+    }
+    return array();
+  }
+
+  /** Returns all overrides as a 2D array keyed first by budget ID, then by override. */
+  private function queryOverridesByBudget($user, $now) {
+    $result = $this->query('SELECT budget_id, minutes, unlocked FROM overrides'
+            . ' WHERE user="' . $user . '"'
+            . ' AND date="' . getDateString($now) . '"');
+    $overridesByBudget = array();
+    // PK is (user, date, budget_id), so there is at most one row per budget_id.
+    while ($row = $result->fetch_assoc()) {
+      $overridesByBudget[$row['budget_id']] =
+          array('minutes'=>$row['minutes'], 'unlocked'=>$row['unlocked']);
+    }
+    return $overridesByBudget;
+  }
+
   // ---------- DEBUG/SPECIAL/DUBIOUS/OBNOXIOUS QUERIES ----------
 
   /**
@@ -370,7 +467,7 @@ class Database {
    */
   public function queryTitleSequence($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-    $q = 'SELECT ts, title FROM activity'
+    $q = 'SELECT ts, budget_id, title FROM activity'
             . ' WHERE user = "' . $this->esc($user) . '"'
             . ' AND ts >= ' . $fromTime->getTimestamp()
             . ' AND ts < ' . $toTime->getTimestamp()
@@ -380,7 +477,10 @@ class Database {
     while ($row = $result->fetch_assoc()) {
       // TODO: This should use the client's local time format.
       // TODO: Titles are in UTF-8 format
-      $windowTitles[] = array(date("Y-m-d H:i:s", $row['ts']), $row['title']);
+      $windowTitles[] = array(
+          date("Y-m-d H:i:s", $row['ts']),
+          $row['budget_id'],
+          htmlentities($row['title'], ENT_COMPAT | ENT_HTML401, 'UTF-8'));
     }
     return $windowTitles;
   }

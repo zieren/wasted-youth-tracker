@@ -26,35 +26,62 @@ class Database {
 
   // ---------- TABLE MANAGEMENT ----------
 
+  // TODO: Consider FOREIGN KEY.
+
   public function createMissingTables() {
     $this->query('SET default_storage_engine=INNODB');
     $this->query(
             'CREATE TABLE IF NOT EXISTS activity ('
             . 'user VARCHAR(32) NOT NULL, '
             . 'ts BIGINT NOT NULL, '
+            . 'budget_id INT NOT NULL, '
             . 'title VARCHAR(256) NOT NULL, '
-            . 'PRIMARY KEY (user, ts))');
+            . 'PRIMARY KEY (user, ts))');  // ON DELETE CASCADE?
+    $this->query(
+            'CREATE TABLE IF NOT EXISTS budget ('
+            . 'id INT NOT NULL AUTO_INCREMENT, '
+            . 'name VARCHAR(100) NOT NULL, '
+            . 'priority INT NOT NULL, '
+            . 'PRIMARY KEY (id))');
+    // TODO: Insert synthetic budget with id=0 and minimum priority into "budget"
+    // (matching expressions are not required). Will be needed when showing budget names.
+    $this->query(
+            'CREATE TABLE IF NOT EXISTS budget_definition ('
+            . 'budget_id INT NOT NULL, '
+            . 'budget_re VARCHAR(1024) NOT NULL, '
+            . 'FOREIGN KEY (budget_id) REFERENCES budget(id) ON DELETE RESTRICT)');
+    $this->query(
+            'CREATE TABLE IF NOT EXISTS budget_config ('
+            . 'budget_id INT NOT NULL, '
+            . 'user VARCHAR(32) NOT NULL, '
+            . 'k VARCHAR(100) NOT NULL, '
+            . 'v VARCHAR(200) NOT NULL, '
+            . 'PRIMARY KEY (budget_id, user, k), '
+            . 'FOREIGN KEY (budget_id) REFERENCES budget(id) ON DELETE RESTRICT)');
     $this->query(
             'CREATE TABLE IF NOT EXISTS user_config ('
             . 'user VARCHAR(32) NOT NULL, '
-            . 'k VARCHAR(200) NOT NULL, '
-            . 'v TEXT NOT NULL, '
+            . 'k VARCHAR(100) NOT NULL, '
+            . 'v VARCHAR(200) NOT NULL, '
             . 'PRIMARY KEY (user, k))');
     $this->query(
             'CREATE TABLE IF NOT EXISTS global_config ('
-            . 'k VARCHAR(200) NOT NULL, '
-            . 'v TEXT NOT NULL, '
+            . 'k VARCHAR(100) NOT NULL, '
+            . 'v VARCHAR(200) NOT NULL, '
             . 'PRIMARY KEY (k))');
     $this->query(
             'CREATE TABLE IF NOT EXISTS overrides ('
             . 'user VARCHAR(32) NOT NULL, '
             . 'date DATE NOT NULL, '
+            . 'budget_id INT NOT NULL, '
             . 'minutes INT, '
             . 'unlocked BOOL, '
-            . 'PRIMARY KEY (user, date))');
+            . 'PRIMARY KEY (user, date, budget_id))');
   }
 
   public function dropAllTablesExceptConfig() {
+    $this->throwException("dropAllTablesExceptConfig() not implemented");
+    // TODO: Update for new tables.
     $this->query('DROP TABLE IF EXISTS activity');
     $this->query('DROP TABLE IF EXISTS overrides');
     $this->log->notice('tables dropped');
@@ -62,20 +89,46 @@ class Database {
 
   /** Delete all records prior to DateTime $date. */
   public function pruneTables($date) {
+    $this->throwException("pruneTables() not implemented");
+    // TODO: Update for new tables.
     $this->query('DELETE FROM activity WHERE ts < ' . $date->getTimestamp());
     $this->query('DELETE FROM overrides WHERE date < "' . getDateString($date) . '"');
     $this->log->notice('tables pruned up to ' . $date->format(DateTimeInterface::ATOM));
   }
 
+  // ---------- BUDGET QUERIES ----------
+
+  // TODO
+
+  /** Returns the ID of the matching budget with the highest priority, or zero if none match. */
+  private function getBudgetId($user, $windowTitle) {
+    $q = 'SELECT budget.id'
+      . ' FROM budget_config'
+      . ' JOIN budget_definition ON budget_config.budget_id = budget_definition.budget_id'
+      . ' JOIN budget ON budget_config.budget_id = budget.id'
+      . ' WHERE user = "' . $this->esc($user) . '" AND k = "enabled" AND v = "1"'
+      . ' AND "' . $this->esc($windowTitle) . '" REGEXP budget_re'
+      . ' ORDER BY priority DESC'
+      . ' LIMIT 1';
+    $result = $this->query($q);
+    if ($row = $result->fetch_assoc()) {
+      return $row['id'];
+    }
+    return "0"; // synthetic catch-all budget
+  }
+
   // ---------- WRITE ACTIVITY QUERIES ----------
 
-  /** Stores the specified window title. */
+  /** Stores the specified window title. Returns the matched budget ID. */
   public function insertWindowTitle($user, $windowTitle) {
-    $q = 'REPLACE INTO activity (ts, user, title) VALUES ('
+    $budgetId = $this->getBudgetId($user, $windowTitle);
+    $q = 'REPLACE INTO activity (ts, user, title, budget_id) VALUES ('
             . time()
             . ',"' . $this->esc($user) . '"'
-            . ',"' . $this->esc($windowTitle) . '")';
+            . ',"' . $this->esc($windowTitle) . '"'
+            . ',"' . $budgetId . '")';
     $this->query($q);
+    return $budgetId;
   }
 
   // ---------- CONFIG QUERIES ----------
@@ -108,6 +161,7 @@ class Database {
 
   // TODO: Consider caching the config(s).
 
+  // TODO: This is now (all!?) in the budget config.
   /** Returns user config. */
   public function getUserConfig($user) {
     $result = $this->query('SELECT k, v FROM user_config WHERE user="'
@@ -148,7 +202,6 @@ class Database {
    * may be null to omit the upper limit.
    */
   public function queryMinutesSpentByDate($user, $fromTime, $toTime) {
-    $config = $this->getUserConfig($user);
     $q = 'SET @prev_ts := 0;'
             . ' SELECT date, SUM(s) / 60 '
             . ' FROM ('
@@ -164,7 +217,7 @@ class Database {
               '     AND ts < ' . $toTime->getTimestamp()
             : '')
             . ' ) t1'
-            . ' WHERE s <= ' . ($config['sample_interval_seconds'] + 10) // TODO: 10 magic
+            . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
             . ' GROUP BY date';
     $this->multiQuery($q);
     $result = $this->multiQueryGetNextResult();
@@ -182,17 +235,18 @@ class Database {
    */
   public function queryTimeSpentByTitle($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-    $config = $this->getUserConfig($user);
     // TODO: Remove "<init>" placeholder.
-    $q = 'SET @prev_ts := 0, @prev_title := "<init>";'
+    $q = 'SET @prev_ts := 0, @prev_id := 0, @prev_title := "<init>";'
             // TODO: Should the client handle SEC_TO_TIME?
-            . ' SELECT ts, SEC_TO_TIME(SUM(s)) as total, title '
+            . ' SELECT ts, SEC_TO_TIME(SUM(s)) as total, id, title '
             . ' FROM ('
             . '   SELECT'
             . '     ts,'
             . '     if (@prev_ts = 0, 0, ts - @prev_ts) as s,'
+            . '     @prev_id as id,'
             . '     @prev_title as title,'
             . '     @prev_ts := ts,'
+            . '     @prev_id := budget_id,'
             . '     @prev_title := title'
             . '   FROM activity'
             . '   WHERE'
@@ -201,9 +255,9 @@ class Database {
             . '     AND ts < ' . $toTime->getTimestamp()
             . '   ORDER BY ts ASC'
             . ' ) t1'
-            . ' WHERE s <= ' . ($config['sample_interval_seconds'] + 10) // TODO: 10 magic
+            . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
             . ' AND s > 0'
-            . ' GROUP BY title'
+            . ' GROUP BY title, id'
             . ' ORDER BY total DESC';
     $this->multiQuery($q);
     $result = $this->multiQueryGetNextResult();
@@ -213,6 +267,7 @@ class Database {
       $timeByTitle[] = array(
           date("Y-m-d H:i:s", $row['ts']),
           $row['total'],
+          $row['id'],
           htmlentities($row['title'], ENT_COMPAT | ENT_HTML401, 'UTF-8'));
     }
     $result->close();

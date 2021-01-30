@@ -282,7 +282,7 @@ class Database {
   }
 
   /**
-   * Returns the time spent by window title and budget ID, ordered by the amount of time, starting
+   * Returns the time spent by window title and budget name, ordered by the amount of time, starting
    * at $fromTime and ending 1d (i.e. usually 24h) later. $date should therefore usually have a time
    * of 0:00.
    */
@@ -290,28 +290,29 @@ class Database {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     // TODO: Remove "<init>" placeholder.
     $q = 'SET @prev_ts := 0, @prev_id := 0, @prev_title := "<init>";'
-            // TODO: Should the client handle SEC_TO_TIME?
-            . ' SELECT ts, SEC_TO_TIME(SUM(s)) as total, id, title '
-            . ' FROM ('
-            . '   SELECT'
-            . '     ts,'
-            . '     if (@prev_ts = 0, 0, ts - @prev_ts) as s,'
-            . '     @prev_id as id,'
-            . '     @prev_title as title,'
-            . '     @prev_ts := ts,'
-            . '     @prev_id := budget_id,'
-            . '     @prev_title := title'
-            . '   FROM activity'
-            . '   WHERE'
-            . '     user = "' . $this->esc($user) . '"'
-            . '     AND ts >= ' . $fromTime->getTimestamp()
-            . '     AND ts < ' . $toTime->getTimestamp()
-            . '   ORDER BY ts ASC'
-            . ' ) t1'
-            . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
-            . ' AND s > 0'
-            . ' GROUP BY title, id'
-            . ' ORDER BY total DESC';
+        // TODO: Should the client handle SEC_TO_TIME?
+        . ' SELECT ts, SEC_TO_TIME(SUM(s)) as total, name, title '
+        . ' FROM ('
+        . '   SELECT'
+        . '     ts,'
+        . '     if (@prev_ts = 0, 0, ts - @prev_ts) as s,'
+        . '     @prev_id as id,'
+        . '     @prev_title as title,'
+        . '     @prev_ts := ts,'
+        . '     @prev_id := budget_id,'
+        . '     @prev_title := title'
+        . '   FROM activity'
+        . '   WHERE'
+        . '     user = "' . $this->esc($user) . '"'
+        . '     AND ts >= ' . $fromTime->getTimestamp()
+        . '     AND ts < ' . $toTime->getTimestamp()
+        . '   ORDER BY ts ASC'
+        . ' ) t1'
+        . ' JOIN budget ON t1.id = budget.id'
+        . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
+        . ' AND s > 0'
+        . ' GROUP BY title, name'
+        . ' ORDER BY total DESC';
     $this->multiQuery($q);
     $result = $this->multiQueryGetNextResult();
     $timeByTitle = array();
@@ -320,7 +321,7 @@ class Database {
       $timeByTitle[] = array(
           date("Y-m-d H:i:s", $row['ts']),
           $row['total'],
-          $row['id'],
+          $row['name'],
           $row['title']);
     }
     $result->close();

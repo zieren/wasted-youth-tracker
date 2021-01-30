@@ -38,12 +38,12 @@ Beep(t) {
 ; There's no set, so use an associative array.
 ; This should be safe since AutoHotkey simulates concurrency using a
 ; single thread: https://www.autohotkey.com/docs/misc/Threads.htm
-closingWindows := {}
+doomedWindows := {}
 
 class Terminator {
   terminate(title) {
     global KILL_AFTER_SECONDS
-    global closingWindows
+    global doomedWindows
     WinGet, id, ID, %title%
     if (id) {
       WinGet, pid, PID, ahk_id %id%
@@ -56,7 +56,7 @@ class Terminator {
           Process, Close, %pid%
         }
       }
-      closingWindows.Delete(title)
+      doomedWindows.Delete(title)
     }
   }
 }
@@ -76,11 +76,11 @@ Loop {
   if (status = "ok") {
     ; do nothing
   } else if (status = "close") {
-    if (!closingWindows.HasKey(windowTitle)) {
+    if (!doomedWindows.HasKey(windowTitle)) {
       Beep(2)
       ShowMessage("Time is up for this app, please close it now:\n" windowTitle)
       terminateWindow := ObjBindMethod(Terminator, "terminate", windowTitle)
-      closingWindows[windowTitle] := 1
+      doomedWindows[windowTitle] := 1
       SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
     }
   } else if (status = "logout") {

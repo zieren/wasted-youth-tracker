@@ -20,19 +20,21 @@ function handleRequest() {
   $title = $data[1];
 
   $db = new Database();
-  $budgetId = $db->insertWindowTitle($user, $title);
+
+  // Check time left for this specific budget.
+  list($budgetId, $budgetName) = $db->insertWindowTitle($user, $title);
   $minutesLeftToday = $db->queryMinutesLeftToday($user, $budgetId);
 
-  // TODO: Make trigger time configurable.
   if ($minutesLeftToday <= 0) {
-    return "logout";
+    return "close";
   }
+  // TODO: Make trigger time configurable. Code below relies on it being <= 60.
   if ($minutesLeftToday <= 5) {
-    // TODO: The client shouldn't pop up a message repeatedly. Maybe handle that on the client
-    // with two buttons for "snooze" and "dismiss"?
-    return "message\n" . $minutesLeftToday . " minutes left today";
+    // TODO: Message should indicate budget name.
+    $mmssLeftToday = gmdate("i:s", $minutesLeftToday * 60);
+    return "warn\n" . $budgetId . "\n" . $mmssLeftToday . " left today for '" . $budgetName . "'";
   }
-  return "ok";
+  return "ok\n" . $budgetId;
 }
 
 $response = handleRequest();

@@ -5,6 +5,7 @@ define('PHP_MIN_VERSION', '7.3');
 define('LOG_DIR', '../logs');
 define('CONFIG_PHP', 'config.php');
 define('KFC_SERVER_HEADING', 'Kids Freedom & Control 0.0.0');
+define('DEFAULT_BUDGET_NAME', '<default>');
 
 function autoloader($class) {
   include str_replace('\\', '/', $class) . '.php';

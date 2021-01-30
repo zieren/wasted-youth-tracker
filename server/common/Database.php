@@ -43,7 +43,7 @@ class Database {
             . 'name VARCHAR(100) NOT NULL, '
             . 'priority INT NOT NULL, '
             . 'PRIMARY KEY (id))');
-    // TODO: Insert synthetic budget with id=0 and minimum priority into "budget"
+    // TODO: Insert synthetic budget DEFAULT_BUDGET_NAME with id=0 and minimum priority into "budget"
     // (matching expressions are not required). Will be needed when showing budget names.
     $this->query(
             'CREATE TABLE IF NOT EXISTS budget_definition ('
@@ -100,9 +100,12 @@ class Database {
 
   // TODO
 
-  /** Returns the ID of the matching budget with the highest priority, or zero if none match. */
-  private function getBudgetId($user, $windowTitle) {
-    $q = 'SELECT budget.id'
+  /**
+   * Returns an array containing ID and name of the matching budget with the highest priority.
+   * If no defined budget matches, returns the default budget id (zero) and name.
+   */
+  private function getBudget($user, $windowTitle) {
+    $q = 'SELECT budget.id, budget.name'
       . ' FROM budget_config'
       . ' JOIN budget_definition ON budget_config.budget_id = budget_definition.budget_id'
       . ' JOIN budget ON budget_config.budget_id = budget.id'
@@ -112,9 +115,9 @@ class Database {
       . ' LIMIT 1';
     $result = $this->query($q);
     if ($row = $result->fetch_assoc()) {
-      return $row['id'];
+      return array($row['id'], $row['name']);
     }
-    return "0"; // synthetic catch-all budget
+    return array("0", DEFAULT_BUDGET_NAME); // synthetic catch-all budget
   }
 
   // TODO: Decide how to treat disabled (non-enabled!?) budgets. Then check callers.
@@ -151,14 +154,14 @@ class Database {
 
   /** Stores the specified window title. Returns the matched budget ID. */
   public function insertWindowTitle($user, $windowTitle) {
-    $budgetId = $this->getBudgetId($user, $windowTitle);
+    list($budgetId, $budgetName) = $this->getBudget($user, $windowTitle);
     $q = 'REPLACE INTO activity (ts, user, title, budget_id) VALUES ('
             . time()
             . ',"' . $this->esc($user) . '"'
             . ',"' . $this->esc($windowTitle) . '"'
             . ',"' . $budgetId . '")';
     $this->query($q);
-    return $budgetId;
+    return array($budgetId, $budgetName);
   }
 
   // ---------- CONFIG QUERIES ----------

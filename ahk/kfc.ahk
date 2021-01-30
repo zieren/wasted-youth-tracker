@@ -34,11 +34,15 @@ Beep(t) {
   }
 }
 
+; Shared variables should be safe since AutoHotkey simulates concurrency
+; using a single thread: https://www.autohotkey.com/docs/misc/Threads.htm
+
 ; Track windows for which a "please close" message was already shown.
-; There's no set, so use an associative array.
-; This should be safe since AutoHotkey simulates concurrency using a
-; single thread: https://www.autohotkey.com/docs/misc/Threads.htm
+; There's no set type, so use an associative array.
 doomedWindows := {}
+
+; Remember budgets for which a "time is almost up" message has been shown.
+warnedBudgets := {}
 
 class Terminator {
   terminate(title) {
@@ -74,14 +78,22 @@ Loop {
   responseLines:= StrSplit(response, "`n")
   status := responseLines[1]
   if (status = "ok") {
-    ; do nothing
+    budgetId := responseLines[2]
+    warnedBudgets.Delete(budgetId) ; budget might have been extended
   } else if (status = "close") {
     if (!doomedWindows.HasKey(windowTitle)) {
-      Beep(2)
-      ShowMessage("Time is up for this app, please close it now:\n" windowTitle)
-      terminateWindow := ObjBindMethod(Terminator, "terminate", windowTitle)
       doomedWindows[windowTitle] := 1
+      Beep(2)
+      ShowMessage("Time is up for this app, please close it now:`n" windowTitle)
+      terminateWindow := ObjBindMethod(Terminator, "terminate", windowTitle)
       SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
+    }
+  } else if (status = "warn") {
+    budgetId := responseLines[2]
+    message := responseLines[3]
+    if (!warnedBudgets.HasKey(budgetId)) {
+      warnedBudgets[budgetId] := 1
+      ShowMessage(message)
     }
   } else if (status = "logout") {
     if (DEBUG_NO_ENFORCE) {
@@ -89,8 +101,6 @@ Loop {
     } else {
       Shutdown, 0 ; 0 means logout
     }
-  } else if (status = "message") {
-    ShowMessage(responseLines[2])
   } else { ; an error message - TODO: Handle "error" status explicitly
     ShowMessage(response)
     Beep(5)

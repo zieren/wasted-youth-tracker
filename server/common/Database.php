@@ -135,8 +135,9 @@ class Database {
   }
 
   /**
-   * Returns all budget configs that have at least one key for the specified user. The virtual key
-   * 'name' is populated with the budget's name.
+   * Returns all budget configs that have at least one key for the specified user. As an exception,
+   * the default budget is always included. The virtual key 'name' is populated with the budget's
+   * name.
    */
   public function getAllBudgetConfigs($user) {
     // TODO: Consider caching this.
@@ -155,6 +156,8 @@ class Database {
       $configs[$budgetId][$row['k']] = $row['v'];
       $configs[$budgetId]['name'] = $row['name'];
     }
+    // In case the default budget was not configured:
+    $configs[0]['name'] = DEFAULT_BUDGET_NAME;
     return $configs;
   }
 
@@ -318,7 +321,7 @@ class Database {
           date("Y-m-d H:i:s", $row['ts']),
           $row['total'],
           $row['id'],
-          htmlentities($row['title'], ENT_COMPAT | ENT_HTML401, 'UTF-8'));
+          $row['title']);
     }
     $result->close();
     return $timeByTitle;
@@ -487,11 +490,10 @@ class Database {
     $windowTitles = array();
     while ($row = $result->fetch_assoc()) {
       // TODO: This should use the client's local time format.
-      // TODO: Titles are in UTF-8 format
       $windowTitles[] = array(
           date("Y-m-d H:i:s", $row['ts']),
           $row['budget_id'],
-          htmlentities($row['title'], ENT_COMPAT | ENT_HTML401, 'UTF-8'));
+          $row['title']);
     }
     return $windowTitles;
   }

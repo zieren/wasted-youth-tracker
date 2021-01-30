@@ -62,3 +62,15 @@ function getTodayStart() {
 function getDateString($dateTime) {
   return $dateTime->format('Y-m-d');
 }
+
+/**
+ * Maps budget IDs in the input array to names, given the configs obtained from
+ * Database::getAllBudgetConfigs().
+ */
+function budgetIdsToNames($ids, $configs) {
+  $names = array();
+  foreach ($ids as $id) {
+    $names[$id] = $configs[$id]['name'];
+  }
+  return $names;
+}

@@ -19,6 +19,7 @@ list($year, $month, $day) = explode('-', $dateString);
 // TODO: Date needs to be pretty for the input (2-digit month/day etc.)
 $users = $db->getUsers();
 $user = get($_GET['user'], get($users[0], ''));
+$configs = $db->getAllBudgetConfigs($user);
 
 echo '<form action="index.php" method="get">'
     . '<label for="idUsers">User:</label> '
@@ -42,7 +43,9 @@ function setToday() {
 
 echo "<h3>Minutes left today</h3>";
 $minutesLeftByBudget = $db->queryMinutesLeftTodayAllBudgets($user);
-echoTable(array(array_keys($minutesLeftByBudget), array_values($minutesLeftByBudget)));
+echoTable(array(
+    budgetIdsToNames(array_keys($minutesLeftByBudget), $configs),
+    array_values($minutesLeftByBudget)));
 
 echo "<h3>Minutes spent on selected date</h3>";
 $fromTime = new DateTime($dateString);
@@ -53,7 +56,7 @@ foreach ($minutesSpentByBudgetAndDate as $budgetId=>$minutesSpentByDate) {
   $minutesSpentByBudget[$budgetId] = get($minutesSpentByDate[$dateString], 0);
 }
 echoTable(array(
-    array_keys($minutesSpentByBudget),
+    budgetIdsToNames(array_keys($minutesSpentByBudget), $configs),
     array_values($minutesSpentByBudget)));
 
 echo "<h3>Minutes per window title</h3>";

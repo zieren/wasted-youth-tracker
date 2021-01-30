@@ -2,7 +2,7 @@
 
 require_once '../common/common.php';
 
-error_reporting(0);
+// error_reporting(0);
 
 header("Cache-Control: max-age=0");
 
@@ -15,8 +15,10 @@ $db = new Database();
 
 $response = "";
 $minutesLeftByBudget = $db->queryMinutesLeftTodayAllBudgets($user);
+$budgetConfigs = $db->getAllBudgetConfigs($user);
 foreach ($minutesLeftByBudget as $budgetId => $minutesLeft) {
   $minutesLeft = max(0, $minutesLeft);
-  $response .= $budgetId . ": " . gmdate("H:i:s", $minutesLeft * 60) . "\n";
+  $response .=
+      gmdate("H:i:s", $minutesLeft * 60) . " - " . $budgetConfigs[$budgetId]['name'] . "\n";
 }
 echo $response;

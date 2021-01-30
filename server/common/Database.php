@@ -134,18 +134,26 @@ class Database {
     return $config;
   }
 
-  /** Returns all budget configs. */
+  /**
+   * Returns all budget configs that have at least one key for the specified user. The virtual key
+   * 'name' is populated with the budget's name.
+   */
   public function getAllBudgetConfigs($user) {
-    $result = $this->query('SELECT budget_id, k, v FROM budget_config'
+    // TODO: Consider caching this.
+    $result = $this->query(
+            'SELECT id, name, k, v'
+            . ' FROM budget_config'
+            . ' JOIN budget ON budget_id = id'
             . ' WHERE user="' . $user . '"'
-            . ' ORDER BY budget_id, k');
+            . ' ORDER BY id, k');
     $configs = array();
     while ($row = $result->fetch_assoc()) {
-      $budgetId = $row['budget_id'];
+      $budgetId = $row['id'];
       if (!array_key_exists($budgetId, $configs)) {
         $configs[$budgetId] = array();
       }
       $configs[$budgetId][$row['k']] = $row['v'];
+      $configs[$budgetId]['name'] = $row['name'];
     }
     return $configs;
   }
@@ -349,9 +357,9 @@ class Database {
         $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
 
     $minutesLeftByBudget = array();
-    foreach ($minutesSpentByBudgetAndDate as $budgetId => $minutesSpentByDate) {
+    foreach ($configs as $budgetId => $config) {
+      $minutesSpentByDate = $minutesSpentByBudgetAndDate[$budgetId];
       $overrides = get($overridesByBudget[$budgetId], array());
-      $config = get($configs[$budgetId], array());
       $minutesLeftByBudget[$budgetId] = $this->computeMinutesLeftToday(
           $config, $now, $overrides, $minutesSpentByDate, $budgetId);
     }
@@ -361,7 +369,7 @@ class Database {
 
   // TODO: Placement
   private function computeMinutesLeftToday($config, $now, $overrides, $minutesSpentByDate) {
-    $nowString = getDateString($now); // TODO: Add to signature?
+    $nowString = getDateString($now);
     $minutesSpentToday = get($minutesSpentByDate[$nowString], 0);
 
     // Explicit overrides have highest priority.

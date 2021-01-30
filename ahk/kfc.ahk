@@ -111,4 +111,33 @@ Loop {
 
 ButtonOK:
 Gui, Destroy
-Return
+return
+
+ShowTimeLeft() {
+  global URL
+  global USER
+  leftUrl := URL "/view/left.php?user=" USER
+  ; Extract HTTP basic authentication, if present.
+  RegExMatch(leftUrl, "(https?://)(([^:]+):(.+)@)?([^@]+)", g)
+  leftUrl := g1 g5
+  httpUser := g3
+  httpPass := g4
+  try {
+    request := ComObjCreate("MSXML2.XMLHTTP.6.0")
+    request.open("GET", leftUrl, False, httpUser, httpPass)
+    request.send()
+    if (request.StatusText() = "OK") {
+      ShowMessage("Time left:`n" request.ResponseText())
+    } else {
+      ShowMessage("Error: " request.StatusText())
+    }
+  } catch e {
+    ShowMessage("Error: " e.message)
+  }
+}
+
+; Query time left
+; https://docs.microsoft.com/en-us/previous-versions/windows/desktop/ms759148(v=vs.85)
+^F12::
+ShowTimeLeft()
+return

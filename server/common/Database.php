@@ -160,7 +160,7 @@ class Database {
 
   // ---------- WRITE ACTIVITY QUERIES ----------
 
-  /** Stores the specified window title. Returns the matched budget ID. */
+  /** Stores the specified window title. Returns the matched budget ID and name. */
   public function insertWindowTitle($user, $windowTitle) {
     list($budgetId, $budgetName) = $this->getBudget($user, $windowTitle);
     $q = 'REPLACE INTO activity (ts, user, title, budget_id) VALUES ('

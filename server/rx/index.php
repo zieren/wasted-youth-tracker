@@ -30,7 +30,6 @@ function handleRequest() {
   }
   // TODO: Make trigger time configurable. Code below relies on it being <= 60.
   if ($minutesLeftToday <= 5) {
-    // TODO: Message should indicate budget name.
     $mmssLeftToday = gmdate("i:s", $minutesLeftToday * 60);
     return "warn\n" . $budgetId . "\n" . $mmssLeftToday . " left today for '" . $budgetName . "'";
   }

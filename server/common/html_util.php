@@ -27,10 +27,11 @@ function userSelector($users, $selectedUser) {
 
 function dateSelector($dateString, $submitOnInput) {
   $onInput = $submitOnInput ? ' onInput="this.form.submit()"' : '';
+  $type = $submitOnInput ? 'submit' : 'button';
   return
       '<label for="idDate">Date:</label><input id="idDate" type="date" value="' . $dateString
       . '" name="date"' . $onInput . '/>
-      <button onClick="setToday()">Today</button>' . "\n";
+      <button onClick="setToday()" type="' . $type . '">Today</button>' . "\n";
 }
 
 function dateSelectorJs() {

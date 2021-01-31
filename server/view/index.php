@@ -1,6 +1,7 @@
 <html>
 <head>
   <title>KFC View</title>
+  <meta charset="utf-8"/>
   <link rel="stylesheet" href="../common/kfc.css">
 </head>
 <body>
@@ -8,9 +9,7 @@
 require_once '../common/common.php';
 require_once '../common/html_util.php';
 
-echo '<h2>Links</h2>
-  <a href="../admin/">Admin page</a>
-  <h2>View</h2>';
+echo dateSelectorJs();
 
 $db = new Database(false/* create missing tables */);
 $dateString = get($_GET['date'], date('Y-m-d'));
@@ -21,25 +20,15 @@ $users = $db->getUsers();
 $user = get($_GET['user'], get($users[0], ''));
 $configs = $db->getAllBudgetConfigs($user);
 
-echo '<form action="index.php" method="get">'
-    . '<label for="idUsers">User:</label> '
-    . '<select id="idUsers" name="user" onChange="if (this.value != 0) { this.form.submit(); }">';
-foreach ($users as $u) {
-  $selected = $user == $u ? 'selected="selected"' : '';
-  echo '<option value="' . $u . '" ' . $selected . '>' . $u . '</option>';
-}
-echo '</select>
-      <p>Date: <input id="idDate" type="date" value="' . $dateString
-        . '" name="date" onInput="this.form.submit()"/>
-      <button onClick="setToday()">Today</button>
-      </p>
-      </form>
-<script type="text/javascript">
-function setToday() {
-  var dateInput = document.querySelector("#idDate");
-  dateInput.value = "' . date('Y-m-d') . '";
-}
-</script>';
+echo '<h2>Links</h2>
+  <a href="../admin/index.php?user=' . $user . '">Admin page</a>
+  <h2>View</h2>';
+
+echo
+    '<form action="index.php" method="get">'
+    . userSelector($users, $user)
+    . dateSelector($dateString, true)
+    . '</form>';
 
 echo "<h3>Minutes left today</h3>";
 $minutesLeftByBudget = $db->queryMinutesLeftTodayAllBudgets($user);

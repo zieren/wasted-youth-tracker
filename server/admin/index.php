@@ -1,10 +1,11 @@
 <html>
 <head>
   <title>KFC Admin</title>
+  <meta charset="utf-8"/>
   <link rel="stylesheet" href="../common/kfc.css">
 </head>
 <body>
-<script type="text/javascript">
+<script>
 function enableDestructiveButtons(toggleCheckbox) {
   var checkbox = document.getElementById('idKfcEnableDestructive');
   if (toggleCheckbox) {
@@ -19,6 +20,8 @@ function enableDestructiveButtons(toggleCheckbox) {
 <?php
 require_once '../common/common.php';
 require_once '../common/html_util.php';
+
+echo dateSelectorJs();
 
 function checkRequirements() {
   $unmet = array();
@@ -57,9 +60,10 @@ if (isset($_POST['setUserConfig'])) {
   $db->clearGlobalConfig($key);
 } else if (isset($_POST['setMinutes'])) {
   $user = $_POST['user'];
-  $dateString = $_POST['dateOverride'];
+  $budgetId = $_POST['budget'];
+  $dateString = $_POST['date'];
   $minutes = get($_POST['overrideMinutes'], 0);
-  $db->setOverrideMinutes($user, $dateString, $minutes);
+  $db->setOverrideMinutes($user, $dateString, $budgetId, $minutes);
 } else if (isset($_POST['unlock'])) {
   $user = $_POST['user'];
   $dateString = $_POST['dateOverride'];
@@ -78,37 +82,44 @@ if (isset($_POST['setUserConfig'])) {
   echo '<b>Tables dropped</b></hr>';
 }
 
-echo '
-<h1>'.KFC_SERVER_HEADING.'</h1>
+$users = $db->getUsers();
+if (!isset($user)) {
+  $user = get($_GET['user'], get($users[0], ''));
+}
+if (!isset($dateString)) {
+  $dateString = get($_GET['date'], date('Y-m-d'));
+}
+if (!isset($budgetId)) {
+  $budgetId = 0;
+}
+
+$allBudgetConfigs = $db->getAllBudgetConfigs($user);
+$budgetNames = budgetIdsToNames(array_keys($allBudgetConfigs), $allBudgetConfigs);
+
+echo '<h1>'.KFC_SERVER_HEADING.'</h1>
 <p>(c) 2021 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
 Components:
-<a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license.</p>
-<p><a href="../view/">View activity</a></p>
+<a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license</p>';
 
-<h2>Configuration</h2>
+echo '<p><a href="../view/index.php?user=' . $user . '">View activity</a></p>';
 
-<h3>Users</h3>';
-$users = $db->getUsers();
-echo implode(",", $users);
+echo '<h2>Configuration</h2>
+    <form action="index.php" method="get">'
+    . userSelector($users, $user)
+    . '</form>';
 
-$now = new DateTime();
 echo '
 <h3>Overrides</h3>
-  <form method="post">
-    <label for="idUser">User:</label>
-    <select id="idUser" name="user">';
-foreach ($users as $u) {
-  echo '<option value="' . $u . '">' . $u . '</option>';
-}
-echo '
-    </select>
-  <input type="date" name="dateOverride" value="' . getDateString($now) . '">
-  <label for="idOverrideMinutes">Minutes: </label>
-  <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
-  <input type="submit" value="Set Minutes" name="setMinutes">
-  <input type="submit" value="Unlock" name="unlock">
-  <input type="submit" value="Clear" name="clearOverride">
-</form>';
+  <form method="post" action="index.php">
+    <input type="hidden" name="user" value="' . $user . '">'
+    . dateSelector($dateString, false)
+    . budgetSelector($budgetNames, $budgetId) .
+    '<label for="idOverrideMinutes">Minutes: </label>
+    <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
+    <input type="submit" value="Set Minutes" name="setMinutes">
+    <input type="submit" value="Unlock" name="unlock">
+    <input type="submit" value="Clear" name="clearOverride">
+  </form>';
 
 foreach ($users as $u) {
   echo '<h4>' . $u . '</h4>';
@@ -121,7 +132,7 @@ echoTable($db->getAllUsersConfig());
 echo '<h3>Global config</h3>';
 echoTable($db->getGlobalConfig());
 
-echo '<h3>Update</h3>
+echo '<h2>Update config</h2>
 <form method="post" enctype="multipart/form-data">
   <input type="text" name="configUser" value="" placeholder="user">
   <input type="text" name="configKey" value="" placeholder="key">
@@ -135,13 +146,11 @@ echo '<h3>Update</h3>
 <hr />
 
 <h2>Manage Database</h2>
-<p>
-  PRUNE data and logs before
-  <form method="post">
-    <input type="date" name="datePrune" value="' . getDateString($now) . '">
-    <input class="kfcDestructive" type="submit" value="PRUNE" name="prune" disabled />
-  </form>
-</p>
+PRUNE data and logs before
+<form method="post">
+  <input type="date" name="datePrune" value="' . date('Y-m-d') . '">
+  <input class="kfcDestructive" type="submit" value="PRUNE" name="prune" disabled />
+</form>
 <form method="post">
   <p>
     CLEAR ALL DATA except config

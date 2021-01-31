@@ -137,7 +137,7 @@ class Database {
   /**
    * Returns all budget configs that have at least one key for the specified user. As an exception,
    * the default budget is always included. The virtual key 'name' is populated with the budget's
-   * name.
+   * name. Returns a 2D array $configs[$budgetId][$key] = $value.
    */
   public function getAllBudgetConfigs($user) {
     // TODO: Consider caching this.
@@ -158,6 +158,7 @@ class Database {
     }
     // In case the default budget was not configured:
     $configs[0]['name'] = DEFAULT_BUDGET_NAME;
+    ksort($configs);
     return $configs;
   }
 
@@ -228,9 +229,9 @@ class Database {
     return $result->fetch_all();
   }
 
-  /** Returns all users, i.e. all distinct user keys present in the config. */
+  /** Returns all users, i.e. all distinct user keys present in the budget config. */
   public function getUsers() {
-    $result = $this->query('SELECT DISTINCT user FROM user_config ORDER BY user ASC');
+    $result = $this->query('SELECT DISTINCT user FROM budget_config ORDER BY user ASC');
     $users = array();
     while ($row = $result->fetch_row()) {
       $users[] = $row[0];
@@ -411,10 +412,13 @@ class Database {
   // ---------- OVERRIDE QUERIES ----------
 
   /** Overrides the minutes limit for $date, which is a String in the format 'YYYY-MM-DD'. */
-  public function setOverrideMinutes($user, $date, $minutes) {
+  public function setOverrideMinutes($user, $date, $budgetId, $minutes) {
     $this->query('INSERT INTO overrides SET'
-            . ' user="' . $this->esc($user) . '", date="' . $date . '", minutes=' . $minutes
-            . ' ON DUPLICATE KEY UPDATE minutes=' . $minutes);
+        . ' user="' . $this->esc($user)
+        . '", date="' . $date
+        . '", budget_id=' . $budgetId
+        . ', minutes=' . $minutes
+        . ' ON DUPLICATE KEY UPDATE minutes=' . $minutes);
   }
 
   /** Unlocks the specified $date, which is a String in the format 'YYYY-MM-DD'. */
@@ -438,13 +442,15 @@ class Database {
   public function queryRecentOverrides($user) {
     $fromDate = getWeekStart(new DateTime());
     $fromDate->sub(new DateInterval('P1W'));
-    $result = $this->query('SELECT user, date,'
-            . ' CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,'
-            . ' CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END'
-            . ' FROM overrides'
-            . ' WHERE user="' . $user . '"'
-            . ' AND date >= "' . $fromDate->format('Y-m-d') . '"'
-            . ' ORDER BY date ASC');
+    $result = $this->query(
+        'SELECT date, name,'
+        . ' CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,'
+        . ' CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END'
+        . ' FROM overrides'
+        . ' JOIN budget ON budget_id = id'
+        . ' WHERE user="' . $user . '"'
+        . ' AND date >= "' . $fromDate->format('Y-m-d') . '"'
+        . ' ORDER BY date ASC');
     return $result->fetch_all();
   }
 

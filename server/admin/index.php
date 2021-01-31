@@ -60,18 +60,20 @@ if (isset($_POST['setUserConfig'])) {
   $db->clearGlobalConfig($key);
 } else if (isset($_POST['setMinutes'])) {
   $user = $_POST['user'];
-  $budgetId = $_POST['budget'];
   $dateString = $_POST['date'];
+  $budgetId = $_POST['budget'];
   $minutes = get($_POST['overrideMinutes'], 0);
   $db->setOverrideMinutes($user, $dateString, $budgetId, $minutes);
 } else if (isset($_POST['unlock'])) {
   $user = $_POST['user'];
-  $dateString = $_POST['dateOverride'];
+  $dateString = $_POST['date'];
+  $budgetId = $_POST['budget'];
   $db->setOverrideUnlock($user, $dateString, 1);
 } else if (isset($_POST['clearOverride'])) {
   $user = $_POST['user'];
-  $dateString = $_POST['dateOverride'];
-  $db->clearOverride($user, $dateString);
+  $dateString = $_POST['date'];
+  $budgetId = $_POST['budget'];
+  $db->clearOverride($user, $dateString, $budgetId);
 } else if (isset($_POST['prune'])) {
   $dateString = $_POST['datePrune'];
   $dateTime = DateTime::createFromFormat("Y-m-d", $dateString);

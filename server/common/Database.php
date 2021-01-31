@@ -411,30 +411,35 @@ class Database {
 
   // ---------- OVERRIDE QUERIES ----------
 
-  /** Overrides the minutes limit for $date, which is a String in the format 'YYYY-MM-DD'. */
+  /** Overrides the budget minutes limit for $date, which is a String in the format 'YYYY-MM-DD'. */
   public function setOverrideMinutes($user, $date, $budgetId, $minutes) {
     $this->query('INSERT INTO overrides SET'
-        . ' user="' . $this->esc($user)
-        . '", date="' . $date
-        . '", budget_id=' . $budgetId
-        . ', minutes=' . $minutes
+        . ' user="' . $this->esc($user) . '",'
+        . ' date="' . $date . '",'
+        . ' budget_id=' . $budgetId . ','
+        . ' minutes=' . $minutes
         . ' ON DUPLICATE KEY UPDATE minutes=' . $minutes);
   }
 
-  /** Unlocks the specified $date, which is a String in the format 'YYYY-MM-DD'. */
-  public function setOverrideUnlock($user, $date) {
+  /** Unlocks the specified budget for $date, which is a String in the format 'YYYY-MM-DD'. */
+  public function setOverrideUnlock($user, $date, $budgetId) {
     $this->query('INSERT INTO overrides SET'
-            . ' user="' . $this->esc($user) . '", date="' . $date . '", unlocked=1'
-            . ' ON DUPLICATE KEY UPDATE unlocked=1');
+        . ' user="' . $this->esc($user) . '",'
+        . ' date="' . $date . '",'
+        . ' budget_id=' . $budgetId . ","
+        . ' unlocked=1'
+        . ' ON DUPLICATE KEY UPDATE unlocked=1');
   }
 
   /**
-   * Clears all overrides (minutes and unlock) for $date, which is a String in the format
-   * 'YYYY-MM-DD'.
+   * Clears all overrides (minutes and unlock) for the specified budget for $date, which is a
+   *  String in the format 'YYYY-MM-DD'.
    */
-  public function clearOverride($user, $date) {
+  public function clearOverride($user, $date, $budgetId) {
     $this->query('DELETE FROM overrides'
-            . ' WHERE user="' . $this->esc($user) . '" AND date="' . $date . '"');
+        . ' WHERE user="' . $this->esc($user) . '"'
+        . ' AND date="' . $date . '"'
+        . ' AND budget_id=' . $budgetId);
   }
 
   /** Returns all overrides for the specified user, starting the week before the current week. */

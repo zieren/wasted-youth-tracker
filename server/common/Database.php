@@ -2,6 +2,13 @@
 
 define('DAILY_LIMIT_MINUTES_PREFIX', 'daily_limit_minutes_');
 
+// Background:
+// https://stackoverflow.com/questions/54885178
+// https://dba.stackexchange.com/questions/76788
+// https://dev.mysql.com/doc/refman/8.0/en/charset-table.html
+// needs 8.0+: define('CREATE_TABLE_SUFFIX', 'CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci');
+define('CREATE_TABLE_SUFFIX', 'CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ');
+
 class Database {
 
   /** Connects to the database, or exits on error. */
@@ -36,20 +43,24 @@ class Database {
             . 'ts BIGINT NOT NULL, '
             . 'budget_id INT NOT NULL, '
             . 'title VARCHAR(256) NOT NULL, '
-            . 'PRIMARY KEY (user, ts))');  // ON DELETE CASCADE?
+            . 'PRIMARY KEY (user, ts)) '
+            . CREATE_TABLE_SUFFIX);  // ON DELETE CASCADE?
     $this->query(
             'CREATE TABLE IF NOT EXISTS budget ('
             . 'id INT NOT NULL AUTO_INCREMENT, '
             . 'name VARCHAR(100) NOT NULL, '
             . 'priority INT NOT NULL, '
-            . 'PRIMARY KEY (id))');
+            . 'PRIMARY KEY (id)) '
+            . CREATE_TABLE_SUFFIX);
     // TODO: Insert synthetic budget DEFAULT_BUDGET_NAME with id=0 and minimum priority into "budget"
     // (matching expressions are not required). Will be needed when showing budget names.
+    // TODO: Can we remove some of the hard coded special handling then?
     $this->query(
             'CREATE TABLE IF NOT EXISTS budget_definition ('
             . 'budget_id INT NOT NULL, '
             . 'budget_re VARCHAR(1024) NOT NULL, '
-            . 'FOREIGN KEY (budget_id) REFERENCES budget(id) ON DELETE RESTRICT)');
+            . 'FOREIGN KEY (budget_id) REFERENCES budget(id) ON DELETE RESTRICT) '
+            . CREATE_TABLE_SUFFIX);
     $this->query(
             'CREATE TABLE IF NOT EXISTS budget_config ('
             . 'budget_id INT NOT NULL, '
@@ -57,18 +68,21 @@ class Database {
             . 'k VARCHAR(100) NOT NULL, '
             . 'v VARCHAR(200) NOT NULL, '
             . 'PRIMARY KEY (budget_id, user, k), '
-            . 'FOREIGN KEY (budget_id) REFERENCES budget(id) ON DELETE RESTRICT)');
+            . 'FOREIGN KEY (budget_id) REFERENCES budget(id) ON DELETE RESTRICT) '
+            . CREATE_TABLE_SUFFIX);
     $this->query(
             'CREATE TABLE IF NOT EXISTS user_config ('
             . 'user VARCHAR(32) NOT NULL, '
             . 'k VARCHAR(100) NOT NULL, '
             . 'v VARCHAR(200) NOT NULL, '
-            . 'PRIMARY KEY (user, k))');
+            . 'PRIMARY KEY (user, k)) '
+            . CREATE_TABLE_SUFFIX);
     $this->query(
             'CREATE TABLE IF NOT EXISTS global_config ('
             . 'k VARCHAR(100) NOT NULL, '
             . 'v VARCHAR(200) NOT NULL, '
-            . 'PRIMARY KEY (k))');
+            . 'PRIMARY KEY (k)) '
+            . CREATE_TABLE_SUFFIX);
     $this->query(
             'CREATE TABLE IF NOT EXISTS overrides ('
             . 'user VARCHAR(32) NOT NULL, '
@@ -76,7 +90,8 @@ class Database {
             . 'budget_id INT NOT NULL, '
             . 'minutes INT, '
             . 'unlocked BOOL, '
-            . 'PRIMARY KEY (user, date, budget_id))');
+            . 'PRIMARY KEY (user, date, budget_id)) '
+            . CREATE_TABLE_SUFFIX);
   }
 
   public function dropAllTablesExceptConfig() {

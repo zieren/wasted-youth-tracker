@@ -95,8 +95,8 @@ if (!isset($budgetId)) {
   $budgetId = 0;
 }
 
-$allBudgetConfigs = $db->getAllBudgetConfigs($user);
-$budgetNames = budgetIdsToNames(array_keys($allBudgetConfigs), $allBudgetConfigs);
+$budgetConfigs = $db->getAllBudgetConfigs($user);
+$budgetNames = budgetIdsToNames(array_keys($budgetConfigs), $budgetConfigs);
 
 echo '<h1>'.KFC_SERVER_HEADING.'</h1>
 <p>(c) 2021 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
@@ -123,9 +123,14 @@ echo '
     <input type="submit" value="Clear" name="clearOverride">
   </form>';
 
-foreach ($users as $u) {
-  echo '<h4>' . $u . '</h4>';
-  echoTable($db->queryRecentOverrides($u));
+echo '<h4>Current overrides</h4>';
+echoTable($db->queryRecentOverrides($user));
+
+echo '<h3>Budget configs</h3>';
+
+foreach ($budgetConfigs as $budgetId => $config) {
+  echo '<h4>' . html($budgetNames[$budgetId]) . "</h4>\n";
+  echoTableAssociative($config);
 }
 
 echo '<h3>User config</h3>';

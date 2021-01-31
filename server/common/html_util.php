@@ -9,6 +9,14 @@ function echoTable($data) {
   echo "</table>\n";
 }
 
+function echoTableAssociative($data) {
+  echo "<table>\n";
+  foreach($data as $k => $v) {
+    echo "<tr><td>" . html($k) . "</td><td>" . html($v) . "</td></tr>\n";
+  }
+  echo "</table>\n";
+}
+
 function html($text) {
   return htmlentities($text, ENT_COMPAT | ENT_HTML401, 'UTF-8');
 }

@@ -378,7 +378,7 @@ class Database {
 
     $minutesLeftByBudget = array();
     foreach ($configs as $budgetId => $config) {
-      $minutesSpentByDate = $minutesSpentByBudgetAndDate[$budgetId];
+      $minutesSpentByDate = get($minutesSpentByBudgetAndDate[$budgetId], array());
       $overrides = get($overridesByBudget[$budgetId], array());
       $minutesLeftByBudget[$budgetId] = $this->computeMinutesLeftToday(
           $config, $now, $overrides, $minutesSpentByDate, $budgetId);

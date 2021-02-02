@@ -68,7 +68,7 @@ if (isset($_POST['setUserConfig'])) {
   $user = $_POST['user'];
   $dateString = $_POST['date'];
   $budgetId = $_POST['budget'];
-  $db->setOverrideUnlock($user, $dateString, 1);
+  $db->setOverrideUnlock($user, $dateString, $budgetId);
 } else if (isset($_POST['clearOverride'])) {
   $user = $_POST['user'];
   $dateString = $_POST['date'];

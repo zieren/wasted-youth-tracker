@@ -508,7 +508,7 @@ class Database {
    */
   public function queryTitleSequence($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-    $q = 'SELECT ts, budget_id, title FROM activity'
+    $q = 'SELECT ts, name, title FROM activity JOIN budget ON budget_id = id'
             . ' WHERE user = "' . $this->esc($user) . '"'
             . ' AND ts >= ' . $fromTime->getTimestamp()
             . ' AND ts < ' . $toTime->getTimestamp()
@@ -519,7 +519,7 @@ class Database {
       // TODO: This should use the client's local time format.
       $windowTitles[] = array(
           date("Y-m-d H:i:s", $row['ts']),
-          $row['budget_id'],
+          $row['name'],
           $row['title']);
     }
     return $windowTitles;

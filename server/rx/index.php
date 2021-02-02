@@ -26,7 +26,7 @@ function handleRequest() {
   $minutesLeftToday = $db->queryMinutesLeftToday($user, $budgetId);
 
   if ($minutesLeftToday <= 0) {
-    return "close";
+    return "close\n" . $budgetName;
   }
   // TODO: Make trigger time configurable. Code below relies on it being <= 60.
   if ($minutesLeftToday <= 5) {

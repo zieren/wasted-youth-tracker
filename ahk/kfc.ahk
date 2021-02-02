@@ -84,7 +84,8 @@ Loop {
     if (!doomedWindows.HasKey(windowTitle)) {
       doomedWindows[windowTitle] := 1
       Beep(2)
-      ShowMessage("Time is up for this app, please close it now:`n" windowTitle)
+      budgetName := responseLines[2]
+      ShowMessage("Time is up for " budgetName ", please close:`n" windowTitle)
       terminateWindow := ObjBindMethod(Terminator, "terminate", windowTitle)
       SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
     }

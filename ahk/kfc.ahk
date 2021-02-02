@@ -60,8 +60,8 @@ class Terminator {
           Process, Close, %pid%
         }
       }
-      doomedWindows.Delete(title)
     }
+    doomedWindows.Delete(title)
   }
 }
 

@@ -4,26 +4,35 @@ require_once '../common/common.php';
 
 error_reporting(0);
 
-// TODO: Make sure warnings and errors are surfaced appropriately.
+// TODO: Make sure warnings and errors are surfaced appropriately. Catch exceptions.
 
 function handleRequest() {
   $logger = Logger::Instance();
   $content = file_get_contents('php://input');
-  $data = explode("|", $content, 2);
-  $logger->debug('Received data: ' . implode($data, '|'));
-  if (count($data) != 2) {
-    $logger->error('Invalid request content: ' . $content);
-    return "error\nInvalid request content";
+  $lines = $array = preg_split("/\r\n|\n|\r/", $content);
+  $logger->debug('Received data: ' . implode($lines, '\n'));
+  if (count($lines) < 2) {
+    http_response_code(400);
+    $message = "Invalid request content: expected at least 2 lines, got " . count($lines);
+    $logger->error($message . '. Content: ' . str_replace("\n", '\n', $content));
+    return "error\n" . $message;
   }
 
-  $user = $data[0];
-  $title = $data[1];
+  $user = $lines[0];
+  $titles = array_slice($lines, 1);
 
   $db = new Database();
 
-  // Check time left for this specific budget.
-  list($budgetId, $budgetName) = $db->insertWindowTitle($user, $title);
-  $minutesLeftToday = $db->queryMinutesLeftToday($user, $budgetId);
+  $classifications = $db->insertWindowTitles($user, $titles);
+  $leftAllBudgets = $db->queryMinutesLeftTodayAllBudgets($user);
+
+  ob_start();
+  var_dump($classifications);
+  var_dump($leftAllBudgets);
+  return "ok\n" . ob_get_clean();
+
+  /*
+  $minutesLeftToday = $db->queryMinutesLeftToday($user, $classId);
 
   if ($minutesLeftToday <= 0) {
     return "close\n" . $budgetName;
@@ -33,7 +42,7 @@ function handleRequest() {
     $mmssLeftToday = gmdate("i:s", $minutesLeftToday * 60);
     return "warn\n" . $budgetId . "\n" . $mmssLeftToday . " left today for '" . $budgetName . "'";
   }
-  return "ok\n" . $budgetId;
+  return "ok\n" . $budgetId;*/
 }
 
 $response = handleRequest();

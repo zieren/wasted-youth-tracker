@@ -32,66 +32,85 @@ class Database {
   }
 
   // ---------- TABLE MANAGEMENT ----------
-
   // TODO: Consider FOREIGN KEY.
 
   public function createMissingTables() {
     $this->query('SET default_storage_engine=INNODB');
     $this->query(
-            'CREATE TABLE IF NOT EXISTS activity ('
-            . 'user VARCHAR(32) NOT NULL, '
-            . 'ts BIGINT NOT NULL, '
-            . 'budget_id INT NOT NULL, '
-            . 'title VARCHAR(256) NOT NULL, '
-            . 'PRIMARY KEY (user, ts)) '
-            . CREATE_TABLE_SUFFIX);  // ON DELETE CASCADE?
+        'CREATE TABLE IF NOT EXISTS classes ('
+        . 'id INT NOT NULL AUTO_INCREMENT, '
+        . 'name VARCHAR(256) NOT NULL, '
+        . 'PRIMARY KEY (id)) '
+        . CREATE_TABLE_SUFFIX);
     $this->query(
-            'CREATE TABLE IF NOT EXISTS budget ('
-            . 'id INT NOT NULL AUTO_INCREMENT, '
-            . 'name VARCHAR(100) NOT NULL, '
-            . 'priority INT NOT NULL, '
-            . 'PRIMARY KEY (id)) '
-            . CREATE_TABLE_SUFFIX);
-    // TODO: Insert synthetic budget DEFAULT_BUDGET_NAME with id=0 and minimum priority into "budget"
-    // (matching expressions are not required). Will be needed when showing budget names.
-    // TODO: Can we remove some of the hard coded special handling then?
+        'INSERT IGNORE INTO classes(id, name) VALUES ("1", "' . DEFAULT_CLASS_NAME . '")');
     $this->query(
-            'CREATE TABLE IF NOT EXISTS budget_definition ('
-            . 'budget_id INT NOT NULL, '
-            . 'budget_re VARCHAR(1024) NOT NULL, '
-            . 'FOREIGN KEY (budget_id) REFERENCES budget(id) ON DELETE RESTRICT) '
-            . CREATE_TABLE_SUFFIX);
+        'CREATE TABLE IF NOT EXISTS activity ('
+        . 'user VARCHAR(32) NOT NULL, '
+        . 'ts BIGINT NOT NULL, '
+        . 'class_id INT NOT NULL, '
+        . 'title VARCHAR(256) NOT NULL, '
+        . 'PRIMARY KEY (user, ts, class_id, title), '
+        . 'FOREIGN KEY (class_id) REFERENCES classes(id)) '
+        . CREATE_TABLE_SUFFIX);  // ON DELETE CASCADE?
     $this->query(
-            'CREATE TABLE IF NOT EXISTS budget_config ('
-            . 'budget_id INT NOT NULL, '
-            . 'user VARCHAR(32) NOT NULL, '
-            . 'k VARCHAR(100) NOT NULL, '
-            . 'v VARCHAR(200) NOT NULL, '
-            . 'PRIMARY KEY (budget_id, user, k), '
-            . 'FOREIGN KEY (budget_id) REFERENCES budget(id) ON DELETE RESTRICT) '
-            . CREATE_TABLE_SUFFIX);
+        'CREATE TABLE IF NOT EXISTS classification ('
+        . 'id INT NOT NULL AUTO_INCREMENT, '
+        . 'class_id INT NOT NULL, '
+        . 'priority INT NOT NULL, '
+        . 're VARCHAR(1024) NOT NULL, '
+        . 'PRIMARY KEY (id), '
+        . 'FOREIGN KEY (class_id) REFERENCES classes(id)) '
+        . CREATE_TABLE_SUFFIX);
     $this->query(
-            'CREATE TABLE IF NOT EXISTS user_config ('
-            . 'user VARCHAR(32) NOT NULL, '
-            . 'k VARCHAR(100) NOT NULL, '
-            . 'v VARCHAR(200) NOT NULL, '
-            . 'PRIMARY KEY (user, k)) '
-            . CREATE_TABLE_SUFFIX);
+        'INSERT IGNORE INTO classification(id, class_id, priority, re)'
+        . ' VALUES ("1", "1", "-2147483648", "()")'); // RE can't be ""
     $this->query(
-            'CREATE TABLE IF NOT EXISTS global_config ('
-            . 'k VARCHAR(100) NOT NULL, '
-            . 'v VARCHAR(200) NOT NULL, '
-            . 'PRIMARY KEY (k)) '
-            . CREATE_TABLE_SUFFIX);
+        'CREATE TABLE IF NOT EXISTS budgets ('
+        . 'id INT NOT NULL AUTO_INCREMENT, '
+        . 'user VARCHAR(32) NOT NULL, '
+        . 'name VARCHAR(256) NOT NULL, '
+        . 'PRIMARY KEY (id, user)) '
+        . CREATE_TABLE_SUFFIX);
     $this->query(
-            'CREATE TABLE IF NOT EXISTS overrides ('
-            . 'user VARCHAR(32) NOT NULL, '
-            . 'date DATE NOT NULL, '
-            . 'budget_id INT NOT NULL, '
-            . 'minutes INT, '
-            . 'unlocked BOOL, '
-            . 'PRIMARY KEY (user, date, budget_id)) '
-            . CREATE_TABLE_SUFFIX);
+        'CREATE TABLE IF NOT EXISTS mappings ('
+        . 'budget_id INT NOT NULL, '
+        . 'class_id INT NOT NULL, '
+        . 'user VARCHAR(32) NOT NULL, '
+        . 'PRIMARY KEY (budget_id, class_id, user), '
+        . 'FOREIGN KEY (class_id) REFERENCES classes(id), '
+        . 'FOREIGN KEY (budget_id) REFERENCES budgets(id)) '
+        . CREATE_TABLE_SUFFIX);
+    $this->query(
+        'CREATE TABLE IF NOT EXISTS budget_config ('
+        . 'budget_id INT NOT NULL, '
+        . 'k VARCHAR(100) NOT NULL, '
+        . 'v VARCHAR(200) NOT NULL, '
+        . 'PRIMARY KEY (budget_id, k), '
+        . 'FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE RESTRICT) '
+        . CREATE_TABLE_SUFFIX);
+    $this->query(
+        'CREATE TABLE IF NOT EXISTS user_config ('
+        . 'user VARCHAR(32) NOT NULL, '
+        . 'k VARCHAR(100) NOT NULL, '
+        . 'v VARCHAR(200) NOT NULL, '
+        . 'PRIMARY KEY (user, k)) '
+        . CREATE_TABLE_SUFFIX);
+    $this->query(
+        'CREATE TABLE IF NOT EXISTS global_config ('
+        . 'k VARCHAR(100) NOT NULL, '
+        . 'v VARCHAR(200) NOT NULL, '
+        . 'PRIMARY KEY (k)) '
+        . CREATE_TABLE_SUFFIX);
+    $this->query(
+        'CREATE TABLE IF NOT EXISTS overrides ('
+        . 'user VARCHAR(32) NOT NULL, '
+        . 'date DATE NOT NULL, '
+        . 'budget_id INT NOT NULL, '
+        . 'minutes INT, '
+        . 'unlocked BOOL, '
+        . 'PRIMARY KEY (user, date, budget_id)) '
+        . CREATE_TABLE_SUFFIX);
   }
 
   public function dropAllTablesExceptConfig() {
@@ -112,8 +131,35 @@ class Database {
   }
 
   // ---------- BUDGET QUERIES ----------
-
   // TODO
+
+  private function classify($titles) {
+    $classifications = array();
+    foreach ($titles as $title) {
+      $q = 'SELECT classes.id, classes.name, budget_id'
+          . ' FROM classification'
+          . ' JOIN classes ON classes.id = classification.class_id'
+          . ' LEFT JOIN mappings ON classes.id = mappings.class_id'
+          . ' WHERE "' . $this->esc($title) . '" REGEXP re'
+          . ' ORDER BY priority DESC'
+          . ' LIMIT 1';
+      $result = $this->query($q);
+      $classification = array();
+      $row = $result->fetch_assoc();
+      if (!$row) {
+        $this->throwException('Failed to classify "' . $title . '"');
+      }
+      $classification['class_id'] = $row['id'];
+      $classification['class_name'] = $row['name'];
+      $classification['budget_ids'] = array();
+      while ($row['budget_id']) {
+        $classification['budget_ids'][] = $row['budget_id'];
+        $row = $result->fetch_assoc();
+      }
+      $classifications[] = $classification;
+    }
+    return $classifications;
+  }
 
   /**
    * Returns an array containing ID and name of the matching budget with the highest priority.
@@ -121,13 +167,13 @@ class Database {
    */
   private function getBudget($user, $windowTitle) {
     $q = 'SELECT budget.id, budget.name'
-      . ' FROM budget_config'
-      . ' JOIN budget_definition ON budget_config.budget_id = budget_definition.budget_id'
-      . ' JOIN budget ON budget_config.budget_id = budget.id'
-      . ' WHERE user = "' . $this->esc($user) . '" AND k = "enabled" AND v = "1"'
-      . ' AND "' . $this->esc($windowTitle) . '" REGEXP budget_re'
-      . ' ORDER BY priority DESC'
-      . ' LIMIT 1';
+        . ' FROM budget_config'
+        . ' JOIN budget_definition ON budget_config.budget_id = budget_definition.budget_id'
+        . ' JOIN budget ON budget_config.budget_id = budget.id'
+        . ' WHERE user = "' . $this->esc($user) . '" AND k = "enabled" AND v = "1"'
+        . ' AND "' . $this->esc($windowTitle) . '" REGEXP budget_re'
+        . ' ORDER BY priority DESC'
+        . ' LIMIT 1';
     $result = $this->query($q);
     if ($row = $result->fetch_assoc()) {
       return array($row['id'], $row['name']);
@@ -140,8 +186,8 @@ class Database {
   /** Returns budget config. */
   public function getBudgetConfig($user, $budgetId) {
     $result = $this->query('SELECT k, v FROM budget_config'
-            . ' WHERE user="' . $user . '" AND budget_id="' . $budgetId . '"'
-            . ' ORDER BY k');
+        . ' WHERE user="' . $user . '" AND budget_id="' . $budgetId . '"'
+        . ' ORDER BY k');
     $config = array();
     while ($row = $result->fetch_assoc()) {
       $config[$row['k']] = $row['v'];
@@ -150,18 +196,18 @@ class Database {
   }
 
   /**
-   * Returns all budget configs that have at least one key for the specified user. As an exception,
-   * the default budget is always included. The virtual key 'name' is populated with the budget's
-   * name. Returns a 2D array $configs[$budgetId][$key] = $value.
+   * Returns all budget configs that have at least one key for the specified user. The virtual key
+   * 'name' is populated with the budget's name.
+   * Returns a 2D array $configs[$budgetId][$key] = $value. The array is sorted by budget ID.
    */
   public function getAllBudgetConfigs($user) {
     // TODO: Consider caching this.
     $result = $this->query(
-            'SELECT id, name, k, v'
-            . ' FROM budget_config'
-            . ' JOIN budget ON budget_id = id'
-            . ' WHERE user="' . $user . '"'
-            . ' ORDER BY id, k');
+        'SELECT id, name, k, v'
+        . ' FROM budget_config'
+        . ' JOIN budgets ON budget_id = id'
+        . ' WHERE user="' . $user . '"'
+        . ' ORDER BY id, k');
     $configs = array();
     while ($row = $result->fetch_assoc()) {
       $budgetId = $row['id'];
@@ -171,24 +217,32 @@ class Database {
       $configs[$budgetId][$row['k']] = $row['v'];
       $configs[$budgetId]['name'] = $row['name'];
     }
-    // In case the default budget was not configured:
-    $configs[0]['name'] = DEFAULT_BUDGET_NAME;
     ksort($configs);
     return $configs;
   }
 
   // ---------- WRITE ACTIVITY QUERIES ----------
 
-  /** Stores the specified window title. Returns the matched budget ID and name. */
-  public function insertWindowTitle($user, $windowTitle) {
-    list($budgetId, $budgetName) = $this->getBudget($user, $windowTitle);
-    $q = 'REPLACE INTO activity (ts, user, title, budget_id) VALUES ('
-            . time()
-            . ',"' . $this->esc($user) . '"'
-            . ',"' . $this->esc($windowTitle) . '"'
-            . ',"' . $budgetId . '")';
+  /** Records the specified window title. Return value is that of classify(). */
+  public function insertWindowTitles($user, $titles) {
+    $classifications = $this->classify($titles);
+    if (count($classifications) != count($titles)) {
+      $this->throwException('internal error: ' . count($titles) . ' titles vs. '
+          . count($classifications) . ' classifications');
+    }
+    $ts = time();
+    $values = "";
+    foreach ($titles as $i => $title) {
+      $values .= ($values ? ',(' : '(')
+          . $ts
+          . ',"' . $this->esc($user) . '"'
+          . ',"' . $this->esc($title) . '"'
+          . ',"' . $classifications[$i]['class_id'] . '"'
+          . ')';
+    }
+    $q = 'REPLACE INTO activity (ts, user, title, class_id) VALUES ' . $values;
     $this->query($q);
-    return array($budgetId, $budgetName);
+    return $classifications;
   }
 
   // ---------- CONFIG QUERIES ----------
@@ -197,7 +251,7 @@ class Database {
   /** Updates the specified user config value. */
   public function setUserConfig($user, $key, $value) {
     $q = 'REPLACE INTO user_config (user, k, v) VALUES ("'
-            . $user . '", "' . $key . '", "' . $value . '")';
+        . $user . '", "' . $key . '", "' . $value . '")';
     $this->query($q);
   }
 
@@ -224,7 +278,7 @@ class Database {
   /** Returns user config. */
   public function getUserConfig($user) {
     $result = $this->query('SELECT k, v FROM user_config WHERE user="'
-            . $user . '" ORDER BY k');
+        . $user . '" ORDER BY k');
     $config = array();
     while ($row = $result->fetch_assoc()) {
       $config[$row['k']] = $row['v'];
@@ -246,7 +300,7 @@ class Database {
 
   /** Returns all users, i.e. all distinct user keys present in the budget config. */
   public function getUsers() {
-    $result = $this->query('SELECT DISTINCT user FROM budget_config ORDER BY user ASC');
+    $result = $this->query('SELECT DISTINCT user FROM budgets ORDER BY user ASC');
     $users = array();
     while ($row = $result->fetch_row()) {
       $users[] = $row[0];
@@ -257,44 +311,44 @@ class Database {
   // ---------- TIME SPENT/LEFT QUERIES ----------
 
   /**
-   * Returns the time spent between $fromTime and $toTime, as an array keyed by date and budget ID.
+   * Returns the time spent between $fromTime and $toTime, as an array keyed by date and class ID.
    * $toTime may be null to omit the upper limit.
    */
-  public function queryMinutesSpentByBudgetAndDate($user, $fromTime, $toTime) {
-    $q = 'SET @prev_ts := 0;'
-            . ' SELECT date, budget_id, SUM(s) / 60 AS minutes'
-            . ' FROM ('
-            . '   SELECT'
-            . '     IF (@prev_ts = 0, 0, ts - @prev_ts) AS s,'
-            . '     @prev_ts := ts,'
-            . '     DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") AS date,'
-            . '     budget_id'
-            . '   FROM activity'
-            . '   WHERE'
-            . '     user = "' . $this->esc($user) . '"'
-            . '     AND ts >= ' . $fromTime->getTimestamp()
-            . ($toTime ?
-              '     AND ts < ' . $toTime->getTimestamp()
-            : '')
-            . ' ) t1'
-            . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
-            . ' GROUP BY date, budget_id'
-            . ' ORDER BY minutes DESC';
-    $this->multiQuery($q);
+  public function queryMinutesSpentByClassAndDate($user, $fromTime, $toTime) {
+    $q = 'SET @prev_ts := 0; SET @prev_s = 0;'
+        . ' SELECT date, class_id, SUM(s) / 60 AS minutes'
+        . ' FROM ('
+        . '   SELECT'
+        . '     @prev_s := IF(@prev_ts = ts, @prev_s, IF(@prev_ts = 0, 0, ts - @prev_ts)) AS s,'
+        . '     @prev_ts := ts,'
+        . '     DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") AS date,'
+        . '     class_id'
+        . '   FROM activity'
+        . '   WHERE'
+        . '     user = "' . $this->esc($user) . '"'
+        . '     AND ts >= ' . $fromTime->getTimestamp()
+        . ($toTime ? ' AND ts < ' . $toTime->getTimestamp() : '')
+        . '   ORDER BY ts, class_id'
+        . ' ) t1'
+        . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
+        . ' GROUP BY date, class_id'
+        . ' ORDER BY minutes DESC';
+    $this->multiQuery($q); // @prev_ts
+    $this->multiQueryGetNextResult(); // @prev_s
     $result = $this->multiQueryGetNextResult();
-    $minutesByBudgetAndDate = array();
+    $minutesByClassAndDate = array();
     while ($row = $result->fetch_assoc()) {
       $date = $row['date'];
-      $budgetId = $row['budget_id'];
+      $classId = $row['class_id'];
       $minutes = $row['minutes'];
-      if (!array_key_exists($budgetId, $minutesByBudgetAndDate)) {
-        $minutesByBudgetAndDate[$budgetId] = array();
+      if (!array_key_exists($classId, $minutesByClassAndDate)) {
+        $minutesByClassAndDate[$classId] = array();
       }
-      $minutesByBudgetAndDate[$budgetId][$date] = $minutes;
+      $minutesByClassAndDate[$classId][$date] = $minutes;
     }
     $result->close();
-    ksort($minutesByBudgetAndDate, SORT_NUMERIC);
-    return $minutesByBudgetAndDate;
+    ksort($minutesByClassAndDate, SORT_NUMERIC);
+    return $minutesByClassAndDate;
   }
 
   /**
@@ -349,7 +403,7 @@ class Database {
    * requirement, an override limit, the limit configured for the day of the week, and the default
    * daily limit. For the last two, a possible weekly limit is additionally applied.
    */
-  public function queryMinutesLeftToday($user, $budgetId) {
+  public function queryMinutesLeftToday($user, $classId) {
     $config = $this->getBudgetConfig($user, $budgetId);
     $now = new DateTime();
 
@@ -360,7 +414,7 @@ class Database {
     $minutesSpentByDate = get($minutesSpentByBudgetAndDate[$budgetId], array());
 
     return $this->computeMinutesLeftToday(
-        $config, $now, $overrides, $minutesSpentByDate, $budgetId);
+            $config, $now, $overrides, $minutesSpentByDate, $budgetId);
   }
 
   /**
@@ -373,8 +427,10 @@ class Database {
 
     $overridesByBudget = $this->queryOverridesByBudget($user, $now);
 
-    $minutesSpentByBudgetAndDate =
-        $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
+    $minutesSpentByClassAndDate =
+        $this->queryMinutesSpentByClassAndDate($user, getWeekStart($now), null);
+
+    return $minutesSpentByClassAndDate;
 
     $minutesLeftByBudget = array();
     foreach ($configs as $budgetId => $config) {
@@ -467,8 +523,8 @@ class Database {
         . ' CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,'
         . ' CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END'
         . ' FROM overrides'
-        . ' JOIN budget ON budget_id = id'
-        . ' WHERE user="' . $user . '"'
+        . ' JOIN budgets ON budget_id = id'
+        . ' WHERE overrides.user="' . $user . '"'
         . ' AND date >= "' . $fromDate->format('Y-m-d') . '"'
         . ' ORDER BY date ASC');
     return $result->fetch_all();
@@ -477,11 +533,11 @@ class Database {
   /** Returns overrides in an associative array, or an empty array if none are defined. */
   private function queryOverrides($user, $budgetId, $dateTime) {
     $result = $this->query('SELECT budget_id, minutes, unlocked FROM overrides'
-            . ' WHERE user="' . $user . '"'
-            . ' AND date="' . getDateString($dateTime) . '"'
-            . ' AND budget_id="' . $budgetId . '"');
+        . ' WHERE user="' . $user . '"'
+        . ' AND date="' . getDateString($dateTime) . '"'
+        . ' AND budget_id="' . $budgetId . '"');
     if ($row = $result->fetch_assoc()) {
-      return array('minutes'=>$row['minutes'], 'unlocked'=>$row['unlocked']);
+      return array('minutes' => $row['minutes'], 'unlocked' => $row['unlocked']);
     }
     return array();
   }
@@ -489,13 +545,13 @@ class Database {
   /** Returns all overrides as a 2D array keyed first by budget ID, then by override. */
   private function queryOverridesByBudget($user, $now) {
     $result = $this->query('SELECT budget_id, minutes, unlocked FROM overrides'
-            . ' WHERE user="' . $user . '"'
-            . ' AND date="' . getDateString($now) . '"');
+        . ' WHERE user="' . $user . '"'
+        . ' AND date="' . getDateString($now) . '"');
     $overridesByBudget = array();
     // PK is (user, date, budget_id), so there is at most one row per budget_id.
     while ($row = $result->fetch_assoc()) {
-      $overridesByBudget[$row['budget_id']] =
-          array('minutes'=>$row['minutes'], 'unlocked'=>$row['unlocked']);
+      $overridesByBudget[$row['budget_id']] = 
+          array('minutes' => $row['minutes'], 'unlocked' => $row['unlocked']);
     }
     return $overridesByBudget;
   }
@@ -509,10 +565,10 @@ class Database {
   public function queryTitleSequence($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     $q = 'SELECT ts, name, title FROM activity JOIN budget ON budget_id = id'
-            . ' WHERE user = "' . $this->esc($user) . '"'
-            . ' AND ts >= ' . $fromTime->getTimestamp()
-            . ' AND ts < ' . $toTime->getTimestamp()
-            . ' ORDER BY ts DESC';
+        . ' WHERE user = "' . $this->esc($user) . '"'
+        . ' AND ts >= ' . $fromTime->getTimestamp()
+        . ' AND ts < ' . $toTime->getTimestamp()
+        . ' ORDER BY ts DESC';
     $result = $this->query($q);
     $windowTitles = array();
     while ($row = $result->fetch_assoc()) {

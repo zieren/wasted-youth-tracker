@@ -332,7 +332,7 @@ class Database {
   public function queryMinutesSpentByBudgetAndDate($user, $fromTime, $toTime) {
     // TODO: Optionally restrict to activity.focus=1.
     $userEsc = $this->esc($user);
-    $q = 'SET @prev_ts = 0, @prev_s = 0;'
+    $q = 'SET @prev_ts = 0, @prev_s = 0;' // TODO: ":=" vs "="
         . ' SELECT date, budget_id, SUM(s) / 60 AS minutes'
         . ' FROM ('
         . '   SELECT'
@@ -343,15 +343,16 @@ class Database {
         . '   FROM ('
         . '     SELECT ts, budget_id'
         . '     FROM activity'
-        // TODO: If a class is not mapped, budget_id should be NULL to indicate "no budget".
-        . '     JOIN mappings ON activity.class_id = mappings.class_id'
+        . '     LEFT JOIN ('
+        . '       SELECT * FROM mappings WHERE user = "' . $userEsc . '"'
+        . '     ) t1'
+        . '     ON activity.class_id = t1.class_id'
         . '     WHERE activity.user = "' . $userEsc . '"'
-        . '     AND mappings.user = "' . $userEsc . '"'
         . '     AND ts >= ' . $fromTime->getTimestamp()
-        . ($toTime ? ' AND ts < ' . $toTime->getTimestamp() : '')
+        .       ($toTime ? ' AND ts < ' . $toTime->getTimestamp() : '')
         . '     ORDER BY ts, budget_id'
-        . '   ) t1'
-        . ' ) t2'
+        . '   ) t2'
+        . ' ) t3'
         . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
         . ' GROUP BY date, budget_id';
     $this->multiQuery($q); // SET statement
@@ -448,8 +449,15 @@ class Database {
 
     $minutesSpentByBudgetAndDate = $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
 
+    // $minutesSpentByBudgetAndDate may contain a budget ID of NULL to indicate "no budget", which
+    // $configs never contains.
+    $budgetIds = array_keys($configs);
+    if (array_key_exists(null, $minutesSpentByBudgetAndDate)) {
+      $budgetIds[] = null;
+    }
     $minutesLeftByBudget = array();
-    foreach ($configs as $budgetId => $config) {
+    foreach ($budgetIds as $budgetId) {
+      $config = get($configs[$budgetId], array());
       $minutesSpentByDate = get($minutesSpentByBudgetAndDate[$budgetId], array());
       $overrides = get($overridesByBudget[$budgetId], array());
       $minutesLeftByBudget[$budgetId] = $this->computeMinutesLeftToday(

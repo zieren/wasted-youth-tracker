@@ -71,7 +71,7 @@ function getDateString($dateTime) {
 function budgetIdsToNames($ids, $configs) {
   $names = array();
   foreach ($ids as $id) {
-    $names[$id] = $configs[$id]['name'];
+    $names[$id] = isset($configs[$id]) ? $configs[$id]['name'] : "no_budget";
   }
   return $names;
 }

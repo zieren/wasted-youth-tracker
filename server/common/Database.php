@@ -9,6 +9,8 @@ define('DAILY_LIMIT_MINUTES_PREFIX', 'daily_limit_minutes_');
 // needs 8.0+: define('CREATE_TABLE_SUFFIX', 'CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci');
 define('CREATE_TABLE_SUFFIX', 'CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ');
 
+// TODO: Consider caching repeated queries.
+
 class Database {
 
   /** Connects to the database, or exits on error. */
@@ -49,6 +51,7 @@ class Database {
         . 'user VARCHAR(32) NOT NULL, '
         . 'ts BIGINT NOT NULL, '
         . 'class_id INT NOT NULL, '
+        . 'focus BOOL NOT NULL, '
         . 'title VARCHAR(256) NOT NULL, '
         . 'PRIMARY KEY (user, ts, class_id, title), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id)) '
@@ -68,16 +71,15 @@ class Database {
     $this->query(
         'CREATE TABLE IF NOT EXISTS budgets ('
         . 'id INT NOT NULL AUTO_INCREMENT, '
-        . 'user VARCHAR(32) NOT NULL, '
         . 'name VARCHAR(256) NOT NULL, '
-        . 'PRIMARY KEY (id, user)) '
+        . 'PRIMARY KEY (id)) '
         . CREATE_TABLE_SUFFIX);
     $this->query(
         'CREATE TABLE IF NOT EXISTS mappings ('
-        . 'budget_id INT NOT NULL, '
-        . 'class_id INT NOT NULL, '
         . 'user VARCHAR(32) NOT NULL, '
-        . 'PRIMARY KEY (budget_id, class_id, user), '
+        . 'class_id INT NOT NULL, '
+        . 'budget_id INT NOT NULL, '
+        . 'PRIMARY KEY (user, class_id), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id), '
         . 'FOREIGN KEY (budget_id) REFERENCES budgets(id)) '
         . CREATE_TABLE_SUFFIX);
@@ -134,19 +136,29 @@ class Database {
   // TODO
 
   private function classify($titles) {
+    /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
+    foreach ($titlesEsc as $i => $titleEsc) {
+      if ($i == 0) {
+        $q1 = 'SELECT "' . $titleEsc . '" AS title';
+      } else {
+        $q1 .= ' UNION ALL SELECT "' . $titleEsc . '"';
+      }
+    }
+    */
     $classifications = array();
     foreach ($titles as $title) {
       $q = 'SELECT classes.id, classes.name, budget_id'
           . ' FROM classification'
           . ' JOIN classes ON classes.id = classification.class_id'
           . ' LEFT JOIN mappings ON classes.id = mappings.class_id'
+          // TODO: Avoid escaping again in insertWindowTitles() later.
           . ' WHERE "' . $this->esc($title) . '" REGEXP re'
           . ' ORDER BY priority DESC'
           . ' LIMIT 1';
       $result = $this->query($q);
       $classification = array();
       $row = $result->fetch_assoc();
-      if (!$row) {
+      if (!$row) { // This should never happen, the default class catches all.
         $this->throwException('Failed to classify "' . $title . '"');
       }
       $classification['class_id'] = $row['id'];
@@ -196,16 +208,16 @@ class Database {
   }
 
   /**
-   * Returns all budget configs that have at least one key for the specified user. The virtual key
+   * Returns configs of all budgets that are mapped for the specified user. The virtual key
    * 'name' is populated with the budget's name.
    * Returns a 2D array $configs[$budgetId][$key] = $value. The array is sorted by budget ID.
    */
   public function getAllBudgetConfigs($user) {
-    // TODO: Consider caching this.
     $result = $this->query(
         'SELECT id, name, k, v'
         . ' FROM budget_config'
-        . ' JOIN budgets ON budget_id = id'
+        . ' JOIN budgets ON budget_config.budget_id = budgets.id'
+        . ' JOIN mappings ON mappings.budget_id = budgets.id'
         . ' WHERE user="' . $user . '"'
         . ' ORDER BY id, k');
     $configs = array();
@@ -223,8 +235,10 @@ class Database {
 
   // ---------- WRITE ACTIVITY QUERIES ----------
 
-  /** Records the specified window title. Return value is that of classify(). */
-  public function insertWindowTitles($user, $titles) {
+  /** Records the specified window titles. Return value is that of classify(). */
+  // TODO: I assume this will have to return the budget ID as well, so we can tell the client
+  // which windows to close.
+  public function insertWindowTitles($user, $titles, $focusIndex) {
     $classifications = $this->classify($titles);
     if (count($classifications) != count($titles)) {
       $this->throwException('internal error: ' . count($titles) . ' titles vs. '
@@ -238,9 +252,10 @@ class Database {
           . ',"' . $this->esc($user) . '"'
           . ',"' . $this->esc($title) . '"'
           . ',"' . $classifications[$i]['class_id'] . '"'
+          . ',' . ($i == $focusIndex ? "true" : "false")
           . ')';
     }
-    $q = 'REPLACE INTO activity (ts, user, title, class_id) VALUES ' . $values;
+    $q = 'REPLACE INTO activity (ts, user, title, class_id, focus) VALUES ' . $values;
     $this->query($q);
     return $classifications;
   }
@@ -314,32 +329,35 @@ class Database {
    * Returns the time spent between $fromTime and $toTime, as an array keyed by date and class ID.
    * $toTime may be null to omit the upper limit.
    */
-  public function queryMinutesSpentByClassAndDate($user, $fromTime, $toTime) {
-    $q = 'SET @prev_ts := 0; SET @prev_s = 0;'
-        . ' SELECT date, class_id, SUM(s) / 60 AS minutes'
+  public function queryMinutesSpentByBudgetAndDate($user, $fromTime, $toTime) {
+    $userEsc = $this->esc($user);
+    $q = 'SET @prev_ts = 0, @prev_s = 0;'
+        . ' SELECT date, budget_id, SUM(s) / 60 AS minutes'
         . ' FROM ('
         . '   SELECT'
         . '     @prev_s := IF(@prev_ts = ts, @prev_s, IF(@prev_ts = 0, 0, ts - @prev_ts)) AS s,'
         . '     @prev_ts := ts,'
         . '     DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") AS date,'
-        . '     class_id'
-        . '   FROM activity'
-        . '   WHERE'
-        . '     user = "' . $this->esc($user) . '"'
+        . '     budget_id'
+        . '   FROM ('
+        . '     SELECT ts, budget_id'
+        . '     FROM activity'
+        . '     JOIN mappings ON activity.class_id = mappings.class_id'
+        . '     WHERE activity.user = "' . $userEsc . '"'
+        . '     AND mappings.user = "' . $userEsc . '"'
         . '     AND ts >= ' . $fromTime->getTimestamp()
-        . ($toTime ? ' AND ts < ' . $toTime->getTimestamp() : '')
-        . '   ORDER BY ts, class_id'
-        . ' ) t1'
+        .       ($toTime ? ' AND ts < ' . $toTime->getTimestamp() : '')
+        . '     ORDER BY ts, budget_id'
+        . '   ) t1'
+        . ' ) t2'
         . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
-        . ' GROUP BY date, class_id'
-        . ' ORDER BY minutes DESC';
-    $this->multiQuery($q); // @prev_ts
-    $this->multiQueryGetNextResult(); // @prev_s
+        . ' GROUP BY date, budget_id';
+    $this->multiQuery($q); // SET statement
     $result = $this->multiQueryGetNextResult();
     $minutesByClassAndDate = array();
     while ($row = $result->fetch_assoc()) {
       $date = $row['date'];
-      $classId = $row['class_id'];
+      $classId = $row['budget_id'];
       $minutes = $row['minutes'];
       if (!array_key_exists($classId, $minutesByClassAndDate)) {
         $minutesByClassAndDate[$classId] = array();
@@ -427,10 +445,8 @@ class Database {
 
     $overridesByBudget = $this->queryOverridesByBudget($user, $now);
 
-    $minutesSpentByClassAndDate =
-        $this->queryMinutesSpentByClassAndDate($user, getWeekStart($now), null);
-
-    return $minutesSpentByClassAndDate;
+    $minutesSpentByBudgetAndDate =
+        $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
 
     $minutesLeftByBudget = array();
     foreach ($configs as $budgetId => $config) {
@@ -550,7 +566,7 @@ class Database {
     $overridesByBudget = array();
     // PK is (user, date, budget_id), so there is at most one row per budget_id.
     while ($row = $result->fetch_assoc()) {
-      $overridesByBudget[$row['budget_id']] = 
+      $overridesByBudget[$row['budget_id']] =
           array('minutes' => $row['minutes'], 'unlocked' => $row['unlocked']);
     }
     return $overridesByBudget;

@@ -6,6 +6,17 @@ error_reporting(0);
 
 // TODO: Make sure warnings and errors are surfaced appropriately. Catch exceptions.
 
+/**
+ * Incoming data format is, by line:
+ *
+ * 1. username
+ * 2. focused window's index, or -1 if none has focus
+ * 3. window title #0
+ * 4. window title #1
+ * ...
+ *
+ * At least the first two lines must be sent.
+ */
 function handleRequest() {
   $logger = Logger::Instance();
   $content = file_get_contents('php://input');
@@ -19,15 +30,25 @@ function handleRequest() {
   }
 
   $user = $lines[0];
-  $titles = array_slice($lines, 1);
+  $focusIndex = $lines[1];
+  $titles = array_slice($lines, 2);
+
+  if ($focusIndex >= count($titles)) {
+    http_response_code(400);
+    $message = "Invalid index for focused window: " . $focusIndex . ">= " . count($titles);
+    $logger->error($message . '. Content: ' . str_replace("\n", '\n', $content));
+    return "error\n" . $message;
+  }
 
   $db = new Database();
 
-  $classifications = $db->insertWindowTitles($user, $titles);
+  $classifications = $db->insertWindowTitles($user, $titles, $focusIndex);
+  $allBudgetConfigs = $db->getAllBudgetConfigs($user);
   $leftAllBudgets = $db->queryMinutesLeftTodayAllBudgets($user);
 
   ob_start();
   var_dump($classifications);
+  var_dump($allBudgetConfigs);
   var_dump($leftAllBudgets);
   return "ok\n" . ob_get_clean();
 

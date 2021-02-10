@@ -137,14 +137,14 @@ class Database {
 
   private function classify($titles) {
     /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
-    foreach ($titlesEsc as $i => $titleEsc) {
+      foreach ($titlesEsc as $i => $titleEsc) {
       if ($i == 0) {
-        $q1 = 'SELECT "' . $titleEsc . '" AS title';
+      $q1 = 'SELECT "' . $titleEsc . '" AS title';
       } else {
-        $q1 .= ' UNION ALL SELECT "' . $titleEsc . '"';
+      $q1 .= ' UNION ALL SELECT "' . $titleEsc . '"';
       }
-    }
-    */
+      }
+     */
     $classifications = array();
     foreach ($titles as $title) {
       $q = 'SELECT classes.id, classes.name, budget_id'
@@ -216,7 +216,7 @@ class Database {
     $result = $this->query(
         'SELECT id, name, k, v'
         . ' FROM budget_config'
-        . ' JOIN budgets ON budget_config.budget_id = budgets.id'
+        . ' RIGHT JOIN budgets ON budget_config.budget_id = budgets.id'
         . ' JOIN mappings ON mappings.budget_id = budgets.id'
         . ' WHERE user="' . $user . '"'
         . ' ORDER BY id, k');
@@ -313,9 +313,9 @@ class Database {
     return $result->fetch_all();
   }
 
-  /** Returns all users, i.e. all distinct user keys present in the budget config. */
+  /** Returns all users, i.e. all distinct user keys for which at least one class is mapped. */
   public function getUsers() {
-    $result = $this->query('SELECT DISTINCT user FROM budgets ORDER BY user ASC');
+    $result = $this->query('SELECT DISTINCT user FROM mappings ORDER BY user ASC');
     $users = array();
     while ($row = $result->fetch_row()) {
       $users[] = $row[0];
@@ -330,6 +330,7 @@ class Database {
    * $toTime may be null to omit the upper limit.
    */
   public function queryMinutesSpentByBudgetAndDate($user, $fromTime, $toTime) {
+    // TODO: Optionally restrict to activity.focus=1.
     $userEsc = $this->esc($user);
     $q = 'SET @prev_ts = 0, @prev_s = 0;'
         . ' SELECT date, budget_id, SUM(s) / 60 AS minutes'
@@ -342,11 +343,12 @@ class Database {
         . '   FROM ('
         . '     SELECT ts, budget_id'
         . '     FROM activity'
+        // TODO: If a class is not mapped, budget_id should be NULL to indicate "no budget".
         . '     JOIN mappings ON activity.class_id = mappings.class_id'
         . '     WHERE activity.user = "' . $userEsc . '"'
         . '     AND mappings.user = "' . $userEsc . '"'
         . '     AND ts >= ' . $fromTime->getTimestamp()
-        .       ($toTime ? ' AND ts < ' . $toTime->getTimestamp() : '')
+        . ($toTime ? ' AND ts < ' . $toTime->getTimestamp() : '')
         . '     ORDER BY ts, budget_id'
         . '   ) t1'
         . ' ) t2'
@@ -354,19 +356,19 @@ class Database {
         . ' GROUP BY date, budget_id';
     $this->multiQuery($q); // SET statement
     $result = $this->multiQueryGetNextResult();
-    $minutesByClassAndDate = array();
+    $minutesByBudgetAndDate = array();
     while ($row = $result->fetch_assoc()) {
       $date = $row['date'];
-      $classId = $row['budget_id'];
+      $budgetId = $row['budget_id'];
       $minutes = $row['minutes'];
-      if (!array_key_exists($classId, $minutesByClassAndDate)) {
-        $minutesByClassAndDate[$classId] = array();
+      if (!array_key_exists($budgetId, $minutesByBudgetAndDate)) {
+        $minutesByBudgetAndDate[$budgetId] = array();
       }
-      $minutesByClassAndDate[$classId][$date] = $minutes;
+      $minutesByBudgetAndDate[$budgetId][$date] = $minutes;
     }
     $result->close();
-    ksort($minutesByClassAndDate, SORT_NUMERIC);
-    return $minutesByClassAndDate;
+    ksort($minutesByBudgetAndDate, SORT_NUMERIC);
+    return $minutesByBudgetAndDate;
   }
 
   /**
@@ -387,7 +389,7 @@ class Database {
         . '     @prev_id as id,'
         . '     @prev_title as title,'
         . '     @prev_ts := ts,'
-        . '     @prev_id := budget_id,'
+        . '     @prev_id := class_id,'
         . '     @prev_title := title'
         . '   FROM activity'
         . '   WHERE'
@@ -396,7 +398,7 @@ class Database {
         . '     AND ts < ' . $toTime->getTimestamp()
         . '   ORDER BY ts ASC'
         . ' ) t1'
-        . ' JOIN budget ON t1.id = budget.id'
+        . ' JOIN classes ON t1.id = classes.id'
         . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
         . ' AND s > 0'
         . ' GROUP BY title, name'
@@ -427,8 +429,7 @@ class Database {
 
     $overrides = $this->queryOverrides($user, $budgetId, $now);
 
-    $minutesSpentByBudgetAndDate =
-        $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
+    $minutesSpentByBudgetAndDate = $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
     $minutesSpentByDate = get($minutesSpentByBudgetAndDate[$budgetId], array());
 
     return $this->computeMinutesLeftToday(
@@ -445,8 +446,7 @@ class Database {
 
     $overridesByBudget = $this->queryOverridesByBudget($user, $now);
 
-    $minutesSpentByBudgetAndDate =
-        $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
+    $minutesSpentByBudgetAndDate = $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
 
     $minutesLeftByBudget = array();
     foreach ($configs as $budgetId => $config) {
@@ -566,8 +566,7 @@ class Database {
     $overridesByBudget = array();
     // PK is (user, date, budget_id), so there is at most one row per budget_id.
     while ($row = $result->fetch_assoc()) {
-      $overridesByBudget[$row['budget_id']] =
-          array('minutes' => $row['minutes'], 'unlocked' => $row['unlocked']);
+      $overridesByBudget[$row['budget_id']] = array('minutes' => $row['minutes'], 'unlocked' => $row['unlocked']);
     }
     return $overridesByBudget;
   }

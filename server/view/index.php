@@ -44,6 +44,8 @@ $minutesSpentByBudget = array();
 foreach ($minutesSpentByBudgetAndDate as $budgetId=>$minutesSpentByDate) {
   $minutesSpentByBudget[$budgetId] = get($minutesSpentByDate[$dateString], 0);
 }
+// TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
+// budget at all.
 echoTable(array(
     budgetIdsToNames(array_keys($minutesSpentByBudget), $configs),
     array_values($minutesSpentByBudget)));

@@ -12,4 +12,3 @@ final class Logger {
 
   private function __construct() {}
 }
-?>

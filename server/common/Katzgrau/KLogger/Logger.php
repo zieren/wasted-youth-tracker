@@ -73,10 +73,11 @@ class Logger extends AbstractLogger
      * Class constructor
      *
      * @param string  $logDirectory       File path to the logging directory
+     * @param string  $logFilename        File name of the log file
      * @param integer $logLevelThreshold  The LogLevel Threshold
      * @return void
      */
-    public function __construct($logDirectory, $logLevelThreshold = LogLevel::DEBUG)
+    public function __construct($logDirectory, $logFilename = null, $logLevelThreshold = LogLevel::DEBUG)
     {
         $this->logLevelThreshold = $logLevelThreshold;
 
@@ -85,11 +86,14 @@ class Logger extends AbstractLogger
             mkdir($logDirectory, $this->defaultPermissions, true);
         }
 
-        $this->logFilePath = $logDirectory.DIRECTORY_SEPARATOR.'log_'.date('Y-m-d').'.txt';
+        if (! $logFilename) {
+          $logFilename = 'log_'.date('Y-m-d').'.txt';
+        }
+        $this->logFilePath = $logDirectory.DIRECTORY_SEPARATOR.$logFilename;
         if (file_exists($this->logFilePath) && !is_writable($this->logFilePath)) {
             throw new RuntimeException('The file could not be written to. Check that appropriate permissions have been set.');
         }
-        
+
         $this->fileHandle = fopen($this->logFilePath, 'a');
         if ( ! $this->fileHandle) {
             throw new RuntimeException('The file could not be opened. Check permissions.');
@@ -108,7 +112,7 @@ class Logger extends AbstractLogger
 
     /**
      * Sets the date format used by all instances of KLogger
-     * 
+     *
      * @param string $dateFormat Valid format string for date()
      */
     public function setDateFormat($dateFormat)
@@ -118,7 +122,7 @@ class Logger extends AbstractLogger
 
     /**
      * Sets the Log Level Threshold
-     * 
+     *
      * @param string $dateFormat Valid format string for date()
      */
     public function setLogLevelThreshold($logLevelThreshold)
@@ -139,7 +143,7 @@ class Logger extends AbstractLogger
         if ($this->logLevels[$this->logLevelThreshold] < $this->logLevels[$level]) {
             return;
         }
-        $message = $this->formatMessage($level, $message, $context);        
+        $message = $this->formatMessage($level, $message, $context);
         $this->write($message);
     }
 
@@ -177,10 +181,10 @@ class Logger extends AbstractLogger
 
     /**
      * Gets the correctly formatted Date/Time for the log entry.
-     * 
+     *
      * PHP DateTime is dump, and you have to resort to trickery to get microseconds
      * to work correctly, so here it is.
-     * 
+     *
      * @return string
      */
     private function getTimestamp()
@@ -194,7 +198,7 @@ class Logger extends AbstractLogger
 
     /**
      * Takes the given context and coverts it to a string.
-     * 
+     *
      * @param  array $context The Context
      * @return string
      */
@@ -219,7 +223,7 @@ class Logger extends AbstractLogger
 
     /**
      * Indents the given string with the given indent.
-     * 
+     *
      * @param  string $string The string to indent
      * @param  string $indent What to use as the indent.
      * @return string

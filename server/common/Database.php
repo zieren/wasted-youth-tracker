@@ -1,5 +1,7 @@
 <?php
 
+require_once 'common.php';
+
 define('DAILY_LIMIT_MINUTES_PREFIX', 'daily_limit_minutes_');
 
 // Background:
@@ -10,23 +12,48 @@ define('DAILY_LIMIT_MINUTES_PREFIX', 'daily_limit_minutes_');
 define('CREATE_TABLE_SUFFIX', 'CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ');
 
 // TODO: Consider caching repeated queries.
+// TODO: Call mysqli::close()?
 
 class Database {
 
+  /** Creates a new instance for use in production, using parameters from config.php. */
+  public static function create($createMissingTables = false): Database {
+    return new Database(DB_SERVER, DB_NAME, DB_USER, DB_PASS, $createMissingTables);
+  }
+
+  /** Creates a new instance for use in test. DROPS all tables. */
+  public static function createForTest($dbServer, $dbName, $dbUser, $dbPass): Database {
+    // DROP all tables first.
+    $mysqli = new mysqli($dbServer, $dbUser, $dbPass, $dbName);
+    assert(!$mysqli->connect_errno && $mysqli->select_db($dbName));
+    assert($mysqli->query('SET FOREIGN_KEY_CHECKS = 0'));
+    $result = $mysqli->query(
+        'SELECT table_name FROM information_schema.tables WHERE table_schema = "' . $dbName . '"');
+    while ($row = $result->fetch_assoc()) {
+      assert($mysqli->query('DROP TABLE IF EXISTS ' . $row['table_name']));
+    }
+    assert($mysqli->query('SET FOREIGN_KEY_CHECKS = 1'));
+    assert($mysqli->close());
+
+    return new Database($dbServer, $dbName, $dbUser, $dbPass, true);
+  }
+
   /** Connects to the database, or exits on error. */
-  public function __construct($createMissingTables = false) {
+  private function __construct($dbServer, $dbName, $dbUser, $dbPass, $createMissingTables) {
     $this->log = Logger::Instance();
-    $this->mysqli = new mysqli(DB_SERVER, DB_USER, DB_PASS, DB_NAME);
+    $this->mysqli = new mysqli($dbServer, $dbUser, $dbPass, $dbName);
     if ($this->mysqli->connect_errno) {
       $this->throwMySqlErrorException('__construct()');
     }
-    if (!$this->mysqli->select_db(DB_NAME)) {
-      $this->throwMySqlErrorException('select_db(' . DB_NAME . ')');
+    if (!$this->mysqli->select_db($dbName)) {
+      $this->throwMySqlErrorException('select_db(' . $dbName . ')');
     }
     if ($createMissingTables) {
       $this->createMissingTables();
     }
     // Configure global logger.
+    // TODO: Report a proper error if we crash here because we weren't initialized
+    // (e.g. new install and never visited the admin page).
     $config = $this->getGlobalConfig();
     if (array_key_exists('log_level', $config)) {
       $this->log->setLogLevelThreshold(strtolower($config['log_level']));
@@ -379,9 +406,8 @@ class Database {
    */
   public function queryTimeSpentByTitle($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-    // TODO: Remove "<init>" placeholder.
-    $q = 'SET @prev_ts := 0, @prev_id := 0, @prev_title := "<init>";'
-        // TODO: Should the client handle SEC_TO_TIME?
+    // TODO: Remove "<init>" placeholder. NULL?
+    $q = 'SET @prev_ts = 0, @prev_id = 0, @prev_title = "<init>";'
         . ' SELECT ts, SEC_TO_TIME(SUM(s)) as total, name, title '
         . ' FROM ('
         . '   SELECT'
@@ -404,7 +430,44 @@ class Database {
         . ' AND s > 0'
         . ' GROUP BY title, name'
         . ' ORDER BY total DESC';
-    $this->multiQuery($q);
+    $q = 'SET
+    @prev_ts = 0,
+    @prev_s = 0,
+    @prev_id = 0,
+    @prev_title = "<init>";
+SELECT
+    ts,
+    SEC_TO_TIME(SUM(s)) AS total,
+    classes.NAME as class_name,
+    title
+FROM
+    (
+    SELECT
+        ts,
+        @prev_s := IF(@prev_ts = ts, @prev_s, IF(@prev_ts = 0, 0, ts - @prev_ts)) AS s,
+        @prev_ts := ts,
+        @prev_id AS class_id,
+        @prev_title AS title,
+        @prev_id := class_id,
+        @prev_title := title
+    FROM
+        activity
+    WHERE
+        USER = "zzz" AND ts >= 1612911600 AND ts < 1612998000
+    ORDER BY
+        ts ASC
+) t1
+JOIN classes ON t1.class_id = classes.id
+WHERE
+    s <= 25 AND s > 0
+GROUP BY
+    title,
+    NAME
+ORDER BY
+    total
+DESC
+    ';
+    $this->multiQuery($q); // SET statement
     $result = $this->multiQueryGetNextResult();
     $timeByTitle = array();
     while ($row = $result->fetch_assoc()) {

@@ -2,27 +2,21 @@
 
 // Internal constants.
 define('PHP_MIN_VERSION', '7.3');
-define('LOG_DIR', '../logs');
-define('CONFIG_PHP', 'config.php');
 define('KFC_SERVER_HEADING', 'Kids Freedom & Control 0.0.0');
 define('DEFAULT_BUDGET_NAME', 'default_budget'); // TODO: Remove!?
 define('DEFAULT_CLASS_NAME', 'default_class');
 
-function autoloader($class) {
-  include str_replace('\\', '/', $class) . '.php';
-}
+require_once 'base.php';
 
-spl_autoload_register('autoloader');
-
-require_once CONFIG_PHP;
+require_once 'config.php';
 
 // Logger must be initialized before used in kfcFatalErrorHandler; see
-// http://stackoverflow.com/questions/4242534/php-shutdown-cant-write-files
+// http://stackoverflow.com/questions/4242534
 Logger::Instance();
 
 function kfcErrorHandler($errno, $errstr, $errfile, $errline, $errcontext) {
   Logger::Instance()->critical('Error ' . $errno . ': ' . $errstr . ' -- ' . $errfile . ':' . $errline);
-  return false;  // continue with built-in error handling
+  return false; // continue with built-in error handling
 }
 
 set_error_handler('kfcErrorHandler');

@@ -1,14 +1,27 @@
 <?php
-require_once 'common.php';
+
+require_once 'base.php';
 
 final class Logger {
-  public static function Instance() {
-    static $instance = null;
-    if ($instance === null) {
-      $instance = new Katzgrau\KLogger\Logger(LOG_DIR);
+
+  private static $instance;
+
+  public static function Instance(): Katzgrau\KLogger\Logger {
+    if (!self::$instance) {
+      self::$instance = new Katzgrau\KLogger\Logger('../logs');
     }
-    return $instance;
+    return self::$instance;
   }
 
-  private function __construct() {}
+  public static function initializeForTest($filename): void {
+    if (self::$instance) {
+      throw new AssertionError('already initialized');
+    }
+    self::$instance = new Katzgrau\KLogger\Logger('.', $filename);
+  }
+
+  private function __construct() {
+
+  }
+
 }

@@ -25,10 +25,26 @@ final class DatabaseTest {
   private $db;
 
   public function testSmokeTest(): void {
+    $this->db->getGlobalConfig();
   }
 
   private function setUp(): void {
+    $this->dropAllTables();
     $this->db = Database::createForTest(TEST_DB_SERVER, TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS);
+  }
+
+  private function dropAllTables(): void {
+    $mysqli = new mysqli(TEST_DB_SERVER, TEST_DB_USER, TEST_DB_PASS, TEST_DB_NAME);
+    assert(!$mysqli->connect_errno && $mysqli->select_db(TEST_DB_NAME));
+    assert($mysqli->query('SET FOREIGN_KEY_CHECKS = 0'));
+    $result = $mysqli->query(
+        'SELECT table_name FROM information_schema.tables'
+        . ' WHERE table_schema = "' . TEST_DB_NAME . '"');
+    while ($row = $result->fetch_assoc()) {
+      assert($mysqli->query('DROP TABLE IF EXISTS ' . $row['table_name']));
+    }
+    assert($mysqli->query('SET FOREIGN_KEY_CHECKS = 1'));
+    assert($mysqli->close());
   }
 
   private function tearDown(): void {

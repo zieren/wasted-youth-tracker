@@ -21,20 +21,8 @@ class Database {
     return new Database(DB_SERVER, DB_NAME, DB_USER, DB_PASS, $createMissingTables);
   }
 
-  /** Creates a new instance for use in test. DROPS all tables. */
+  /** Creates a new instance for use in tests. */
   public static function createForTest($dbServer, $dbName, $dbUser, $dbPass): Database {
-    // DROP all tables first.
-    $mysqli = new mysqli($dbServer, $dbUser, $dbPass, $dbName);
-    assert(!$mysqli->connect_errno && $mysqli->select_db($dbName));
-    assert($mysqli->query('SET FOREIGN_KEY_CHECKS = 0'));
-    $result = $mysqli->query(
-        'SELECT table_name FROM information_schema.tables WHERE table_schema = "' . $dbName . '"');
-    while ($row = $result->fetch_assoc()) {
-      assert($mysqli->query('DROP TABLE IF EXISTS ' . $row['table_name']));
-    }
-    assert($mysqli->query('SET FOREIGN_KEY_CHECKS = 1'));
-    assert($mysqli->close());
-
     return new Database($dbServer, $dbName, $dbUser, $dbPass, true);
   }
 

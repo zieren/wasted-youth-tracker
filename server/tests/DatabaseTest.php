@@ -50,18 +50,10 @@ final class DatabaseTest extends TestCase {
     assert($mysqli->close());
   }
 
-  protected function tearDown(): void {
-    if (file_exists(TESTS_LOG)) {
-      echo '<pre>' . file_get_contents(TESTS_LOG) . "</pre>";
-    } else {
-      echo 'No log output.<hr>';
-    }
-  }
-
   public function testSmokeTest(): void {
     $this->db->getGlobalConfig();
   }
-  
+
   public function testTotalTimeSingleWindowNoBudget(): void {
     $fromTime = $this->newDateTime();
 

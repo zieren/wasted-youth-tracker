@@ -24,6 +24,14 @@ class TestCase {
   protected function tearDown(): void {
   }
 
+  private function dumpAndClearLog() {
+    if (file_exists(TESTS_LOG)) {
+      echo '<pre>' . file_get_contents(TESTS_LOG) . "</pre>";
+    } else {
+      echo 'No log output.';
+    }
+  }
+
   protected function assertEquals($actual, $expected) {
     if ($actual === $expected) {
       return;
@@ -69,6 +77,7 @@ class TestCase {
 
     Logger::Instance()->info('----- tearDown');
     $this->tearDown();
+    $this->dumpAndClearLog();
   }
 
 }

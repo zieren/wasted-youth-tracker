@@ -17,11 +17,18 @@ final class DatabaseTest extends TestCase {
   private $db;
   private $mockTime = 1000; // epoch seconds
 
-  protected function setUp(): void {
-    $this->dropAllTables();
+  protected function setUpTestCase(): void {
+    Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::WARNING);
     $this->db = Database::createForTest(
         TEST_DB_SERVER, TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS,
             function() { return $this->mockTime(); });
+    Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
+  }
+
+  protected function setUp(): void {
+    Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::WARNING);
+    $this->db->clearAllForTest();
+    Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
   }
 
   private function mockTime() {
@@ -32,20 +39,6 @@ final class DatabaseTest extends TestCase {
     $d = new DateTime();
     $d->setTimestamp($this->mockTime);
     return $d;
-  }
-
-  private function dropAllTables(): void {
-    $mysqli = new mysqli(TEST_DB_SERVER, TEST_DB_USER, TEST_DB_PASS, TEST_DB_NAME);
-    assert(!$mysqli->connect_errno && $mysqli->select_db(TEST_DB_NAME));
-    assert($mysqli->query('SET FOREIGN_KEY_CHECKS = 0'));
-    $result = $mysqli->query(
-        'SELECT table_name FROM information_schema.tables'
-        . ' WHERE table_schema = "' . TEST_DB_NAME . '"');
-    while ($row = $result->fetch_assoc()) {
-      assert($mysqli->query('DROP TABLE IF EXISTS ' . $row['table_name']));
-    }
-    assert($mysqli->query('SET FOREIGN_KEY_CHECKS = 1'));
-    assert($mysqli->close());
   }
 
   public function testSmokeTest(): void {

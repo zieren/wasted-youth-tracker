@@ -84,7 +84,7 @@ class TestCase {
     } else {
       echo "<b>ALL TESTS PASSED</b><hr>";
     }
-    echo 'Runtime: ' . (microtime(true) - $this->startTime) . 's<hr>';
+    echo 'Runtime: ' . round(microtime(true) - $this->startTime, 2) . 's<hr>';
 
     Logger::Instance()->info('----- tearDown');
     $this->tearDownTestCase();

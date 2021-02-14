@@ -17,6 +17,8 @@ define('CREATE_TABLE_SUFFIX', 'CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci 
 
 class Database {
 
+  private $dbName;
+
   /** Creates a new instance for use in production, using parameters from config.php. */
   public static function create($createMissingTables = false): Database {
     return new Database(
@@ -29,11 +31,24 @@ class Database {
     return new Database($dbServer, $dbName, $dbUser, $dbPass, $timeFunction, true);
   }
 
+  public function clearAllForTest(): void {
+    $this->query('SET FOREIGN_KEY_CHECKS = 0');
+    $result = $this->query(
+        'SELECT table_name FROM information_schema.tables'
+        . ' WHERE table_schema = "' . $this->dbName. '"');
+    while ($row = $result->fetch_assoc()) {
+      $this->query('DELETE FROM ' . $row['table_name']);
+    }
+    $this->query('SET FOREIGN_KEY_CHECKS = 1');
+    $this->insertDefaultRows();
+  }
+
   /**
    * Connects to the database, or exits on error. $timeFunction is used in place of system time().
    */
   private function __construct(
       $dbServer, $dbName, $dbUser, $dbPass, $timeFunction, $createMissingTables) {
+    $this->dbName = $dbName;
     $this->timeFunction = $timeFunction;
     $this->mysqli = new mysqli($dbServer, $dbUser, $dbPass, $dbName);
     if ($this->mysqli->connect_errno) {
@@ -57,6 +72,7 @@ class Database {
   // ---------- TABLE MANAGEMENT ----------
   // TODO: Consider FOREIGN KEY.
 
+  // TODO: This also inserts a few default rows. Reflect that in the name.
   public function createMissingTables() {
     $this->query('SET default_storage_engine=INNODB');
     $this->query(
@@ -65,8 +81,6 @@ class Database {
         . 'name VARCHAR(256) NOT NULL, '
         . 'PRIMARY KEY (id)) '
         . CREATE_TABLE_SUFFIX);
-    $this->query(
-        'INSERT IGNORE INTO classes(id, name) VALUES ("1", "' . DEFAULT_CLASS_NAME . '")');
     $this->query(
         'CREATE TABLE IF NOT EXISTS activity ('
         . 'user VARCHAR(32) NOT NULL, '
@@ -86,9 +100,6 @@ class Database {
         . 'PRIMARY KEY (id), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id)) '
         . CREATE_TABLE_SUFFIX);
-    $this->query(
-        'INSERT IGNORE INTO classification(id, class_id, priority, re)'
-        . ' VALUES ("1", "1", "-2147483648", "()")'); // RE can't be ""
     $this->query(
         'CREATE TABLE IF NOT EXISTS budgets ('
         . 'id INT NOT NULL AUTO_INCREMENT, '
@@ -134,6 +145,15 @@ class Database {
         . 'unlocked BOOL, '
         . 'PRIMARY KEY (user, date, budget_id)) '
         . CREATE_TABLE_SUFFIX);
+    $this->insertDefaultRows();
+  }
+
+  private function insertDefaultRows() {
+    $this->query(
+        'INSERT IGNORE INTO classes(id, name) VALUES ("1", "' . DEFAULT_CLASS_NAME . '")');
+    $this->query(
+        'INSERT IGNORE INTO classification(id, class_id, priority, re)'
+        . ' VALUES ("1", "1", "-2147483648", "()")'); // RE can't be ""
   }
 
   public function dropAllTablesExceptConfig() {

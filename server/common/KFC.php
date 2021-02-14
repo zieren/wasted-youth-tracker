@@ -204,6 +204,7 @@ class KFC {
         ]);
   }
 
+  /** TODO */
   public function classify($titles) {
     /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
       foreach ($titlesEsc as $i => $titleEsc) {
@@ -222,7 +223,7 @@ class KFC {
           . ' JOIN classes ON classes.id = classification.class_id'
           . ' LEFT JOIN mappings ON classes.id = mappings.class_id'
           . ' WHERE |s REGEXP re'
-          . ' ORDER BY priority DESC'
+          . ' ORDER BY priority DESC, budget_id'
           . ' LIMIT 1',
           $title);
       if (!$rows) { // This should never happen, the default class catches all.
@@ -233,9 +234,11 @@ class KFC {
       $classification['class_id'] = intval($rows[0]['id']);
       $classification['class_name'] = $rows[0]['name'];
       $classification['budget_ids'] = [];
-      $i = 0;
-      while ($budgetId = $rows[$i++]['budget_id']) {
+      foreach ($rows as $row) {
+        // Budget ID maybe be null.
+        if ($budgetId = $row['budget_id']) {
         $classification['budget_ids'][] = intval($budgetId);
+        }
       }
       $classifications[] = $classification;
     }
@@ -442,12 +445,15 @@ class KFC {
    * Returns the time spent by window title and budget name, ordered by the amount of time, starting
    * at $fromTime and ending 1d (i.e. usually 24h) later. $date should therefore usually have a time
    * of 0:00.
+   *
+   * TODO: Semantics, parameter names, return data format (SEC_TO_TIME).
    */
   public function queryTimeSpentByTitle($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     // TODO: Remove "<init>" placeholder. NULL?
-    $q = 'SET @prev_ts = 0, @prev_id = 0, @prev_title = "<init>";'
-        . ' SELECT ts, SEC_TO_TIME(SUM(s)) as total, name, title '
+    DB::query('SET @prev_ts = 0, @prev_id = 0, @prev_title = "<init>"');
+    $rows = DB::query(
+        'SELECT ts, SUM(s) as sum_s, name, title '
         . ' FROM ('
         . '   SELECT'
         . '     ts,'
@@ -459,17 +465,18 @@ class KFC {
         . '     @prev_title := title'
         . '   FROM activity'
         . '   WHERE'
-        . '     user = "' . $this->esc($user) . '"'
-        . '     AND ts >= ' . $fromTime->getTimestamp()
-        . '     AND ts < ' . $toTime->getTimestamp()
+        . '     user = |s'
+        . '     AND ts >= |i'
+        . '     AND ts < |i'
         . '   ORDER BY ts ASC'
         . ' ) t1'
         . ' JOIN classes ON t1.id = classes.id'
         . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
         . ' AND s > 0'
         . ' GROUP BY title, name'
-        . ' ORDER BY total DESC';
-    $q = 'SET
+        . ' ORDER BY sum_s DESC',
+        $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
+    /*$q = 'SET
     @prev_ts = 0,
     @prev_s = 0,
     @prev_id = 0,
@@ -505,19 +512,16 @@ GROUP BY
 ORDER BY
     total
 DESC
-    ';
-    $this->multiQuery($q); // SET statement
-    $result = $this->multiQueryGetNextResult();
-    $timeByTitle = array();
-    while ($row = $result->fetch_assoc()) {
+    ';*/
+    $timeByTitle = [];
+    foreach ($rows as $row) {
       // TODO: This should use the client's local time format.
-      $timeByTitle[] = array(
+      $timeByTitle[] = [
           date("Y-m-d H:i:s", $row['ts']),
-          $row['total'],
+          intval($row['sum_s']),
           $row['name'],
-          $row['title']);
+          $row['title']];
     }
-    $result->close();
     return $timeByTitle;
   }
 

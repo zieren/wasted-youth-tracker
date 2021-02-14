@@ -74,6 +74,12 @@ class TestCase {
         $this->setUp();
         $method->invoke($this);
         $this->tearDown();
+        if (error_get_last()) {
+          ob_start();
+          var_dump(error_get_last());
+          error_clear_last();
+          throw new Exception("Silent error: " . ob_get_clean());
+        }
         $this->passedTests += 1;
       } catch (Throwable $e) {
         $this->failedTests[$test] = $e;

@@ -35,6 +35,13 @@ function get(&$value, $default = null) {
   return isset($value) ? $value : $default;
 }
 
+/** Calls var_dump to convert the specified array into a string. */
+function arrayToString($a) {
+  ob_start();
+  var_dump($a);
+  return ob_get_clean();
+}
+
 /**
  * Returns a DateTime pointing to the start of the week (currently always Monday 0:00) in which
  * $date lies.

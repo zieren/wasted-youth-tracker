@@ -6,14 +6,10 @@ ini_set('assert.exception', '1');
 require_once('../common/base.php');
 
 define('TESTS_LOG', 'tests_log.txt');
-
 if (file_exists(TESTS_LOG)) {
   unlink(TESTS_LOG);
 }
-
 Logger::initializeForTest(TESTS_LOG);
-
-// TODO: Configure DB error handler to surface errors in test.
 
 class TestCase {
 
@@ -75,10 +71,9 @@ class TestCase {
         $method->invoke($this);
         $this->tearDown();
         if (error_get_last()) {
-          ob_start();
-          var_dump(error_get_last());
+          $message = "Silent error: " . arrayToString(error_get_last());
           error_clear_last();
-          throw new Exception("Silent error: " . ob_get_clean());
+          throw new Exception($message);
         }
         $this->passedTests += 1;
       } catch (Throwable $e) {

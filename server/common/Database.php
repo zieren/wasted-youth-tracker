@@ -13,22 +13,28 @@ define('CREATE_TABLE_SUFFIX', 'CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci 
 
 // TODO: Consider caching repeated queries.
 // TODO: Call mysqli::close()?
+// TODO: Handle user timezone != server timezone.
 
 class Database {
 
   /** Creates a new instance for use in production, using parameters from config.php. */
   public static function create($createMissingTables = false): Database {
-    return new Database(DB_SERVER, DB_NAME, DB_USER, DB_PASS, $createMissingTables);
+    return new Database(
+        DB_SERVER, DB_NAME, DB_USER, DB_PASS, function() { return time(); }, $createMissingTables);
   }
 
-  /** Creates a new instance for use in tests. */
-  public static function createForTest($dbServer, $dbName, $dbUser, $dbPass): Database {
-    return new Database($dbServer, $dbName, $dbUser, $dbPass, true);
+  /** Creates a new instance for use in tests. $timeFunction is used in place of system time(). */
+  public static function createForTest(
+      $dbServer, $dbName, $dbUser, $dbPass, $timeFunction): Database {
+    return new Database($dbServer, $dbName, $dbUser, $dbPass, $timeFunction, true);
   }
 
-  /** Connects to the database, or exits on error. */
-  private function __construct($dbServer, $dbName, $dbUser, $dbPass, $createMissingTables) {
-    $this->log = Logger::Instance();
+  /**
+   * Connects to the database, or exits on error. $timeFunction is used in place of system time().
+   */
+  private function __construct(
+      $dbServer, $dbName, $dbUser, $dbPass, $timeFunction, $createMissingTables) {
+    $this->timeFunction = $timeFunction;
     $this->mysqli = new mysqli($dbServer, $dbUser, $dbPass, $dbName);
     if ($this->mysqli->connect_errno) {
       $this->throwMySqlErrorException('__construct()');
@@ -44,7 +50,7 @@ class Database {
     // (e.g. new install and never visited the admin page).
     $config = $this->getGlobalConfig();
     if (array_key_exists('log_level', $config)) {
-      $this->log->setLogLevelThreshold(strtolower($config['log_level']));
+      Logger::Instance()->setLogLevelThreshold(strtolower($config['log_level']));
     }  // else: defaults to debug
   }
 
@@ -135,7 +141,7 @@ class Database {
     // TODO: Update for new tables.
     $this->query('DROP TABLE IF EXISTS activity');
     $this->query('DROP TABLE IF EXISTS overrides');
-    $this->log->notice('tables dropped');
+    Logger::Instance()->notice('tables dropped');
   }
 
   /** Delete all records prior to DateTime $date. */
@@ -144,7 +150,7 @@ class Database {
     // TODO: Update for new tables.
     $this->query('DELETE FROM activity WHERE ts < ' . $date->getTimestamp());
     $this->query('DELETE FROM overrides WHERE date < "' . getDateString($date) . '"');
-    $this->log->notice('tables pruned up to ' . $date->format(DateTimeInterface::ATOM));
+    Logger::Instance()->notice('tables pruned up to ' . $date->format(DateTimeInterface::ATOM));
   }
 
   // ---------- BUDGET QUERIES ----------
@@ -259,7 +265,7 @@ class Database {
       $this->throwException('internal error: ' . count($titles) . ' titles vs. '
           . count($classifications) . ' classifications');
     }
-    $ts = time();
+    $ts = $this->time();
     $values = "";
     foreach ($titles as $i => $title) {
       $values .= ($values ? ',(' : '(')
@@ -477,7 +483,7 @@ DESC
    */
   public function queryMinutesLeftToday($user, $classId) {
     $config = $this->getBudgetConfig($user, $budgetId);
-    $now = new DateTime();
+    $now = $this->newDateTime();
 
     $overrides = $this->queryOverrides($user, $budgetId, $now);
 
@@ -494,7 +500,7 @@ DESC
    */
   public function queryMinutesLeftTodayAllBudgets($user) {
     $configs = $this->getAllBudgetConfigs($user);
-    $now = new DateTime();
+    $now = $this->newDateTime();
 
     $overridesByBudget = $this->queryOverridesByBudget($user, $now);
 
@@ -591,7 +597,7 @@ DESC
   /** Returns all overrides for the specified user, starting the week before the current week. */
   // TODO: Allow setting the date range.
   public function queryRecentOverrides($user) {
-    $fromDate = getWeekStart(new DateTime());
+    $fromDate = getWeekStart($this->newDateTime());
     $fromDate->sub(new DateInterval('P1W'));
     $result = $this->query(
         'SELECT date, name,'
@@ -662,7 +668,7 @@ DESC
    * the specified level (specify null to disable logging).
    */
   private function query($query, $logLevel = 'debug') {
-    $this->log->log($logLevel, 'Query: ' . $query);
+    Logger::Instance()->log($logLevel, 'Query: ' . $query);
     if ($result = $this->mysqli->query($query)) {
       return $result;
     }
@@ -674,7 +680,7 @@ DESC
    * exception on failure. Subsequent results are available via multiQueryGetNextResult() below.
    */
   private function multiQuery($multiQuery, $logLevel = 'debug') {
-    $this->log->log($logLevel, 'Multi query: ' . $multiQuery);
+    Logger::Instance()->log($logLevel, 'Multi query: ' . $multiQuery);
     $this->multiQuery = $multiQuery;
     if (!$this->mysqli->multi_query($multiQuery)) {
       $this->throwMySqlErrorException($multiQuery);
@@ -699,7 +705,7 @@ DESC
   }
 
   private function throwException($message) {
-    $this->log->critical($message);
+    Logger::Instance()->critical($message);
     throw new Exception($message);
   }
 
@@ -707,6 +713,21 @@ DESC
   private function esc($s) {
     // This needs the instance because it considers the character set of the connection.
     return $this->mysqli->real_escape_string($s);
+  }
+
+  /** Returns epoch time in seconds. Allows manual dependency injection in test. */
+  private function time() {
+    return ($this->timeFunction)();
+  }
+
+  /**
+   * Helper method to return a new DateTime object representing $this->time() in the server's
+   * timezone.
+   */
+  private function newDateTime() {
+    $d = new DateTime();
+    $d->setTimestamp($this->time());
+    return $d;
   }
 
 }

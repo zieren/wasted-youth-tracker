@@ -23,14 +23,25 @@ final class DatabaseTest {
   private $failedTests = array();
   private $passedTests = 0;
   private $db;
+  private $mockTime = 1000; // epoch seconds
 
   public function testSmokeTest(): void {
     $this->db->getGlobalConfig();
   }
 
+  public function testTotalTimeSingleWindow(): void {
+    $this->db->insertWindowTitles('t1', array('window 1'), 0);
+  }
+
   private function setUp(): void {
     $this->dropAllTables();
-    $this->db = Database::createForTest(TEST_DB_SERVER, TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS);
+    $this->db = Database::createForTest(
+        TEST_DB_SERVER, TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS,
+        function() { return $this->mockTime(); });
+  }
+
+  private function mockTime() {
+    return $this->mockTime;
   }
 
   private function dropAllTables(): void {

@@ -14,8 +14,8 @@ require_once 'config.php';
 // http://stackoverflow.com/questions/4242534
 Logger::Instance();
 
-function kfcErrorHandler($errno, $errstr, $errfile, $errline, $errcontext) {
-  Logger::Instance()->critical('Error ' . $errno . ': ' . $errstr . ' -- ' . $errfile . ':' . $errline);
+function kfcErrorHandler($errno, $errstr, $errfile, $errline) {
+  Logger::Instance()->critical('Error ' . $errno . ': ' . $errstr . ' @ ' . $errfile . ':' . $errline);
   return false; // continue with built-in error handling
 }
 

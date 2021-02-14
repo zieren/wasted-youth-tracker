@@ -41,7 +41,7 @@ function checkRequirements() {
 
 checkRequirements();
 
-$db = new Database(true /* create missing tables */);
+$db = Database::create(true /* create missing tables */);
 
 // TODO: This should sanitize the user input.
 if (isset($_POST['setUserConfig'])) {
@@ -101,7 +101,9 @@ $budgetNames = budgetIdsToNames(array_keys($budgetConfigs), $budgetConfigs);
 echo '<h1>'.KFC_SERVER_HEADING.'</h1>
 <p>(c) 2021 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
 Components:
-<a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license</p>';
+<a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, LGPL;
+<a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license
+';
 
 echo '<p><a href="../view/index.php?user=' . $user . '">View activity</a></p>';
 

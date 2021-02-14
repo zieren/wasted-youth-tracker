@@ -11,7 +11,7 @@ require_once '../common/html_util.php';
 
 echo dateSelectorJs();
 
-$db = new Database(false/* create missing tables */);
+$db = Database::create(false /* create missing tables */);
 $dateString = get($_GET['date'], date('Y-m-d'));
 list($year, $month, $day) = explode('-', $dateString);
 // TODO: Catch invalid date.
@@ -30,28 +30,28 @@ echo
     . dateSelector($dateString, true)
     . '</form>';
 
-echo "<h3>Minutes left today</h3>";
-$minutesLeftByBudget = $db->queryMinutesLeftTodayAllBudgets($user);
+echo "<h3>Time left today</h3>";
+$timeLeftByBudget = $db->queryTimeLeftTodayAllBudgets($user);
 echoTable(array(
-    budgetIdsToNames(array_keys($minutesLeftByBudget), $configs),
-    array_values($minutesLeftByBudget)));
+    budgetIdsToNames(array_keys($timeLeftByBudget), $configs),
+    array_values($timeLeftByBudget)));
 
-echo "<h3>Minutes spent on selected date</h3>";
+echo "<h3>Time spent on selected date</h3>";
 $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-$minutesSpentByBudgetAndDate = $db->queryMinutesSpentByBudgetAndDate($user, $fromTime, $toTime);
-$minutesSpentByBudget = array();
-foreach ($minutesSpentByBudgetAndDate as $budgetId=>$minutesSpentByDate) {
-  $minutesSpentByBudget[$budgetId] = get($minutesSpentByDate[$dateString], 0);
+$timeSpentByBudgetAndDate = $db->queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime);
+$timeSpentByBudget = [];
+foreach ($timeSpentByBudgetAndDate as $budgetId=>$timeSpentByDate) {
+  $timeSpentByBudget[$budgetId] = get($timeSpentByDate[$dateString], 0);
 }
 // TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
 // budget at all.
 echoTable(array(
-    budgetIdsToNames(array_keys($minutesSpentByBudget), $configs),
-    array_values($minutesSpentByBudget)));
+    budgetIdsToNames(array_keys($timeSpentByBudget), $configs),
+    array_values($timeSpentByBudget)));
 
-echo "<h3>Minutes per window title</h3>";
-echoTable($db->queryTimeSpentByTitle($user, $fromTime));
+echo "<h3>Time per window title</h3>";
+// TODO: echoTable($db->queryTimeSpentByTitle($user, $fromTime));
 
 if (get($_GET['debug'])) {
   echo "<h2>Window title sequence</h2>";

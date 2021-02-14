@@ -13,6 +13,8 @@ if (file_exists(TESTS_LOG)) {
 
 Logger::initializeForTest(TESTS_LOG);
 
+// TODO: Configure DB error handler to surface errors in test.
+
 class TestCase {
 
   private $failedTests = [];
@@ -48,10 +50,12 @@ class TestCase {
     $caller = array_shift($bt);
 
     ob_start();
-    echo 'Line ' . $caller['line'] . ': Equality assertion failed: ';
+    echo 'Line ' . $caller['line'] . ': Equality assertion failed:'
+        . '<br><span style="background-color: yellow">';
     var_dump($actual);
-    echo ' !== ';
+    echo '</span><br><span style="background-color: lightgreen">';
     var_dump($expected);
+    echo '</span>';
     throw new AssertionError(ob_get_clean());
   }
 
@@ -71,11 +75,11 @@ class TestCase {
         $method->invoke($this);
         $this->tearDown();
         $this->passedTests += 1;
-      } catch (AssertionError $e) {
+      } catch (Throwable $e) {
         $this->failedTests[$test] = $e;
       }
     }
-    echo 'Tests passed: ' . $this->passedTests . '<hr>';
+    echo '<hr>Tests passed: ' . $this->passedTests . '<hr>';
     if ($this->failedTests) {
       echo 'TESTS FAILED: ' . count($this->failedTests) . '<hr>';
       foreach ($this->failedTests as $test => $e) {

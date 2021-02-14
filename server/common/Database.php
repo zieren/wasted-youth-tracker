@@ -1,6 +1,7 @@
 <?php
 
 require_once 'common.php';
+require_once 'db.class.php';
 
 define('DAILY_LIMIT_MINUTES_PREFIX', 'daily_limit_minutes_');
 
@@ -12,51 +13,54 @@ define('DAILY_LIMIT_MINUTES_PREFIX', 'daily_limit_minutes_');
 define('CREATE_TABLE_SUFFIX', 'CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ');
 
 // TODO: Consider caching repeated queries.
-// TODO: Call mysqli::close()?
 // TODO: Handle user timezone != server timezone.
 
-class Database {
+DB::$success_handler = 'logDbQuery';
+DB::$error_handler = 'logDbQueryError';
+DB::$param_char = '|';
 
-  private $dbName;
+function logDbQuery($params) {
+  Logger::Instance()->debug('DB query: ' . $params['query']);
+}
+
+function logDbQueryError($params) {
+  Logger::Instance()->error('DB query: ' . $params['query']);
+  Logger::Instance()->error('DB error: ' . $params['error']);
+}
+
+class Database {
 
   /** Creates a new instance for use in production, using parameters from config.php. */
   public static function create($createMissingTables = false): Database {
     return new Database(
-        DB_SERVER, DB_NAME, DB_USER, DB_PASS, function() { return time(); }, $createMissingTables);
+        DB_NAME, DB_USER, DB_PASS, function() { return time(); }, $createMissingTables);
   }
 
   /** Creates a new instance for use in tests. $timeFunction is used in place of system time(). */
   public static function createForTest(
-      $dbServer, $dbName, $dbUser, $dbPass, $timeFunction): Database {
-    return new Database($dbServer, $dbName, $dbUser, $dbPass, $timeFunction, true);
+      $dbName, $dbUser, $dbPass, $timeFunction): Database {
+    return new Database($dbName, $dbUser, $dbPass, $timeFunction, true);
   }
 
   public function clearAllForTest(): void {
-    $this->query('SET FOREIGN_KEY_CHECKS = 0');
-    $result = $this->query(
-        'SELECT table_name FROM information_schema.tables'
-        . ' WHERE table_schema = "' . $this->dbName. '"');
-    while ($row = $result->fetch_assoc()) {
-      $this->query('DELETE FROM ' . $row['table_name']);
+    DB::query('SET FOREIGN_KEY_CHECKS = 0');
+    $rows = DB::query(
+        'SELECT table_name FROM information_schema.tables WHERE table_schema = |s', DB::$dbName);
+    foreach ($rows as $row) {
+      DB::query('DELETE FROM `' . $row['table_name'] . '`');
     }
-    $this->query('SET FOREIGN_KEY_CHECKS = 1');
+    DB::query('SET FOREIGN_KEY_CHECKS = 1');
     $this->insertDefaultRows();
   }
 
   /**
    * Connects to the database, or exits on error. $timeFunction is used in place of system time().
    */
-  private function __construct(
-      $dbServer, $dbName, $dbUser, $dbPass, $timeFunction, $createMissingTables) {
-    $this->dbName = $dbName;
+  private function __construct($dbName, $dbUser, $dbPass, $timeFunction, $createMissingTables) {
+    DB::$dbName = $dbName;
+    DB::$user = $dbUser;
+    DB::$password = $dbPass;
     $this->timeFunction = $timeFunction;
-    $this->mysqli = new mysqli($dbServer, $dbUser, $dbPass, $dbName);
-    if ($this->mysqli->connect_errno) {
-      $this->throwMySqlErrorException('__construct()');
-    }
-    if (!$this->mysqli->select_db($dbName)) {
-      $this->throwMySqlErrorException('select_db(' . $dbName . ')');
-    }
     if ($createMissingTables) {
       $this->createMissingTables();
     }
@@ -74,14 +78,14 @@ class Database {
 
   // TODO: This also inserts a few default rows. Reflect that in the name.
   public function createMissingTables() {
-    $this->query('SET default_storage_engine=INNODB');
-    $this->query(
+    DB::query('SET default_storage_engine=INNODB');
+    DB::query(
         'CREATE TABLE IF NOT EXISTS classes ('
         . 'id INT NOT NULL AUTO_INCREMENT, '
         . 'name VARCHAR(256) NOT NULL, '
         . 'PRIMARY KEY (id)) '
         . CREATE_TABLE_SUFFIX);
-    $this->query(
+    DB::query(
         'CREATE TABLE IF NOT EXISTS activity ('
         . 'user VARCHAR(32) NOT NULL, '
         . 'ts BIGINT NOT NULL, '
@@ -91,7 +95,7 @@ class Database {
         . 'PRIMARY KEY (user, ts, class_id, title), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id)) '
         . CREATE_TABLE_SUFFIX);  // ON DELETE CASCADE?
-    $this->query(
+    DB::query(
         'CREATE TABLE IF NOT EXISTS classification ('
         . 'id INT NOT NULL AUTO_INCREMENT, '
         . 'class_id INT NOT NULL, '
@@ -100,13 +104,13 @@ class Database {
         . 'PRIMARY KEY (id), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id)) '
         . CREATE_TABLE_SUFFIX);
-    $this->query(
+    DB::query(
         'CREATE TABLE IF NOT EXISTS budgets ('
         . 'id INT NOT NULL AUTO_INCREMENT, '
         . 'name VARCHAR(256) NOT NULL, '
         . 'PRIMARY KEY (id)) '
         . CREATE_TABLE_SUFFIX);
-    $this->query(
+    DB::query(
         'CREATE TABLE IF NOT EXISTS mappings ('
         // TODO: id auto increment?
         . 'user VARCHAR(32) NOT NULL, '
@@ -116,7 +120,7 @@ class Database {
         . 'FOREIGN KEY (class_id) REFERENCES classes(id), '
         . 'FOREIGN KEY (budget_id) REFERENCES budgets(id)) '
         . CREATE_TABLE_SUFFIX);
-    $this->query(
+    DB::query(
         'CREATE TABLE IF NOT EXISTS budget_config ('
         . 'budget_id INT NOT NULL, '
         . 'k VARCHAR(100) NOT NULL, '
@@ -124,20 +128,20 @@ class Database {
         . 'PRIMARY KEY (budget_id, k), '
         . 'FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE RESTRICT) '
         . CREATE_TABLE_SUFFIX);
-    $this->query(
+    DB::query(
         'CREATE TABLE IF NOT EXISTS user_config ('
         . 'user VARCHAR(32) NOT NULL, '
         . 'k VARCHAR(100) NOT NULL, '
         . 'v VARCHAR(200) NOT NULL, '
         . 'PRIMARY KEY (user, k)) '
         . CREATE_TABLE_SUFFIX);
-    $this->query(
+    DB::query(
         'CREATE TABLE IF NOT EXISTS global_config ('
         . 'k VARCHAR(100) NOT NULL, '
         . 'v VARCHAR(200) NOT NULL, '
         . 'PRIMARY KEY (k)) '
         . CREATE_TABLE_SUFFIX);
-    $this->query(
+    DB::query(
         'CREATE TABLE IF NOT EXISTS overrides ('
         . 'user VARCHAR(32) NOT NULL, '
         . 'date DATE NOT NULL, '
@@ -150,18 +154,17 @@ class Database {
   }
 
   private function insertDefaultRows() {
-    $this->query(
-        'INSERT IGNORE INTO classes(id, name) VALUES ("1", "' . DEFAULT_CLASS_NAME . '")');
-    $this->query(
-        'INSERT IGNORE INTO classification(id, class_id, priority, re)'
-        . ' VALUES ("1", "1", "-2147483648", "()")'); // RE can't be ""
+    DB::insertIgnore('classes', ['id' => 1, 'name' => DEFAULT_CLASS_NAME]);
+    DB::insertIgnore('classification', [
+        'id' => 1,
+        'class_id' => 1,
+        'priority' => -2147483648,
+        're' => '()']); // RE can't be ""
   }
 
   public function dropAllTablesExceptConfig() {
     $this->throwException("dropAllTablesExceptConfig() not implemented");
     // TODO: Update for new tables.
-    $this->query('DROP TABLE IF EXISTS activity');
-    $this->query('DROP TABLE IF EXISTS overrides');
     Logger::Instance()->notice('tables dropped');
   }
 
@@ -169,35 +172,36 @@ class Database {
   public function pruneTables($date) {
     $this->throwException("pruneTables() not implemented");
     // TODO: Update for new tables.
-    $this->query('DELETE FROM activity WHERE ts < ' . $date->getTimestamp());
-    $this->query('DELETE FROM overrides WHERE date < "' . getDateString($date) . '"');
     Logger::Instance()->notice('tables pruned up to ' . $date->format(DateTimeInterface::ATOM));
   }
 
   // ---------- BUDGET/CLASS QUERIES ----------
 
   public function addBudget($budgetName) {
-    $this->query('INSERT INTO budgets (name) VALUES ("' . $this->esc($budgetName) . '")');
-    $result = $this->query('SELECT LAST_INSERT_ID()');
-    return intval($result->fetch_row()[0]);
+    DB::insert('budgets', ['name' => $budgetName]);
+    return DB::insertId();
   }
 
   public function addClass($className) {
-    $this->query('INSERT INTO classes (name) VALUES ("' . $this->esc($className) . '")');
-    $result = $this->query('SELECT LAST_INSERT_ID()');
-    return intval($result->fetch_row()[0]);
+    DB::insert('classes', ['name' => $className]);
+    return DB::insertId();
   }
 
   public function addClassification($classId, $priority, $regEx) {
-    $this->query('INSERT INTO classification (class_id, priority, re)'
-        . ' VALUES (' . $classId . ', ' . $priority . ', "' . $this->esc($regEx) . '")');
-    $result = $this->query('SELECT LAST_INSERT_ID()');
-    return intval($result->fetch_row()[0]);
+    DB::insert('classification', [
+        'class_id' => $classId,
+        'priority' => $priority,
+        're' => $regEx,
+        ]);
+    return DB::insertId();
   }
 
   public function addMapping($user, $classId, $budgetId) {
-    $this->query('INSERT INTO mappings (user, class_id, budget_id)'
-        . ' VALUES ("' . $this->esc($user) . '", ' . $classId . ', ' . $budgetId. ')');
+    DB::insert('mappings', [
+        'user' => $user,
+        'class_id' => $classId,
+        'budget_id' => $budgetId,
+        ]);
   }
 
   public function classify($titles) {
@@ -210,28 +214,28 @@ class Database {
       }
       }
      */
-    $classifications = array();
+    $classifications = [];
     foreach ($titles as $title) {
-      $q = 'SELECT classes.id, classes.name, budget_id'
+      $rows = DB::query(
+          'SELECT classes.id, classes.name, budget_id'
           . ' FROM classification'
           . ' JOIN classes ON classes.id = classification.class_id'
           . ' LEFT JOIN mappings ON classes.id = mappings.class_id'
-          // TODO: Avoid escaping again in insertWindowTitles() later.
-          . ' WHERE "' . $this->esc($title) . '" REGEXP re'
+          . ' WHERE |s REGEXP re'
           . ' ORDER BY priority DESC'
-          . ' LIMIT 1';
-      $result = $this->query($q);
-      $classification = array();
-      $row = $result->fetch_assoc();
-      if (!$row) { // This should never happen, the default class catches all.
+          . ' LIMIT 1',
+          $title);
+      if (!$rows) { // This should never happen, the default class catches all.
         $this->throwException('Failed to classify "' . $title . '"');
       }
-      $classification['class_id'] = intval($row['id']);
-      $classification['class_name'] = $row['name'];
-      $classification['budget_ids'] = array();
-      while ($row['budget_id']) {
-        $classification['budget_ids'][] = intval($row['budget_id']);
-        $row = $result->fetch_assoc();
+
+      $classification = [];
+      $classification['class_id'] = intval($rows[0]['id']);
+      $classification['class_name'] = $rows[0]['name'];
+      $classification['budget_ids'] = [];
+      $i = 0;
+      while ($budgetId = $rows[$i++]['budget_id']) {
+        $classification['budget_ids'][] = intval($budgetId);
       }
       $classifications[] = $classification;
     }
@@ -242,7 +246,7 @@ class Database {
    * Returns an array containing ID and name of the matching budget with the highest priority.
    * If no defined budget matches, returns the default budget id (zero) and name.
    */
-  private function getBudget($user, $windowTitle) {
+  private function getBudget_unused($user, $windowTitle) {
     $q = 'SELECT budget.id, budget.name'
         . ' FROM budget_config'
         . ' JOIN budget_definition ON budget_config.budget_id = budget_definition.budget_id'
@@ -262,11 +266,11 @@ class Database {
 
   /** Returns budget config. */
   public function getBudgetConfig($user, $budgetId) {
-    $result = $this->query('SELECT k, v FROM budget_config'
-        . ' WHERE user="' . $user . '" AND budget_id="' . $budgetId . '"'
-        . ' ORDER BY k');
-    $config = array();
-    while ($row = $result->fetch_assoc()) {
+    $rows =
+        DB::query('SELECT k, v FROM budget_config WHERE user = |s AND budget_id = |i ORDER BY k',
+            $user, $budgetId);
+    $config = [];
+    foreach ($rows as $row) {
       $config[$row['k']] = $row['v'];
     }
     return $config;
@@ -278,18 +282,19 @@ class Database {
    * Returns a 2D array $configs[$budgetId][$key] = $value. The array is sorted by budget ID.
    */
   public function getAllBudgetConfigs($user) {
-    $result = $this->query(
+    $rows = DB::query(
         'SELECT id, name, k, v'
         . ' FROM budget_config'
         . ' RIGHT JOIN budgets ON budget_config.budget_id = budgets.id'
         . ' JOIN mappings ON mappings.budget_id = budgets.id'
-        . ' WHERE user="' . $user . '"'
-        . ' ORDER BY id, k');
-    $configs = array();
-    while ($row = $result->fetch_assoc()) {
+        . ' WHERE user = |s'
+        . ' ORDER BY id, k',
+        $user);
+    $configs = [];
+    foreach ($rows as $row) {
       $budgetId = $row['id'];
       if (!array_key_exists($budgetId, $configs)) {
-        $configs[$budgetId] = array();
+        $configs[$budgetId] = [];
       }
       $configs[$budgetId][$row['k']] = $row['v'];
       $configs[$budgetId]['name'] = $row['name'];
@@ -304,24 +309,24 @@ class Database {
   // TODO: I assume this will have to return the budget ID as well, so we can tell the client
   // which windows to close.
   public function insertWindowTitles($user, $titles, $focusIndex) {
+    $ts = $this->time();
     $classifications = $this->classify($titles);
     if (count($classifications) != count($titles)) {
       $this->throwException('internal error: ' . count($titles) . ' titles vs. '
           . count($classifications) . ' classifications');
     }
-    $ts = $this->time();
-    $values = "";
+
+    $rows = [];
     foreach ($titles as $i => $title) {
-      $values .= ($values ? ',(' : '(')
-          . $ts
-          . ',"' . $this->esc($user) . '"'
-          . ',"' . $this->esc($title) . '"'
-          . ',"' . $classifications[$i]['class_id'] . '"'
-          . ',' . ($i == $focusIndex ? "true" : "false")
-          . ')';
+      $rows[] = [
+          'ts' => $ts,
+          'user' => $user,
+          'title' => $title,
+          'class_id' => $classifications[$i]['class_id'],
+          'focus' => $i == $focusIndex ? "true" : "false",
+          ];
     }
-    $q = 'REPLACE INTO activity (ts, user, title, class_id, focus) VALUES ' . $values;
-    $this->query($q);
+    DB::replace('activity', $rows);
     return $classifications;
   }
 
@@ -374,16 +379,15 @@ class Database {
 
   /** Returns the global config. */
   public function getGlobalConfig() {
-    $result = $this->query('SELECT k, v FROM global_config ORDER BY k');
-    return $result->fetch_all();
+    return DB::query('SELECT k, v FROM global_config ORDER BY k');
   }
 
   /** Returns all users, i.e. all distinct user keys for which at least one class is mapped. */
   public function getUsers() {
-    $result = $this->query('SELECT DISTINCT user FROM mappings ORDER BY user ASC');
-    $users = array();
-    while ($row = $result->fetch_row()) {
-      $users[] = $row[0];
+    $rows = DB::query('SELECT DISTINCT user FROM mappings ORDER BY user');
+    $users = [];
+    foreach ($rows as $row) {
+      $users[] = $row['user'];
     }
     return $users;
   }
@@ -396,9 +400,10 @@ class Database {
    */
   public function queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime) {
     // TODO: Optionally restrict to activity.focus=1.
-    $userEsc = $this->esc($user);
-    $q = 'SET @prev_ts = 0, @prev_s = 0;' // TODO: ":=" vs "="
-        . ' SELECT date, budget_id, SUM(s) AS sum_s'
+    $toTimestamp = $toTime ? $toTime->getTimestamp() : 0;
+    DB::query('SET @prev_ts = 0, @prev_s = 0'); // TODO: ":=" vs "="
+    $rows = DB::query(
+        'SELECT date, budget_id, SUM(s) AS sum_s'
         . ' FROM ('
         . '   SELECT'
         . '     @prev_s := IF(@prev_ts = ts, @prev_s, IF(@prev_ts = 0, 0, ts - @prev_ts)) AS s,'
@@ -409,28 +414,26 @@ class Database {
         . '     SELECT ts, budget_id'
         . '     FROM activity'
         . '     LEFT JOIN ('
-        . '       SELECT * FROM mappings WHERE user = "' . $userEsc . '"'
+        . '       SELECT * FROM mappings WHERE user = |s0'
         . '     ) t1'
         . '     ON activity.class_id = t1.class_id'
-        . '     WHERE activity.user = "' . $userEsc . '"'
-        . '     AND ts >= ' . $fromTime->getTimestamp()
-        .       ($toTime ? ' AND ts < ' . $toTime->getTimestamp() : '')
+        . '     WHERE activity.user = |s0'
+        . '     AND ts >= |i'
+        .       ($toTime ? ' AND ts < |i' : '')
         . '     ORDER BY ts, budget_id'
         . '   ) t2'
         . ' ) t3'
         . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
-        . ' GROUP BY date, budget_id';
-    $this->multiQuery($q); // SET statement
-    $result = $this->multiQueryGetNextResult();
-    $timeByBudgetAndDate = array();
-    while ($row = $result->fetch_assoc()) {
+        . ' GROUP BY date, budget_id',
+        $user, $fromTime->getTimestamp(), $toTimestamp); // TODO: Passing an extra param :-(
+    $timeByBudgetAndDate = [];
+    foreach ($rows as $row) {
       $budgetId = $row['budget_id'];
       if (!array_key_exists($budgetId, $timeByBudgetAndDate)) {
-        $timeByBudgetAndDate[$budgetId] = array();
+        $timeByBudgetAndDate[$budgetId] = [];
       }
       $timeByBudgetAndDate[$budgetId][$row['date']] = intval($row['sum_s']);
     }
-    $result->close();
     ksort($timeByBudgetAndDate, SORT_NUMERIC);
     return $timeByBudgetAndDate;
   }
@@ -537,39 +540,40 @@ DESC
   }
 
   /**
-   * Like queryMinutesLeftToday() above, but returns results for all budgets in an array keyed by
+   * Like queryTimeLeftToday() above, but returns results for all budgets in an array keyed by
    * budget ID.
    */
-  public function queryMinutesLeftTodayAllBudgets($user) {
+  public function queryTimeLeftTodayAllBudgets($user) {
     $configs = $this->getAllBudgetConfigs($user);
     $now = $this->newDateTime();
 
     $overridesByBudget = $this->queryOverridesByBudget($user, $now);
 
-    $minutesSpentByBudgetAndDate = $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
+    $timeSpentByBudgetAndDate =
+        $this->queryTimeSpentByBudgetAndDate($user, getWeekStart($now), null);
 
     // $minutesSpentByBudgetAndDate may contain a budget ID of NULL to indicate "no budget", which
     // $configs never contains.
     $budgetIds = array_keys($configs);
-    if (array_key_exists(null, $minutesSpentByBudgetAndDate)) {
+    if (array_key_exists(null, $timeSpentByBudgetAndDate)) {
       $budgetIds[] = null;
     }
-    $minutesLeftByBudget = array();
+    $timeLeftByBudget = array();
     foreach ($budgetIds as $budgetId) {
       $config = get($configs[$budgetId], array());
-      $minutesSpentByDate = get($minutesSpentByBudgetAndDate[$budgetId], array());
+      $timeSpentByDate = get($timeSpentByBudgetAndDate[$budgetId], array());
       $overrides = get($overridesByBudget[$budgetId], array());
-      $minutesLeftByBudget[$budgetId] = $this->computeMinutesLeftToday(
-          $config, $now, $overrides, $minutesSpentByDate, $budgetId);
+      $timeLeftByBudget[$budgetId] = $this->computeTimeLeftToday(
+          $config, $now, $overrides, $timeSpentByDate, $budgetId);
     }
-    ksort($minutesLeftByBudget, SORT_NUMERIC);
-    return $minutesLeftByBudget;
+    ksort($timeLeftByBudget, SORT_NUMERIC);
+    return $timeLeftByBudget;
   }
 
   // TODO: Placement
-  private function computeMinutesLeftToday($config, $now, $overrides, $minutesSpentByDate) {
+  private function computeTimeLeftToday($config, $now, $overrides, $timeSpentByDate) {
     $nowString = getDateString($now);
-    $minutesSpentToday = get($minutesSpentByDate[$nowString], 0);
+    $timeSpentToday = get($timeSpentByDate[$nowString], 0);
 
     // Explicit overrides have highest priority.
     $requireUnlock = get($config['require_unlock'], false);
@@ -578,7 +582,7 @@ DESC
         return 0;
       }
       if ($overrides['minutes'] != null) {
-        return $overrides['minutes'] - $minutesSpentToday;
+        return $overrides['minutes'] * 60 - $timeSpentToday;
       }
     } else if ($requireUnlock) {
       return 0;
@@ -588,19 +592,17 @@ DESC
 
     // Weekday-specific limit overrides default limit.
     $key = DAILY_LIMIT_MINUTES_PREFIX . strtolower($now->format('D'));
-    if (isset($config[$key])) {
-      $minutesLimitToday = $config[$key];
-    }
+    $minutesLimitToday = get($config[$key], $minutesLimitToday);
 
-    $minutesLeftToday = $minutesLimitToday - $minutesSpentToday;
+    $timeLeftToday = $minutesLimitToday * 60 - $timeSpentToday;
 
     // A weekly limit can shorten the daily limit, but not extend it.
     if (isset($config['weekly_limit_minutes'])) {
-      $minutesLeftInWeek = $config['weekly_limit_minutes'] - array_sum($minutesSpentByDate);
-      $minutesLeftToday = min($minutesLeftToday, $minutesLeftInWeek);
+      $timeLeftInWeek = $config['weekly_limit_minutes'] * 60 - array_sum($timeSpentByDate);
+      $timeLeftToday = min($timeLeftToday, $timeLeftInWeek);
     }
 
-    return $minutesLeftToday;
+    return $timeLeftToday;
   }
 
   // ---------- OVERRIDE QUERIES ----------
@@ -667,12 +669,13 @@ DESC
 
   /** Returns all overrides as a 2D array keyed first by budget ID, then by override. */
   private function queryOverridesByBudget($user, $now) {
-    $result = $this->query('SELECT budget_id, minutes, unlocked FROM overrides'
-        . ' WHERE user="' . $user . '"'
-        . ' AND date="' . getDateString($now) . '"');
+    $rows = DB::query('SELECT budget_id, minutes, unlocked FROM overrides'
+        . ' WHERE user = |s'
+        . ' AND date = |s',
+        $user, getDateString($now));
     $overridesByBudget = array();
     // PK is (user, date, budget_id), so there is at most one row per budget_id.
-    while ($row = $result->fetch_assoc()) {
+    foreach ($rows as $row) {
       $overridesByBudget[$row['budget_id']] = array('minutes' => $row['minutes'], 'unlocked' => $row['unlocked']);
     }
     return $overridesByBudget;
@@ -706,18 +709,6 @@ DESC
   // ---------- MYSQL LOW LEVEL HELPERS ----------
 
   /**
-   * Runs the specified query, throwing an exception on failure. Logs the query unconditionally with
-   * the specified level (specify null to disable logging).
-   */
-  private function query($query, $logLevel = 'debug') {
-    Logger::Instance()->log($logLevel, 'Query: ' . $query);
-    if ($result = $this->mysqli->query($query)) {
-      return $result;
-    }
-    $this->throwMySqlErrorException($query);
-  }
-
-  /**
    * Like query() above, but using mysqli::multi_query. Returns the first query result, throwing an
    * exception on failure. Subsequent results are available via multiQueryGetNextResult() below.
    */
@@ -749,12 +740,6 @@ DESC
   private function throwException($message) {
     Logger::Instance()->critical($message);
     throw new Exception($message);
-  }
-
-  /** Escapes the specified String for MySQL use. */
-  private function esc($s) {
-    // This needs the instance because it considers the character set of the connection.
-    return $this->mysqli->real_escape_string($s);
   }
 
   /** Returns epoch time in seconds. Allows manual dependency injection in test. */

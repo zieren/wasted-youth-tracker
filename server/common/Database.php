@@ -347,14 +347,14 @@ class Database {
   // ---------- TIME SPENT/LEFT QUERIES ----------
 
   /**
-   * Returns the time spent between $fromTime and $toTime, as an array keyed by date and class ID.
-   * $toTime may be null to omit the upper limit.
+   * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by date
+   * and budget ID. $toTime may be null to omit the upper limit.
    */
-  public function queryMinutesSpentByBudgetAndDate($user, $fromTime, $toTime) {
+  public function queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime) {
     // TODO: Optionally restrict to activity.focus=1.
     $userEsc = $this->esc($user);
     $q = 'SET @prev_ts = 0, @prev_s = 0;' // TODO: ":=" vs "="
-        . ' SELECT date, budget_id, SUM(s) / 60 AS minutes'
+        . ' SELECT date, budget_id, SUM(s) AS sum_s'
         . ' FROM ('
         . '   SELECT'
         . '     @prev_s := IF(@prev_ts = ts, @prev_s, IF(@prev_ts = 0, 0, ts - @prev_ts)) AS s,'
@@ -378,19 +378,17 @@ class Database {
         . ' GROUP BY date, budget_id';
     $this->multiQuery($q); // SET statement
     $result = $this->multiQueryGetNextResult();
-    $minutesByBudgetAndDate = array();
+    $timeByBudgetAndDate = array();
     while ($row = $result->fetch_assoc()) {
-      $date = $row['date'];
       $budgetId = $row['budget_id'];
-      $minutes = $row['minutes'];
-      if (!array_key_exists($budgetId, $minutesByBudgetAndDate)) {
-        $minutesByBudgetAndDate[$budgetId] = array();
+      if (!array_key_exists($budgetId, $timeByBudgetAndDate)) {
+        $timeByBudgetAndDate[$budgetId] = array();
       }
-      $minutesByBudgetAndDate[$budgetId][$date] = $minutes;
+      $timeByBudgetAndDate[$budgetId][$row['date']] = intval($row['sum_s']);
     }
     $result->close();
-    ksort($minutesByBudgetAndDate, SORT_NUMERIC);
-    return $minutesByBudgetAndDate;
+    ksort($timeByBudgetAndDate, SORT_NUMERIC);
+    return $timeByBudgetAndDate;
   }
 
   /**

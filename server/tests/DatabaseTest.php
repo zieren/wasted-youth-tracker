@@ -29,8 +29,25 @@ final class DatabaseTest {
     $this->db->getGlobalConfig();
   }
 
-  public function testTotalTimeSingleWindow(): void {
-    $this->db->insertWindowTitles('t1', array('window 1'), 0);
+  public function testTotalTimeSingleWindowNoBudget(): void {
+    // A single record amounts to zero.
+    $this->db->insertWindowTitles('user_1', array('window 1'), 0);
+    $fromTime = new DateTime();
+    $fromTime->setTimestamp($this->mockTime);
+    $m0 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
+    $this->assertEquals($m0, array('' => array('1970-01-01' => 0)));
+
+    // Add 5 seconds.
+    $this->mockTime += 5;
+    $this->db->insertWindowTitles('user_1', array('window 1'), 0);
+    $m1 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
+    $this->assertEquals($m1, array('' => array('1970-01-01' => 5)));
+
+    // Add 10 seconds.
+    $this->mockTime += 10;
+    $this->db->insertWindowTitles('user_1', array('window 1'), 0);
+    $m2 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
+    $this->assertEquals($m2, array('' => array('1970-01-01' => 15)));
   }
 
   private function setUp(): void {
@@ -64,6 +81,18 @@ final class DatabaseTest {
     } else {
       echo 'No log output.<hr>';
     }
+  }
+
+  private function assertEquals($actual, $expected) {
+    if ($actual === $expected) {
+      return;
+    }
+    ob_start();
+    echo 'Equality assertion failed: ';
+    var_dump($actual);
+    echo ' !== ';
+    var_dump($expected);
+    throw new AssertionError(ob_get_clean());
   }
 
   public function run(): void {

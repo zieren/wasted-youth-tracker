@@ -20,34 +20,13 @@ require_once 'config_tests.php';
 
 final class DatabaseTest {
 
-  private $failedTests = array();
+  private $failedTests = [];
   private $passedTests = 0;
   private $db;
   private $mockTime = 1000; // epoch seconds
 
   public function testSmokeTest(): void {
     $this->db->getGlobalConfig();
-  }
-
-  public function testTotalTimeSingleWindowNoBudget(): void {
-    // A single record amounts to zero.
-    $this->db->insertWindowTitles('user_1', array('window 1'), 0);
-    $fromTime = new DateTime();
-    $fromTime->setTimestamp($this->mockTime);
-    $m0 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
-    $this->assertEquals($m0, array('' => array('1970-01-01' => 0)));
-
-    // Add 5 seconds.
-    $this->mockTime += 5;
-    $this->db->insertWindowTitles('user_1', array('window 1'), 0);
-    $m1 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
-    $this->assertEquals($m1, array('' => array('1970-01-01' => 5)));
-
-    // Add 10 seconds.
-    $this->mockTime += 10;
-    $this->db->insertWindowTitles('user_1', array('window 1'), 0);
-    $m2 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
-    $this->assertEquals($m2, array('' => array('1970-01-01' => 15)));
   }
 
   private function setUp(): void {
@@ -59,6 +38,12 @@ final class DatabaseTest {
 
   private function mockTime() {
     return $this->mockTime;
+  }
+
+  private function newDateTime() {
+    $d = new DateTime();
+    $d->setTimestamp($this->mockTime);
+    return $d;
   }
 
   private function dropAllTables(): void {
@@ -87,8 +72,12 @@ final class DatabaseTest {
     if ($actual === $expected) {
       return;
     }
+
+    $bt = debug_backtrace();
+    $caller = array_shift($bt);
+
     ob_start();
-    echo 'Equality assertion failed: ';
+    echo 'Line ' . $caller['line'] . ': Equality assertion failed: ';
     var_dump($actual);
     echo ' !== ';
     var_dump($expected);
@@ -124,6 +113,58 @@ final class DatabaseTest {
 
     Logger::Instance()->info('----- tearDown');
     $this->tearDown();
+  }
+
+  public function testTotalTimeSingleWindowNoBudget(): void {
+    $fromTime = $this->newDateTime();
+
+    // No records amount to an empty array. This is different from having records that amount to
+    // zero, which makes sense.
+    $m0 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
+    $this->assertEquals($m0, []);
+
+    // A single record amounts to zero.
+    $this->db->insertWindowTitles('user_1', ['window 1'], 0);
+    $m1 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
+    $this->assertEquals($m1, ['' => ['1970-01-01' => 0]]);
+
+    // Add 5 seconds.
+    $this->mockTime += 5;
+    $this->db->insertWindowTitles('user_1', ['window 1'], 0);
+    $m2 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
+    $this->assertEquals($m2, ['' => ['1970-01-01' => 5]]);
+
+    // Add 10 seconds.
+    $this->mockTime += 10;
+    $this->db->insertWindowTitles('user_1', ['window 1'], 0);
+    $m3 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
+    $this->assertEquals($m3, ['' => ['1970-01-01' => 15]]);
+  }
+
+  public function testTotalTimeTwoWindowsNoBudget(): void {
+    $fromTime = $this->newDateTime();
+
+    // No records amount to an empty array. This is different from having records that amount to
+    // zero, which makes sense.
+    $m0 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
+    $this->assertEquals($m0, []);
+
+    // A single record amounts to zero.
+    $this->db->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+    $m1 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
+    $this->assertEquals($m1, ['' => ['1970-01-01' => 0]]);
+
+    // Add 5 seconds.
+    $this->mockTime += 5;
+    $this->db->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+    $m2 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
+    $this->assertEquals($m2, ['' => ['1970-01-01' => 10]]);
+
+    // Add 10 seconds.
+    $this->mockTime += 10;
+    $this->db->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+    $m3 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
+    $this->assertEquals($m3, ['' => ['1970-01-01' => 30]]);
   }
 
 }

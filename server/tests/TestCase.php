@@ -75,14 +75,14 @@ class TestCase {
         $this->failedTests[$test] = $e;
       }
     }
-    echo "Tests passed: " . $this->passedTests . "<hr>";
+    echo 'Tests passed: ' . $this->passedTests . '<hr>';
     if ($this->failedTests) {
-      echo "TESTS FAILED: " . count($this->failedTests) . "<hr>";
+      echo 'TESTS FAILED: ' . count($this->failedTests) . '<hr>';
       foreach ($this->failedTests as $test => $e) {
-        echo $test . ": " . $e->getMessage() . "<hr>";
+        echo $test . ': ' . $e->getMessage() . '<hr>';
       }
     } else {
-      echo "<b>ALL TESTS PASSED</b><hr>";
+      echo '<b style="background-color: lightgreen">ALL TESTS PASSED</b><hr>';
     }
     echo 'Runtime: ' . round(microtime(true) - $this->startTime, 2) . 's<hr>';
 

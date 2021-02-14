@@ -20,10 +20,8 @@ final class DatabaseTest extends TestCase {
   protected function setUp(): void {
     $this->dropAllTables();
     $this->db = Database::createForTest(
-            TEST_DB_SERVER, TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS,
-            function() {
-          return $this->mockTime();
-        });
+        TEST_DB_SERVER, TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS,
+            function() { return $this->mockTime(); });
   }
 
   private function mockTime() {

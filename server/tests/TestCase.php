@@ -17,11 +17,18 @@ class TestCase {
 
   private $failedTests = [];
   private $passedTests = 0;
+  private $startTime = 0;
+
+  protected function setUpTestCase(): void {
+  }
 
   protected function setUp(): void {
   }
 
   protected function tearDown(): void {
+  }
+
+  protected function tearDownTestCase(): void {
   }
 
   private function dumpAndClearLog() {
@@ -49,8 +56,9 @@ class TestCase {
   }
 
   public function run(): void {
+    $this->startTime = microtime(true);
     Logger::Instance()->info('----- setUp');
-    $this->setUp();
+    $this->setUpTestCase();
 
     $tests = array_filter(get_class_methods(get_class($this)), function($k) {
       return !substr_compare($k, "test", 0, 4);
@@ -59,7 +67,9 @@ class TestCase {
       $method = new ReflectionMethod(get_class($this), $test);
       try {
         Logger::Instance()->info('----- ' . $test);
+        $this->setUp();
         $method->invoke($this);
+        $this->tearDown();
         $this->passedTests += 1;
       } catch (AssertionError $e) {
         $this->failedTests[$test] = $e;
@@ -74,9 +84,10 @@ class TestCase {
     } else {
       echo "<b>ALL TESTS PASSED</b><hr>";
     }
+    echo 'Runtime: ' . (microtime(true) - $this->startTime) . 's<hr>';
 
     Logger::Instance()->info('----- tearDown');
-    $this->tearDown();
+    $this->tearDownTestCase();
     $this->dumpAndClearLog();
   }
 

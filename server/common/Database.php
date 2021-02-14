@@ -108,6 +108,7 @@ class Database {
         . CREATE_TABLE_SUFFIX);
     $this->query(
         'CREATE TABLE IF NOT EXISTS mappings ('
+        // TODO: id auto increment?
         . 'user VARCHAR(32) NOT NULL, '
         . 'class_id INT NOT NULL, '
         . 'budget_id INT NOT NULL, '
@@ -173,10 +174,33 @@ class Database {
     Logger::Instance()->notice('tables pruned up to ' . $date->format(DateTimeInterface::ATOM));
   }
 
-  // ---------- BUDGET QUERIES ----------
-  // TODO
+  // ---------- BUDGET/CLASS QUERIES ----------
 
-  private function classify($titles) {
+  public function addBudget($budgetName) {
+    $this->query('INSERT INTO budgets (name) VALUES ("' . $this->esc($budgetName) . '")');
+    $result = $this->query('SELECT LAST_INSERT_ID()');
+    return intval($result->fetch_row()[0]);
+  }
+
+  public function addClass($className) {
+    $this->query('INSERT INTO classes (name) VALUES ("' . $this->esc($className) . '")');
+    $result = $this->query('SELECT LAST_INSERT_ID()');
+    return intval($result->fetch_row()[0]);
+  }
+
+  public function addClassification($classId, $priority, $regEx) {
+    $this->query('INSERT INTO classification (class_id, priority, re)'
+        . ' VALUES (' . $classId . ', ' . $priority . ', "' . $this->esc($regEx) . '")');
+    $result = $this->query('SELECT LAST_INSERT_ID()');
+    return intval($result->fetch_row()[0]);
+  }
+
+  public function addMapping($user, $classId, $budgetId) {
+    $this->query('INSERT INTO mappings (user, class_id, budget_id)'
+        . ' VALUES ("' . $this->esc($user) . '", ' . $classId . ', ' . $budgetId. ')');
+  }
+
+  public function classify($titles) {
     /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
       foreach ($titlesEsc as $i => $titleEsc) {
       if ($i == 0) {
@@ -202,11 +226,11 @@ class Database {
       if (!$row) { // This should never happen, the default class catches all.
         $this->throwException('Failed to classify "' . $title . '"');
       }
-      $classification['class_id'] = $row['id'];
+      $classification['class_id'] = intval($row['id']);
       $classification['class_name'] = $row['name'];
       $classification['budget_ids'] = array();
       while ($row['budget_id']) {
-        $classification['budget_ids'][] = $row['budget_id'];
+        $classification['budget_ids'][] = intval($row['budget_id']);
         $row = $result->fetch_assoc();
       }
       $classifications[] = $classification;

@@ -97,6 +97,30 @@ final class DatabaseTest extends TestCase {
     $this->assertEquals($m3, ['' => ['1970-01-01' => 30]]);
   }
 
+  public function testSetUpBudgets(): void {
+    $budgetId1 = $this->db->addBudget('b1');
+    $budgetId2 = $this->db->addBudget('b2');
+    $this->assertEquals($budgetId2 - $budgetId1, 1);
+
+    $classId1 = $this->db->addClass('c1');
+    $classId2 = $this->db->addClass('c2');
+    $this->assertEquals($classId2 - $classId1, 1);
+
+    $classificationId1 = $this->db->addClassification($classId1, 0, '1$');
+    $classificationId2 = $this->db->addClassification($classId2, 10, '2$');
+    $this->assertEquals($classificationId2 - $classificationId1, 1);
+
+    $this->db->addMapping('user_1', $classId1, $budgetId1);
+
+    $classification = $this->db->classify(['window 0', 'window 1', 'window 2']);
+
+    $this->assertEquals($classification, [
+        ['class_id' => 1, 'class_name' => DEFAULT_CLASS_NAME, 'budget_ids' => []],
+        ['class_id' => $classId1, 'class_name' => 'c1', 'budget_ids' => [$budgetId1]],
+        ['class_id' => $classId2, 'class_name' => 'c2', 'budget_ids' => []],
+    ]);
+  }
+
 }
 
 (new DatabaseTest())->run();

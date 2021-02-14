@@ -11,7 +11,7 @@ if (!$user) {
   exit("Request is missing 'user' parameter");
 }
 
-$db = new Database();
+$db = KFC::create();
 
 $response = "";
 $minutesLeftByBudget = $db->queryMinutesLeftTodayAllBudgets($user);

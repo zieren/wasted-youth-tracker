@@ -8,18 +8,17 @@ require_once '../common/base.php';
 require_once 'TestCase.php';
 
 require_once '../common/common.php';
-require_once '../common/Database.php';
 
 require_once 'config_tests.php';
 
-final class DatabaseTest extends TestCase {
+final class KFCTest extends TestCase {
 
   private $db;
   private $mockTime = 1000; // epoch seconds
 
   protected function setUpTestCase(): void {
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::WARNING);
-    $this->db = Database::createForTest(
+    $this->db = KFC::createForTest(
         TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS, function() { return $this->mockTime(); });
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
   }
@@ -122,4 +121,4 @@ final class DatabaseTest extends TestCase {
 
 }
 
-(new DatabaseTest())->run();
+(new KFCTest())->run();

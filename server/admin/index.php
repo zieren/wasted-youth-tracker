@@ -41,7 +41,7 @@ function checkRequirements() {
 
 checkRequirements();
 
-$db = Database::create(true /* create missing tables */);
+$db = KFC::create(true /* create missing tables */);
 
 // TODO: This should sanitize the user input.
 if (isset($_POST['setUserConfig'])) {

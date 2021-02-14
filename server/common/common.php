@@ -60,7 +60,7 @@ function getDateString($dateTime) {
 
 /**
  * Maps budget IDs in the input array to names, given the configs obtained from
- * Database::getAllBudgetConfigs().
+ * KFC::getAllBudgetConfigs().
  */
 function budgetIdsToNames($ids, $configs) {
   $names = array();

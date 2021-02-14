@@ -40,7 +40,7 @@ function handleRequest() {
     return "error\n" . $message;
   }
 
-  $db = new Database();
+  $db = KFC::create();
 
   $classifications = $db->insertWindowTitles($user, $titles, $focusIndex);
   $allBudgetConfigs = $db->getAllBudgetConfigs($user);

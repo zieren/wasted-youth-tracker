@@ -11,7 +11,7 @@ require_once '../common/html_util.php';
 
 echo dateSelectorJs();
 
-$db = Database::create(false /* create missing tables */);
+$db = KFC::create(false /* create missing tables */);
 $dateString = get($_GET['date'], date('Y-m-d'));
 list($year, $month, $day) = explode('-', $dateString);
 // TODO: Catch invalid date.

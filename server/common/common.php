@@ -5,9 +5,9 @@ define('PHP_MIN_VERSION', '7.3');
 define('KFC_SERVER_HEADING', 'Kids Freedom & Control 0.0.0');
 define('DEFAULT_BUDGET_NAME', 'default_budget'); // TODO: Remove!?
 define('DEFAULT_CLASS_NAME', 'default_class');
+define('DEFAULT_CLASS_ID', 1);
 
 require_once 'base.php';
-
 require_once 'config.php';
 
 // Logger must be initialized before used in kfcFatalErrorHandler; see

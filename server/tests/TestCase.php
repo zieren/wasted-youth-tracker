@@ -84,7 +84,7 @@ class TestCase {
     if ($this->failedTests) {
       echo 'TESTS FAILED: ' . count($this->failedTests) . '<hr>';
       foreach ($this->failedTests as $test => $e) {
-        echo $test . ': ' . $e->getMessage() . '<hr>';
+        echo '<b>' . $test . ':</b> ' . $e->getMessage() . '<hr>';
       }
     } else {
       echo '<b style="background-color: lightgreen">ALL TESTS PASSED</b><hr>';

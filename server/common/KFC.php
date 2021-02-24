@@ -20,11 +20,11 @@ DB::$error_handler = 'logDbQueryError';
 DB::$param_char = '|';
 
 function logDbQuery($params) {
-  Logger::Instance()->debug('DB query: ' . $params['query']);
+  Logger::Instance()->debug('DB query: ' . str_replace("\r\n", '', $params['query']));
 }
 
 function logDbQueryError($params) {
-  Logger::Instance()->error('DB query: ' . $params['query']);
+  Logger::Instance()->error('DB query: ' . str_replace("\r\n", '', $params['query']));
   Logger::Instance()->error('DB error: ' . $params['error']);
 }
 
@@ -116,7 +116,7 @@ class KFC {
         . 'user VARCHAR(32) NOT NULL, '
         . 'class_id INT NOT NULL, '
         . 'budget_id INT NOT NULL, '
-        . 'PRIMARY KEY (user, class_id), '
+        . 'PRIMARY KEY (user, class_id, budget_id), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id), '
         . 'FOREIGN KEY (budget_id) REFERENCES budgets(id)) '
         . CREATE_TABLE_SUFFIX);
@@ -154,10 +154,10 @@ class KFC {
   }
 
   private function insertDefaultRows() {
-    DB::insertIgnore('classes', ['id' => 1, 'name' => DEFAULT_CLASS_NAME]);
+    DB::insertIgnore('classes', ['id' => DEFAULT_CLASS_ID, 'name' => DEFAULT_CLASS_NAME]);
     DB::insertIgnore('classification', [
-        'id' => 1,
-        'class_id' => 1,
+        // 'id' => 1,
+        'class_id' => DEFAULT_CLASS_ID,
         'priority' => -2147483648,
         're' => '()']); // RE can't be ""
   }
@@ -218,14 +218,15 @@ class KFC {
     $classifications = [];
     foreach ($titles as $title) {
       $rows = DB::query(
-          'SELECT classes.id, classes.name, budget_id'
-          . ' FROM classification'
-          . ' JOIN classes ON classes.id = classification.class_id'
-          . ' LEFT JOIN mappings ON classes.id = mappings.class_id'
-          . ' WHERE |s REGEXP re'
-          . ' ORDER BY priority DESC, budget_id'
-          . ' LIMIT 1',
-          $title);
+          'SELECT id, name, budget_id FROM (
+            SELECT classes.id, classes.name
+            FROM classification
+            JOIN classes ON classes.id = classification.class_id
+            WHERE |s REGEXP re
+            ORDER BY priority DESC
+            LIMIT 1) AS t1
+          LEFT JOIN mappings on t1.id = mappings.class_id
+          ORDER BY budget_id', $title);
       if (!$rows) { // This should never happen, the default class catches all.
         $this->throwException('Failed to classify "' . $title . '"');
       }
@@ -414,7 +415,7 @@ class KFC {
         . '     DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") AS date,'
         . '     budget_id'
         . '   FROM ('
-        . '     SELECT ts, budget_id'
+        . '     SELECT DISTINCT ts, budget_id'
         . '     FROM activity'
         . '     LEFT JOIN ('
         . '       SELECT * FROM mappings WHERE user = |s0'
@@ -452,29 +453,32 @@ class KFC {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     // TODO: Remove "<init>" placeholder. NULL?
     DB::query('SET @prev_ts = 0, @prev_id = 0, @prev_title = "<init>"');
-    $rows = DB::query(
-        'SELECT ts, SUM(s) as sum_s, name, title '
-        . ' FROM ('
-        . '   SELECT'
-        . '     ts,'
-        . '     if (@prev_ts = 0, 0, ts - @prev_ts) as s,'
-        . '     @prev_id as id,'
-        . '     @prev_title as title,'
-        . '     @prev_ts := ts,'
-        . '     @prev_id := class_id,'
-        . '     @prev_title := title'
-        . '   FROM activity'
-        . '   WHERE'
-        . '     user = |s'
-        . '     AND ts >= |i'
-        . '     AND ts < |i'
-        . '   ORDER BY ts ASC'
-        . ' ) t1'
-        . ' JOIN classes ON t1.id = classes.id'
-        . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
-        . ' AND s > 0'
-        . ' GROUP BY title, name'
-        . ' ORDER BY sum_s DESC',
+    // TODO: 15 (sample interval) + 10 (latency compensation) magic
+    $rows = DB::query('
+      SELECT ts, SUM(s) as sum_s, name, title FROM (
+        SELECT ts, s, name, title FROM (
+           SELECT
+             ts,
+             if (@prev_ts = 0, 0, ts - @prev_ts) as s,
+             @prev_id as id,
+             @prev_title as title,
+             @prev_ts := ts,
+             @prev_id := class_id,
+             @prev_title := title
+           FROM activity
+           WHERE
+             user = |s
+             AND ts >= |i
+             AND ts < |i
+           ORDER BY ts ASC
+         ) t1
+         JOIN classes ON t1.id = classes.id
+         WHERE s <= 25
+         AND s > 0
+         ORDER BY ts DESC
+        ) t2
+        GROUP BY title, name
+        ORDER BY sum_s DESC',
         $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
     /*$q = 'SET
     @prev_ts = 0,

@@ -452,14 +452,14 @@ class KFC {
   public function queryTimeSpentByTitle($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     // TODO: Remove "<init>" placeholder. NULL?
-    DB::query('SET @prev_ts = 0, @prev_id = 0, @prev_title = "<init>"');
+    DB::query('SET @prev_ts = 0, @prev_s = 0, @prev_id = 0, @prev_title = "<init>"');
     // TODO: 15 (sample interval) + 10 (latency compensation) magic
     $rows = DB::query('
       SELECT ts, SUM(s) as sum_s, name, title FROM (
         SELECT ts, s, name, title FROM (
            SELECT
              ts,
-             if (@prev_ts = 0, 0, ts - @prev_ts) as s,
+             @prev_s := IF(@prev_ts = ts, @prev_s, IF(@prev_ts = 0, 0, ts - @prev_ts)) AS s,
              @prev_id as id,
              @prev_title as title,
              @prev_ts := ts,
@@ -477,46 +477,9 @@ class KFC {
          AND s > 0
          ORDER BY ts DESC
         ) t2
-        GROUP BY title, name
-        ORDER BY sum_s DESC',
+        GROUP BY title
+        ORDER BY sum_s DESC, title',
         $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
-    /*$q = 'SET
-    @prev_ts = 0,
-    @prev_s = 0,
-    @prev_id = 0,
-    @prev_title = "<init>";
-SELECT
-    ts,
-    SEC_TO_TIME(SUM(s)) AS total,
-    classes.NAME as class_name,
-    title
-FROM
-    (
-    SELECT
-        ts,
-        @prev_s := IF(@prev_ts = ts, @prev_s, IF(@prev_ts = 0, 0, ts - @prev_ts)) AS s,
-        @prev_ts := ts,
-        @prev_id AS class_id,
-        @prev_title AS title,
-        @prev_id := class_id,
-        @prev_title := title
-    FROM
-        activity
-    WHERE
-        USER = "zzz" AND ts >= 1612911600 AND ts < 1612998000
-    ORDER BY
-        ts ASC
-) t1
-JOIN classes ON t1.class_id = classes.id
-WHERE
-    s <= 25 AND s > 0
-GROUP BY
-    title,
-    NAME
-ORDER BY
-    total
-DESC
-    ';*/
     $timeByTitle = [];
     foreach ($rows as $row) {
       // TODO: This should use the client's local time format.

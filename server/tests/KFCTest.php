@@ -253,58 +253,146 @@ final class KFCTest extends TestCase {
         ]);
   }
 
-  // TODO: Add class/budget association
-  public function testTimeSpentByTitle_singleWindow_singleClass(): void {
-    $fromTime = $this->newDateTime();
+  public function testTimeSpentByTitle_singleWindow(): void {
+    // First test single class case (default class), then two different classes.
+    $class1 = DEFAULT_CLASS_NAME;
+    $class2 = DEFAULT_CLASS_NAME;
+    for ($i = 0; $i < 2; $i++) {
+      if ($i == 1) {
+        // Set up test classes.
+        $class1 = 'c1';
+        $class2 = 'c2';
+        $classId1 = $this->db->addClass($class1);
+        $classId2 = $this->db->addClass($class2);
+        $this->db->addClassification($classId1, 0, '1$');
+        $this->db->addClassification($classId2, 10, '2$');
+      }
 
-    $this->assertEquals(
-        $this->db->queryTimeSpentByTitle('user_1', $fromTime),
-        []);
+      $fromTime = $this->newDateTime();
 
-    $this->db->insertWindowTitles('user_1', ['window 1'], 0);
-    $this->assertEquals(
-        $this->db->queryTimeSpentByTitle('user_1', $fromTime),
-        []);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime),
+          []);
 
-    $this->mockTime += 5;
-    $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
-    $this->db->insertWindowTitles('user_1', ['window 1'], 0);
-    $this->assertEquals(
-        $this->db->queryTimeSpentByTitle('user_1', $fromTime),
-        [[$dateTimeString1, 5, DEFAULT_CLASS_NAME, 'window 1']]);
+      $this->db->insertWindowTitles('user_1', ['window 1'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime),
+          []);
 
-    $this->mockTime += 6;
-    $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
-    $this->db->insertWindowTitles('user_1', ['window 1'], 0);
-    $this->assertEquals(
-        $this->db->queryTimeSpentByTitle('user_1', $fromTime),
-        [[$dateTimeString1, 11, DEFAULT_CLASS_NAME, 'window 1']]);
+      $this->mockTime += 5;
+      $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
+      $this->db->insertWindowTitles('user_1', ['window 1'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime),
+          [[$dateTimeString1, 5, $class1, 'window 1']]);
 
-    // Switch to different window.
-    $this->mockTime += 7;
-    $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
-    $this->db->insertWindowTitles('user_1', ['window 2'], 0);
-    $this->assertEquals(
-        $this->db->queryTimeSpentByTitle('user_1', $fromTime),
-        [[$dateTimeString1, 18, DEFAULT_CLASS_NAME, 'window 1']]);
+      $this->mockTime += 6;
+      $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
+      $this->db->insertWindowTitles('user_1', ['window 1'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime),
+          [[$dateTimeString1, 11, $class1, 'window 1']]);
 
-    $this->mockTime += 8;
-    $dateTimeString2 = $this->newDateTime()->format('Y-m-d H:i:s');
-    $this->db->insertWindowTitles('user_1', ['window 2'], 0);
-    $this->assertEquals(
-        $this->db->queryTimeSpentByTitle('user_1', $fromTime), [
-            [$dateTimeString1, 18, DEFAULT_CLASS_NAME, 'window 1'],
-            [$dateTimeString2, 8, DEFAULT_CLASS_NAME, 'window 2']]);
+      // Switch to different window.
+      $this->mockTime += 7;
+      $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
+      $this->db->insertWindowTitles('user_1', ['window 2'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime),
+          [[$dateTimeString1, 18, $class1, 'window 1']]);
 
-    // Order by time spent.
-    $this->mockTime += 20;
-    $dateTimeString2 = $this->newDateTime()->format('Y-m-d H:i:s');
-    $this->db->insertWindowTitles('user_1', ['window 2'], 0);
-    $this->assertEquals(
-        $this->db->queryTimeSpentByTitle('user_1', $fromTime), [
-            [$dateTimeString2, 28, DEFAULT_CLASS_NAME, 'window 2'],
-            [$dateTimeString1, 18, DEFAULT_CLASS_NAME, 'window 1']]);
+      $this->mockTime += 8;
+      $dateTimeString2 = $this->newDateTime()->format('Y-m-d H:i:s');
+      $this->db->insertWindowTitles('user_1', ['window 2'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime), [
+              [$dateTimeString1, 18, $class1, 'window 1'],
+              [$dateTimeString2, 8, $class2, 'window 2']]);
+
+      // Order by time spent.
+      $this->mockTime += 20;
+      $dateTimeString2 = $this->newDateTime()->format('Y-m-d H:i:s');
+      $this->db->insertWindowTitles('user_1', ['window 2'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime), [
+              [$dateTimeString2, 28, $class2, 'window 2'],
+              [$dateTimeString1, 18, $class1, 'window 1']]);
+    }
   }
+
+  public function testTimeSpentByTitle_multipleWindows(): void {
+    // First test single class case (default class), then two different classes.
+    $class1 = DEFAULT_CLASS_NAME;
+    $class2 = DEFAULT_CLASS_NAME;
+    for ($i = 0; $i < 2; $i++) {
+      if ($i == 1) {
+        // Set up test classes.
+        $class1 = 'c1';
+        $class2 = 'c2';
+        $classId1 = $this->db->addClass($class1);
+        $classId2 = $this->db->addClass($class2);
+        $this->db->addClassification($classId1, 0, '1$');
+        $this->db->addClassification($classId2, 10, '2$');
+      }
+
+      $fromTime = $this->newDateTime();
+
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime),
+          []);
+
+      $this->db->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime),
+          []);
+
+      $this->mockTime += 5;
+      $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
+      $this->db->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime), [
+              [$dateTimeString1, 5, $class1, 'window 1'],
+              [$dateTimeString1, 5, $class1, 'window 2']]);
+
+      $this->mockTime += 6;
+      $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
+      $this->db->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime), [
+              [$dateTimeString1, 11, $class1, 'window 1'],
+              [$dateTimeString1, 11, $class1, 'window 2']]);
+
+      // Switch to different windows.
+      $this->mockTime += 7;
+      $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
+      $this->db->insertWindowTitles('user_1', ['window 11', 'window 2'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime), [
+              [$dateTimeString1, 18, $class1, 'window 2'],
+              [$dateTimeString1, 11, $class1, 'window 1']]);
+      // TODO/PUWIL: window 11 should (?) be listed w/ 7 seconds. Does this match the accounting?
+
+
+
+      $this->mockTime += 8;
+      $dateTimeString2 = $this->newDateTime()->format('Y-m-d H:i:s');
+      $this->db->insertWindowTitles('user_1', ['window 2'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime), [
+              [$dateTimeString1, 18, $class1, 'window 1'],
+              [$dateTimeString2, 8, $class2, 'window 2']]);
+
+      // Order by time spent.
+      $this->mockTime += 20;
+      $dateTimeString2 = $this->newDateTime()->format('Y-m-d H:i:s');
+      $this->db->insertWindowTitles('user_1', ['window 2'], 0);
+      $this->assertEquals(
+          $this->db->queryTimeSpentByTitle('user_1', $fromTime), [
+              [$dateTimeString2, 28, $class2, 'window 2'],
+              [$dateTimeString1, 18, $class1, 'window 1']]);
+    }
+  }
+
 }
 
 (new KFCTest())->run();

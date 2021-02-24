@@ -16,6 +16,10 @@ class TestCase {
   private $failedTests = [];
   private $passedTests = 0;
   private $startTime = 0;
+  private $onFailMessage = [];
+
+  /** Set while running a test. */
+  private $test = "";
 
   protected function setUpTestCase(): void {
   }
@@ -29,7 +33,7 @@ class TestCase {
   protected function tearDownTestCase(): void {
   }
 
-  private function dumpAndClearLog() {
+  private function dumpAndClearLog(): void {
     if (file_exists(TESTS_LOG)) {
       echo '<pre>' . file_get_contents(TESTS_LOG) . "</pre>";
     } else {
@@ -37,7 +41,11 @@ class TestCase {
     }
   }
 
-  protected function assertEquals($actual, $expected) {
+  protected function onFailMessage($message): void {
+    $this->onFailMessage[$this->test] = $message;
+  }
+
+  protected function assertEquals($actual, $expected): void {
     if ($actual === $expected) {
       return;
     }
@@ -63,10 +71,10 @@ class TestCase {
     $tests = array_filter(get_class_methods(get_class($this)), function($k) {
       return !substr_compare($k, "test", 0, 4);
     });
-    foreach ($tests as $test) {
-      $method = new ReflectionMethod(get_class($this), $test);
+    foreach ($tests as $this->test) {
+      $method = new ReflectionMethod(get_class($this), $this->test);
       try {
-        Logger::Instance()->info('----- ' . $test);
+        Logger::Instance()->info('----- ' . $this->test);
         $this->setUp();
         $method->invoke($this);
         $this->tearDown();
@@ -77,14 +85,18 @@ class TestCase {
         }
         $this->passedTests += 1;
       } catch (Throwable $e) {
-        $this->failedTests[$test] = $e;
+        $this->failedTests[$this->test] = $e;
       }
     }
     echo '<hr>Tests passed: ' . $this->passedTests . '<hr>';
     if ($this->failedTests) {
       echo 'TESTS FAILED: ' . count($this->failedTests) . '<hr>';
       foreach ($this->failedTests as $test => $e) {
-        echo '<b>' . $test . ':</b> ' . $e->getMessage() . '<hr>';
+        $message = $e->getMessage();
+        if (isset($this->onFailMessage[$test])) {
+          $message = '[' . $this->onFailMessage[$test] . '] ' . $message;
+        }
+        echo '<b>' . $test . ':</b> ' . $message . '<hr>';
       }
     } else {
       echo '<b style="background-color: lightgreen">ALL TESTS PASSED</b><hr>';

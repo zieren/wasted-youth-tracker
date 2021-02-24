@@ -258,6 +258,7 @@ final class KFCTest extends TestCase {
     $class1 = DEFAULT_CLASS_NAME;
     $class2 = DEFAULT_CLASS_NAME;
     for ($i = 0; $i < 2; $i++) {
+      $this->onFailMessage("i=$i");
       if ($i == 1) {
         // Set up test classes.
         $class1 = 'c1';

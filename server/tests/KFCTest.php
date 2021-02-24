@@ -267,18 +267,43 @@ final class KFCTest extends TestCase {
         []);
 
     $this->mockTime += 5;
-    $dateTimeString = $this->newDateTime()->format('Y-m-d H:i:s');
+    $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
     $this->db->insertWindowTitles('user_1', ['window 1'], 0);
     $this->assertEquals(
         $this->db->queryTimeSpentByTitle('user_1', $fromTime),
-        [[$dateTimeString, 5, DEFAULT_CLASS_NAME, 'window 1']]);
+        [[$dateTimeString1, 5, DEFAULT_CLASS_NAME, 'window 1']]);
 
-    $this->mockTime += 10;
-    $dateTimeString = $this->newDateTime()->format('Y-m-d H:i:s');
+    $this->mockTime += 6;
+    $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
     $this->db->insertWindowTitles('user_1', ['window 1'], 0);
     $this->assertEquals(
         $this->db->queryTimeSpentByTitle('user_1', $fromTime),
-        [[$dateTimeString, 15, DEFAULT_CLASS_NAME, 'window 1']]);
+        [[$dateTimeString1, 11, DEFAULT_CLASS_NAME, 'window 1']]);
+
+    // Switch to different window.
+    $this->mockTime += 7;
+    $dateTimeString1 = $this->newDateTime()->format('Y-m-d H:i:s');
+    $this->db->insertWindowTitles('user_1', ['window 2'], 0);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByTitle('user_1', $fromTime),
+        [[$dateTimeString1, 18, DEFAULT_CLASS_NAME, 'window 1']]);
+
+    $this->mockTime += 8;
+    $dateTimeString2 = $this->newDateTime()->format('Y-m-d H:i:s');
+    $this->db->insertWindowTitles('user_1', ['window 2'], 0);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByTitle('user_1', $fromTime), [
+            [$dateTimeString1, 18, DEFAULT_CLASS_NAME, 'window 1'],
+            [$dateTimeString2, 8, DEFAULT_CLASS_NAME, 'window 2']]);
+
+    // Order by time spent.
+    $this->mockTime += 20;
+    $dateTimeString2 = $this->newDateTime()->format('Y-m-d H:i:s');
+    $this->db->insertWindowTitles('user_1', ['window 2'], 0);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByTitle('user_1', $fromTime), [
+            [$dateTimeString2, 28, DEFAULT_CLASS_NAME, 'window 2'],
+            [$dateTimeString1, 18, DEFAULT_CLASS_NAME, 'window 1']]);
   }
 }
 

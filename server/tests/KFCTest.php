@@ -71,25 +71,34 @@ final class KFCTest extends TestCase {
 
     // No records amount to an empty array. This is different from having records that amount to
     // zero, which makes sense.
-    $m0 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
-    $this->assertEquals($m0, []);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        []);
 
     // A single record amounts to zero.
     $this->db->insertWindowTitles('user_1', ['window 1'], 0);
-    $m1 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
-    $this->assertEquals($m1, ['' => ['1970-01-01' => 0]]);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        ['' => ['1970-01-01' => 0]]);
 
-    // Add 5 seconds.
     $this->mockTime += 5;
     $this->db->insertWindowTitles('user_1', ['window 1'], 0);
-    $m2 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
-    $this->assertEquals($m2, ['' => ['1970-01-01' => 5]]);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        ['' => ['1970-01-01' => 5]]);
 
-    // Add 10 seconds.
-    $this->mockTime += 10;
+    $this->mockTime += 6;
     $this->db->insertWindowTitles('user_1', ['window 1'], 0);
-    $m3 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
-    $this->assertEquals($m3, ['' => ['1970-01-01' => 15]]);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        ['' => ['1970-01-01' => 11]]);
+
+    // Switch window (no effect, same budget).
+    $this->mockTime += 7;
+    $this->db->insertWindowTitles('user_1', ['window 2'], 0);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        ['' => ['1970-01-01' => 18]]);
   }
 
   public function testTotalTime_TwoWindows_NoBudget(): void {
@@ -102,26 +111,36 @@ final class KFCTest extends TestCase {
 
     // A single record amounts to zero.
     $this->db->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
-    $m1 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
-    $this->assertEquals($m1, ['' => ['1970-01-01' => 0]]);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        ['' => ['1970-01-01' => 0]]);
 
-    // Add 5 seconds.
+    // Advance 5 seconds. Still two windows, but same budget, so total time is 5 seconds.
     $this->mockTime += 5;
     $this->db->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
-    $m2 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
-    $this->assertEquals($m2, ['' => ['1970-01-01' => 5]]);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        ['' => ['1970-01-01' => 5]]);
 
-    // Add 10 seconds.
-    $this->mockTime += 10;
+    // Same with another 6 seconds.
+    $this->mockTime += 6;
     $this->db->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
-    $m3 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
-    $this->assertEquals($m3, ['' => ['1970-01-01' => 15]]);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        ['' => ['1970-01-01' => 11]]);
 
-    // Add 7 seconds for 'window 2'.
+    // Switch to 'window 2'.
     $this->mockTime += 7;
     $this->db->insertWindowTitles('user_1', ['window 2'], 0);
-    $m3 = $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null);
-    $this->assertEquals($m3, ['' => ['1970-01-01' => 22]]);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        ['' => ['1970-01-01' => 18]]);
+
+    $this->mockTime += 8;
+    $this->db->insertWindowTitles('user_1', ['window 2'], 0);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        ['' => ['1970-01-01' => 26]]);
   }
 
   public function testSetUpBudgets(): void {
@@ -169,6 +188,58 @@ final class KFCTest extends TestCase {
         ['class_id' => $classId1, 'class_name' => 'c1', 'budget_ids' => [$budgetId1, $budgetId2]],
         ['class_id' => $classId2, 'class_name' => 'c2', 'budget_ids' => []],
     ]);
+  }
+
+  public function testTotalTime_SingleWindow_WithBudgets(): void {
+    // Set up test budgets.
+    $budgetId1 = $this->db->addBudget('b1');
+    $budgetId2 = $this->db->addBudget('b2');
+    $classId1 = $this->db->addClass('c1');
+    $classId2 = $this->db->addClass('c2');
+    $this->db->addClassification($classId1, 0, '1$');
+    $this->db->addClassification($classId2, 10, '2$');
+    // b1 <= default, c1
+    // b2 <= c2
+    $this->db->addMapping('user_1', DEFAULT_CLASS_ID, $budgetId1);
+    $this->db->addMapping('user_1', $classId1, $budgetId1);
+    $this->db->addMapping('user_1', $classId2, $budgetId2);
+
+    $fromTime = $this->newDateTime();
+
+    // No records amount to an empty array. This is different from having records that amount to
+    // zero, which makes sense.
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        []);
+
+    // A single record amounts to zero.
+    $this->db->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        [$budgetId1 => ['1970-01-01' => 0]]);
+
+    $this->mockTime += 5;
+    $this->db->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        [$budgetId1 => ['1970-01-01' => 5]]);
+
+    $this->mockTime += 6;
+    $this->db->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        [$budgetId1 => ['1970-01-01' => 11]]);
+
+    // Switch window. First interval still counts towards previous window/budget.
+    $this->mockTime += 7;
+    $this->db->insertWindowTitles('user_1', ['window 2'], 0);
+    $this->assertEquals(
+        $this->db->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        [
+            $budgetId1 => ['1970-01-01' => 18],
+            $budgetId2 => ['1970-01-01' => 0]
+        ]);
+    // TODO/PUWIL: Fix this test by changing the query like the other core query.
   }
 
   public function testTotalTime_TwoWindows_WithBudgets(): void {

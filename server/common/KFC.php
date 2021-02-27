@@ -404,32 +404,37 @@ class KFC {
    */
   public function queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime) {
     // TODO: Optionally restrict to activity.focus=1.
-    $toTimestamp = $toTime ? $toTime->getTimestamp() : 0;
-    DB::query('SET @prev_ts = 0, @prev_s = 0'); // TODO: ":=" vs "="
-    $rows = DB::query(
-        'SELECT date, budget_id, SUM(s) AS sum_s'
-        . ' FROM ('
-        . '   SELECT'
-        . '     @prev_s := IF(@prev_ts = ts, @prev_s, IF(@prev_ts = 0, 0, ts - @prev_ts)) AS s,'
-        . '     @prev_ts := ts,'
-        . '     DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") AS date,'
-        . '     budget_id'
-        . '   FROM ('
-        . '     SELECT DISTINCT ts, budget_id'
-        . '     FROM activity'
-        . '     LEFT JOIN ('
-        . '       SELECT * FROM mappings WHERE user = |s0'
-        . '     ) t1'
-        . '     ON activity.class_id = t1.class_id'
-        . '     WHERE activity.user = |s0'
-        . '     AND ts >= |i'
-        .       ($toTime ? ' AND ts < |i' : '')
-        . '     ORDER BY ts, budget_id'
-        . '   ) t2'
-        . ' ) t3'
-        . ' WHERE s <= 25' // TODO: 15 (sample interval) + 10 (latency compensation) magic
-        . ' GROUP BY date, budget_id',
-        $user, $fromTime->getTimestamp(), $toTimestamp); // TODO: Passing an extra param :-(
+    $toTimestamp = $toTime ? $toTime->getTimestamp() : 9223372036854775807; // max(BIGINT)
+    DB::query('SET @prev_ts = 0'); // TODO: ":=" vs "="
+    // TODO: 15 (sample interval) + 10 (latency compensation) magic
+    $rows = DB::query('
+        SELECT DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") AS date, budget_id, sum(s) AS sum_s FROM (
+            SELECT ts, budget_id, s FROM (
+                SELECT ts, class_id, s FROM (
+                    SELECT
+                        IF(@prev_ts = 0, 0, @prev_ts - ts) AS s,
+                        @prev_ts := ts AS ts_key
+                    FROM (
+                        SELECT DISTINCT (ts) FROM activity
+                        WHERE user = |s0
+                        AND ts >= |i1 AND ts < |i2
+                        ORDER BY ts DESC
+                    ) distinct_ts_desc
+                ) ts_to_interval
+                JOIN activity ON ts_key = ts
+                WHERE user = |s0
+                AND ts >= |i1 AND ts < |i2
+                AND s <= 25
+            ) classes
+            LEFT JOIN (
+                SELECT * FROM mappings WHERE user = |s0
+            ) user_mappings
+            ON classes.class_id = user_mappings.class_id
+            GROUP BY ts, budget_id
+        ) intervals_per_budget
+        GROUP BY date, budget_id
+        ORDER BY date, budget_id',
+        $user, $fromTime->getTimestamp(), $toTimestamp);
     $timeByBudgetAndDate = [];
     foreach ($rows as $row) {
       $budgetId = $row['budget_id'];
@@ -454,31 +459,27 @@ class KFC {
     DB::query('SET @prev_ts = 0');
     // TODO: 15 (sample interval) + 10 (latency compensation) magic
     $rows = DB::query('
-        SELECT title, name, sum_s, ts_last_seen FROM
-        (
-            SELECT title, class_id, SUM(s) AS sum_s, ts_last_seen FROM
-            (
-                SELECT title, class_id, s, ts + s as ts_last_seen FROM
-                (
+        SELECT title, name, sum_s, ts_last_seen FROM (
+            SELECT title, class_id, SUM(s) AS sum_s, ts_last_seen FROM (
+                SELECT title, class_id, s, ts + s as ts_last_seen FROM (
                     SELECT
                         IF(@prev_ts = 0, 0, @prev_ts - ts) AS s,
-                        @prev_ts := ts AS tsi
-                    FROM
-                    (
+                        @prev_ts := ts AS ts_key
+                    FROM (
                         SELECT DISTINCT (ts) FROM activity
                         WHERE user = |s0
                         AND ts >= |i1 AND ts < |i2
                         ORDER BY ts DESC
                     ) distinct_ts_desc
-                ) tsi_to_interval
-                JOIN activity ON tsi = ts
+                ) ts_to_interval
+                JOIN activity ON ts_key = ts
                 WHERE user = |s0
                 AND ts >= |i1 AND ts < |i2
                 AND s <= 25
                 ORDER BY ts_last_seen DESC
-            ) order_by_ts_last_seen_desc
+            ) with_ts_last_seen_desc
             GROUP BY title, class_id
-        ) by_class_id
+        ) grouped
         JOIN classes ON class_id = id
         ORDER BY sum_s DESC, title',
         $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
@@ -570,7 +571,7 @@ class KFC {
     $timeLeftToday = $minutesLimitToday * 60 - $timeSpentToday;
 
     // A weekly limit can shorten the daily limit, but not extend it.
-    if (isset($config['weekly_limit_minutes'])) {
+    if (isset($config['weekly_limit_minutes'])) { // TODO: array_key_exists! Check get() usages. ö
       $timeLeftInWeek = $config['weekly_limit_minutes'] * 60 - array_sum($timeSpentByDate);
       $timeLeftToday = min($timeLeftToday, $timeLeftInWeek);
     }

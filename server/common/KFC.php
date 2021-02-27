@@ -399,8 +399,8 @@ class KFC {
   // ---------- TIME SPENT/LEFT QUERIES ----------
 
   /**
-   * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by date
-   * and budget ID. $toTime may be null to omit the upper limit.
+   * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by budget
+   * ID and date. $toTime may be null to omit the upper limit.
    */
   public function queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime) {
     // TODO: Optionally restrict to activity.focus=1.

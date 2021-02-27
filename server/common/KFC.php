@@ -398,6 +398,11 @@ class KFC {
 
   // ---------- TIME SPENT/LEFT QUERIES ----------
 
+  // TODO: It might be nicer to budget intervals to the previous window rather than the current
+  // window. E.g. for [A, B, C] we currently bill the first interval to B and the second to C, but
+  // billing them to A and B seems slightly more intuitive. It makes more sense to ignore the most
+  // recent observation rather than the first which presumably was valid for one interval.
+
   /**
    * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by date
    * and budget ID. $toTime may be null to omit the upper limit.
@@ -447,38 +452,40 @@ class KFC {
    * at $fromTime and ending 1d (i.e. usually 24h) later. $date should therefore usually have a time
    * of 0:00.
    *
-   * TODO: Semantics, parameter names, return data format (SEC_TO_TIME).
+   * TODO: Semantics, parameter names. How should we handle focus 0/1?
    */
   public function queryTimeSpentByTitle($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-    // TODO: Remove "<init>" placeholder. NULL?
-    DB::query('SET @prev_ts = 0, @prev_s = 0, @prev_id = 0, @prev_title = "<init>"');
+    DB::query('SET @prev_ts = 0');
     // TODO: 15 (sample interval) + 10 (latency compensation) magic
     $rows = DB::query('
-      SELECT ts, SUM(s) as sum_s, name, title FROM (
-        SELECT ts, s, name, title FROM (
-           SELECT
-             ts,
-             @prev_s := IF(@prev_ts = ts, @prev_s, IF(@prev_ts = 0, 0, ts - @prev_ts)) AS s,
-             @prev_id as id,
-             @prev_title as title,
-             @prev_ts := ts,
-             @prev_id := class_id,
-             @prev_title := title
-           FROM activity
-           WHERE
-             user = |s
-             AND ts >= |i
-             AND ts < |i
-           ORDER BY ts ASC
-         ) t1
-         JOIN classes ON t1.id = classes.id
-         WHERE s <= 25
-         AND s > 0
-         ORDER BY ts DESC
-        ) t2
-        GROUP BY title
-        ORDER BY sum_s DESC, title',
+        SELECT title, name, sum_s, ts FROM
+        (
+            SELECT title, class_id, SUM(s) AS sum_s, ts FROM
+            (
+                SELECT title, class_id, s, ts FROM
+                (
+                    SELECT
+                        IF(@prev_ts = 0, 0, @prev_ts - ts) AS s,
+                        @prev_ts := ts AS tsi
+                    FROM
+                    (
+                        SELECT DISTINCT (ts) FROM activity
+                        WHERE user = |s0
+                        AND ts >= |i1 AND ts < |i2
+                        ORDER BY ts DESC
+                    ) distinct_ts_desc
+                ) ts_to_interval
+                JOIN activity ON tsi = ts
+                WHERE user = |s0
+                AND ts >= |i1 AND ts < |i2
+                AND s <= 25
+                ORDER BY ts DESC
+            ) order_by_ts_desc
+            GROUP BY title, class_id
+        ) by_class_id
+        JOIN classes ON class_id = id
+        ORDER BY sum_s DESC',
         $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
     $timeByTitle = [];
     foreach ($rows as $row) {

@@ -398,11 +398,6 @@ class KFC {
 
   // ---------- TIME SPENT/LEFT QUERIES ----------
 
-  // TODO: It might be nicer to budget intervals to the previous window rather than the current
-  // window. E.g. for [A, B, C] we currently bill the first interval to B and the second to C, but
-  // billing them to A and B seems slightly more intuitive. It makes more sense to ignore the most
-  // recent observation rather than the first which presumably was valid for one interval.
-
   /**
    * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by date
    * and budget ID. $toTime may be null to omit the upper limit.
@@ -459,11 +454,11 @@ class KFC {
     DB::query('SET @prev_ts = 0');
     // TODO: 15 (sample interval) + 10 (latency compensation) magic
     $rows = DB::query('
-        SELECT title, name, sum_s, ts FROM
+        SELECT title, name, sum_s, ts_last_seen FROM
         (
-            SELECT title, class_id, SUM(s) AS sum_s, ts FROM
+            SELECT title, class_id, SUM(s) AS sum_s, ts_last_seen FROM
             (
-                SELECT title, class_id, s, ts FROM
+                SELECT title, class_id, s, ts + s as ts_last_seen FROM
                 (
                     SELECT
                         IF(@prev_ts = 0, 0, @prev_ts - ts) AS s,
@@ -475,23 +470,23 @@ class KFC {
                         AND ts >= |i1 AND ts < |i2
                         ORDER BY ts DESC
                     ) distinct_ts_desc
-                ) ts_to_interval
+                ) tsi_to_interval
                 JOIN activity ON tsi = ts
                 WHERE user = |s0
                 AND ts >= |i1 AND ts < |i2
                 AND s <= 25
-                ORDER BY ts DESC
-            ) order_by_ts_desc
+                ORDER BY ts_last_seen DESC
+            ) order_by_ts_last_seen_desc
             GROUP BY title, class_id
         ) by_class_id
         JOIN classes ON class_id = id
-        ORDER BY sum_s DESC',
+        ORDER BY sum_s DESC, title',
         $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
     $timeByTitle = [];
     foreach ($rows as $row) {
       // TODO: This should use the client's local time format.
       $timeByTitle[] = [
-          date("Y-m-d H:i:s", $row['ts']),
+          date("Y-m-d H:i:s", $row['ts_last_seen']),
           intval($row['sum_s']),
           $row['name'],
           $row['title']];

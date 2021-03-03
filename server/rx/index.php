@@ -7,15 +7,20 @@ error_reporting(0);
 // TODO: Make sure warnings and errors are surfaced appropriately. Catch exceptions.
 
 /**
- * Incoming data format is, by line:
+ * Incoming data format by line:
  *
  * 1. username
- * 2. focused window's index, or -1 if none has focus
- * 3. window title #0
- * 4. window title #1
+ * 2. window title #0
+ * 3. window title #1
  * ...
  *
- * At least the first two lines must be sent.
+ * At least the first line must be sent. Window title #0 is the one that has focus. If none has
+ * focus, this line is empty.
+ *
+ * Response format by line:
+ *
+ * 1. "ok"
+ * 2. dummy budget ID TODO
  */
 function handleRequest() {
   $logger = Logger::Instance();
@@ -30,30 +35,15 @@ function handleRequest() {
   }
 
   $user = $lines[0];
-  $focusIndex = $lines[1];
-  $titles = array_slice($lines, 2);
+  $titles = array_slice($lines, 1);
 
-  if ($focusIndex >= count($titles)) {
-    http_response_code(400);
-    $message = "Invalid index for focused window: " . $focusIndex . ">= " . count($titles);
-    $logger->error($message . '. Content: ' . str_replace("\n", '\n', $content));
-    return "error\n" . $message;
-  }
+  $kfc = KFC::create();
 
-  $db = KFC::create();
-
-  $classifications = $db->insertWindowTitles($user, $titles, $focusIndex);
-  $allBudgetConfigs = $db->getAllBudgetConfigs($user);
-  $leftAllBudgets = $db->queryMinutesLeftTodayAllBudgets($user);
-
-  ob_start();
-  var_dump($classifications);
-  var_dump($allBudgetConfigs);
-  var_dump($leftAllBudgets);
-  return "ok\n" . ob_get_clean();
+  $kfc->insertWindowTitles($user, $titles);
+  return "ok\n42\n" ;
 
   /*
-  $minutesLeftToday = $db->queryMinutesLeftToday($user, $classId);
+  $minutesLeftToday = $kfc->queryMinutesLeftToday($user, $classId);
 
   if ($minutesLeftToday <= 0) {
     return "close\n" . $budgetName;

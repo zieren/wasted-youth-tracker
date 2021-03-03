@@ -20,6 +20,8 @@ FILE_REQUEST := TMP . "\kfc.request"
 FILE_RESPONSE := TMP . "\kfc.response"
 FileEncoding, UTF-8-RAW
 
+DetectHiddenWindows, Off
+
 ShowMessage(msg) {
   Gui, Destroy
   Gui, +AlwaysOnTop
@@ -68,10 +70,10 @@ class Terminator {
 Loop {
   WinGetTitle, windowTitle, A
   if (!windowTitle) {
-    windowTitle := "<none>"
+    windowTitle := ""
   }
   file := FileOpen(FILE_REQUEST, "w")
-  file.Write(USER "|" windowTitle)
+  file.Write(USER "`r`n" windowTitle)
   file.Close()
   RunWait, curl --header "Content-Type: text/plain; charset=utf-8" --request POST --data "@%FILE_REQUEST%" %URL%/rx/ -o "%FILE_RESPONSE%", , Hide
   FileRead, response, %FILE_RESPONSE%

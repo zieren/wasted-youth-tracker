@@ -79,7 +79,7 @@ class TestCase {
         $method->invoke($this);
         $this->tearDown();
         if (error_get_last()) {
-          $message = "Silent error: " . arrayToString(error_get_last());
+          $message = "Silent error: " . dumpArrayToString(error_get_last());
           error_clear_last();
           throw new Exception($message);
         }

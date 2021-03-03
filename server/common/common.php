@@ -36,7 +36,7 @@ function get(&$value, $default = null) {
 }
 
 /** Calls var_dump to convert the specified array into a string. */
-function arrayToString($a) {
+function dumpArrayToString($a) {
   ob_start();
   var_dump($a);
   return ob_get_clean();

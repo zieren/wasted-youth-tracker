@@ -1,7 +1,5 @@
 <?php
 
-// TODO: Add test for table creation (and default population).
-
 declare(strict_types=1);
 ini_set('assert.exception', '1');
 
@@ -11,16 +9,8 @@ require_once '../common/common.php'; // ... Logger is used here.
 require_once 'config_tests.php';
 require_once '../common/db.class.php';
 
-function logDbQueryErrorInTest($params) {
-  KFCTest::$lastDbError = $params;
-  logDbQueryError($params);
-}
-
-final class KFCTest extends TestCase {
-
-  public static $lastDbError = null;
-  private $kfc;
-  private $mockTime; // epoch seconds, reset to 1000 before each test
+final class KFCTest extends KFCTestBase {
+  protected $kfc;
 
   protected function setUpTestCase(): void {
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::WARNING);
@@ -29,8 +19,7 @@ final class KFCTest extends TestCase {
           return $this->mockTime();
         });
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
-    // Instantiation of KFC above sets a DB error handler. Override it here.
-    DB::$error_handler = 'logDbQueryErrorInTest';
+    parent::setUpTestCase();
     // TODO: Consider checking for errors (error_get_last() and DB error) in production code.
     // Errors often go unnoticed.
   }
@@ -40,28 +29,6 @@ final class KFCTest extends TestCase {
     $this->kfc->clearAllForTest();
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
     $this->mockTime = 1000;
-  }
-
-  protected function tearDown(): void {
-    if (KFCTest::$lastDbError) {
-      $message = "DB error: " . arrayToString(KFCTest::$lastDbError);
-      KFCTest::$lastDbError = null;
-      throw new Exception($message);
-    }
-  }
-
-  private function mockTime() {
-    return $this->mockTime;
-  }
-
-  private function newDateTime() {
-    $d = new DateTime();
-    $d->setTimestamp($this->mockTime);
-    return $d;
-  }
-
-  private function dateTimeString() {
-    return $this->newDateTime()->format('Y-m-d H:i:s');
   }
 
   public function testSmokeTest(): void {

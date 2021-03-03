@@ -156,7 +156,7 @@ class KFC {
   private function insertDefaultRows() {
     DB::insertIgnore('classes', ['id' => DEFAULT_CLASS_ID, 'name' => DEFAULT_CLASS_NAME]);
     DB::insertIgnore('classification', [
-        // 'id' => 1,
+        'id' => 1,
         'class_id' => DEFAULT_CLASS_ID,
         'priority' => -2147483648,
         're' => '()']); // RE can't be ""

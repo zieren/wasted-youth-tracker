@@ -9,14 +9,12 @@ require_once '../common/common.php'; // ... Logger is used here.
 require_once 'config_tests.php';
 require_once '../common/db.class.php';
 
-// TODO: This should maybe inherit from a common base test class.
-
 DB::$dbName = TEST_DB_NAME;
 DB::$user = TEST_DB_USER;
 DB::$password = TEST_DB_PASS;
 DB::$param_char = '|';
 
-final class KFCSlowTest extends TestCase {
+final class KFCSlowTest extends KFCTestBase {
 
   protected function setUp(): void {
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::WARNING);
@@ -30,8 +28,23 @@ final class KFCSlowTest extends TestCase {
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
   }
 
-  public function testCreateTables(): void {
-    KFC::createForTest(TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS, "time", true);
+  public function testCreateTablesWorksAndIsIdempotent(): void {
+    for ($i = 0; $i < 2; $i++) {
+      $this->onFailMessage("i=$i");
+      KFC::createForTest(TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS, $this->mockTime, true);
+
+      $classification = DB::query('SELECT * FROM classification');
+      $this->assertEquals($classification, [[
+          'id' => '1',
+          'class_id' => strval(DEFAULT_CLASS_ID),
+          'priority' => '-2147483648',
+          're' => '()']]);
+
+      $classes = DB::query('SELECT * FROM classes');
+      $this->assertEquals($classes, [[
+          'id' => strval(DEFAULT_CLASS_ID),
+          'name' => DEFAULT_CLASS_NAME]]);
+    }
   }
 
 }

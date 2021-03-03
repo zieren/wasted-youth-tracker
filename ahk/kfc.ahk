@@ -12,13 +12,11 @@ EnvGet, TMP, TMP ; current user's temp directory
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 
 INI_FILE := USERPROFILE "\kfc.ini"
-IniRead, URL, %INI_FILE%, account, url
+IniRead, URL, %INI_FILE%, server, url
+IniRead, HTTP_USER, %INI_FILE%, server, username
+IniRead, HTTP_PASS, %INI_FILE%, server, password
 IniRead, USER, %INI_FILE%, account, user
 IniRead, DEBUG_NO_ENFORCE, %INI_FILE%, debug, disableEnforcement, 0
-
-FILE_REQUEST := TMP . "\kfc.request"
-FILE_RESPONSE := TMP . "\kfc.response"
-FileEncoding, UTF-8-RAW
 
 DetectHiddenWindows, Off
 
@@ -72,12 +70,11 @@ Loop {
   if (!windowTitle) {
     windowTitle := ""
   }
-  file := FileOpen(FILE_REQUEST, "w")
-  file.Write(USER "`r`n" windowTitle)
-  file.Close()
-  RunWait, curl --header "Content-Type: text/plain; charset=utf-8" --request POST --data "@%FILE_REQUEST%" %URL%/rx/ -o "%FILE_RESPONSE%", , Hide
-  FileRead, response, %FILE_RESPONSE%
-  responseLines:= StrSplit(response, "`n")
+
+  request := ComObjCreate("MSXML2.XMLHTTP.6.0")
+  request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
+  request.send(USER "`n" windowTitle)
+  responseLines := StrSplit(request.responseText, "`n")
   status := responseLines[1]
   if (status = "ok") {
     budgetId := responseLines[2]
@@ -105,7 +102,7 @@ Loop {
       Shutdown, 0 ; 0 means logout
     }
   } else { ; an error message - TODO: Handle "error" status explicitly
-    ShowMessage(response)
+    ShowMessage(request.responseText)
     Beep(5)
   }
   waitMillis := SAMPLE_INTERVAL_SECONDS * 1000

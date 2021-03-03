@@ -309,11 +309,19 @@ class KFC {
 
   // ---------- WRITE ACTIVITY QUERIES ----------
 
-  /** Records the specified window titles. Return value is that of classify(). */
+  /**
+   * Records the specified window titles. The first title has focus. If no window has focus, the
+   * first title must be "". Return value is that of classify().
+   */
   // TODO: I assume this will have to return the budget ID as well, so we can tell the client
   // which windows to close.
-  public function insertWindowTitles($user, $titles, $focusIndex) {
+  public function insertWindowTitles($user, $titles) {
     $ts = $this->time();
+    $focusIndex = 0;
+    if (!get($titles[0])) { // none has focus
+      $focusIndex = -1;
+      unset($titles[0]);
+    }
     $classifications = $this->classify($titles);
     if (count($classifications) != count($titles)) {
       $this->throwException('internal error: ' . count($titles) . ' titles vs. '
@@ -327,7 +335,7 @@ class KFC {
           'user' => $user,
           'title' => $title,
           'class_id' => $classifications[$i]['class_id'],
-          'focus' => $i == $focusIndex ? "true" : "false",
+          'focus' => $i == $focusIndex ? 1 : 0,
           ];
     }
     DB::replace('activity', $rows);

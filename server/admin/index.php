@@ -41,50 +41,50 @@ function checkRequirements() {
 
 checkRequirements();
 
-$db = KFC::create(true /* create missing tables */);
+$kfc = KFC::create(true /* create missing tables */);
 
 // TODO: This should sanitize the user input.
 if (isset($_POST['setUserConfig'])) {
   $user = trim($_POST['configUser']);
   $key = trim($_POST['configKey']);
-  $db->setUserConfig($user, $key, $_POST['configValue']);
+  $kfc->setUserConfig($user, $key, $_POST['configValue']);
 } else if (isset($_POST['clearUserConfig'])) {
   $user = trim($_POST['configUser']);
   $key = trim($_POST['configKey']);
-  $db->clearUserConfig($user, $key);
+  $kfc->clearUserConfig($user, $key);
 } else if (isset($_POST['setGlobalConfig'])) {
   $key = trim($_POST['configKey']);
-  $db->setGlobalConfig($key, $_POST['configValue']);
+  $kfc->setGlobalConfig($key, $_POST['configValue']);
 } else if (isset($_POST['clearGlobalConfig'])) {
   $key = trim($_POST['configKey']);
-  $db->clearGlobalConfig($key);
+  $kfc->clearGlobalConfig($key);
 } else if (isset($_POST['setMinutes'])) {
   $user = $_POST['user'];
   $dateString = $_POST['date'];
   $budgetId = $_POST['budget'];
   $minutes = get($_POST['overrideMinutes'], 0);
-  $db->setOverrideMinutes($user, $dateString, $budgetId, $minutes);
+  $kfc->setOverrideMinutes($user, $dateString, $budgetId, $minutes);
 } else if (isset($_POST['unlock'])) {
   $user = $_POST['user'];
   $dateString = $_POST['date'];
   $budgetId = $_POST['budget'];
-  $db->setOverrideUnlock($user, $dateString, $budgetId);
+  $kfc->setOverrideUnlock($user, $dateString, $budgetId);
 } else if (isset($_POST['clearOverride'])) {
   $user = $_POST['user'];
   $dateString = $_POST['date'];
   $budgetId = $_POST['budget'];
-  $db->clearOverride($user, $dateString, $budgetId);
+  $kfc->clearOverride($user, $dateString, $budgetId);
 } else if (isset($_POST['prune'])) {
   $dateString = $_POST['datePrune'];
   $dateTime = DateTime::createFromFormat("Y-m-d", $dateString);
-  $db->pruneTables($dateTime);
+  $kfc->pruneTables($dateTime);
   echo '<b>Tables pruned before ' . getDateString($dateTime) . '</b></hr>';
 } else if (isset($_POST['clearAll'])) {
-  $db->dropAllTablesExceptConfig();
+  $kfc->dropAllTablesExceptConfig();
   echo '<b>Tables dropped</b></hr>';
 }
 
-$users = $db->getUsers();
+$users = $kfc->getUsers();
 if (!isset($user)) {
   $user = get($_GET['user'], get($users[0], ''));
 }
@@ -95,7 +95,7 @@ if (!isset($budgetId)) {
   $budgetId = 0;
 }
 
-$budgetConfigs = $db->getAllBudgetConfigs($user);
+$budgetConfigs = $kfc->getAllBudgetConfigs($user);
 $budgetNames = budgetIdsToNames(array_keys($budgetConfigs), $budgetConfigs);
 
 echo '<h1>'.KFC_SERVER_HEADING.'</h1>
@@ -126,7 +126,7 @@ echo '
   </form>';
 
 echo '<h4>Current overrides</h4>';
-echoTable($db->queryRecentOverrides($user));
+echoTable($kfc->queryRecentOverrides($user));
 
 echo '<h3>Budget configs</h3>';
 
@@ -135,11 +135,13 @@ foreach ($budgetConfigs as $budgetId => $config) {
   echoTableAssociative($config);
 }
 
+/* There is currently no user config. But there probably will be soon.
 echo '<h3>User config</h3>';
-echoTable($db->getAllUsersConfig());
+echoTable($kfc->getAllUsersConfig());
+*/
 
 echo '<h3>Global config</h3>';
-echoTable($db->getGlobalConfig());
+echoTable($kfc->getGlobalConfig());
 
 echo '<h2>Update config</h2>
 <form method="post" enctype="multipart/form-data">

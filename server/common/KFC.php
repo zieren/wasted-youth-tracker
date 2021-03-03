@@ -625,16 +625,16 @@ class KFC {
   public function queryRecentOverrides($user) {
     $fromDate = getWeekStart($this->newDateTime());
     $fromDate->sub(new DateInterval('P1W'));
-    $result = $this->query(
+    return DB::query(
         'SELECT date, name,'
         . ' CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,'
         . ' CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END'
         . ' FROM overrides'
         . ' JOIN budgets ON budget_id = id'
-        . ' WHERE overrides.user="' . $user . '"'
-        . ' AND date >= "' . $fromDate->format('Y-m-d') . '"'
-        . ' ORDER BY date ASC');
-    return $result->fetch_all();
+        . ' WHERE overrides.user=|s0'
+        . ' AND date >= |s1'
+        . ' ORDER BY date ASC',
+        $user, $fromDate->format('Y-m-d'));
   }
 
   /** Returns overrides in an associative array, or an empty array if none are defined. */

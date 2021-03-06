@@ -1,12 +1,19 @@
 ; Hard coded parameters that probably don't need to be configurable.
+
 ; Time the user has to manually close a window for which time has expired.
 ; After this time the script attempts to close the window.
 GRACE_PERIOD_MILLIS := -30000 ; negative for SetTimer semantics
+
 ; Time the script allows for closing the window. After this time the process
 ; is killed.
 KILL_AFTER_SECONDS := 30
+
 ; Contact the server every x seconds.
 SAMPLE_INTERVAL_SECONDS := 15
+
+; Special (invisible) windows that don't mean a thing.
+; Localization is not needed; names are always English.
+IGNORE_WINDOWS := {"MainWindow": 1, "Program Manager": 1}
 
 EnvGet, TMP, TMP ; current user's temp directory
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
@@ -18,6 +25,7 @@ IniRead, HTTP_PASS, %INI_FILE%, server, password
 IniRead, USER, %INI_FILE%, account, user
 IniRead, DEBUG_NO_ENFORCE, %INI_FILE%, debug, disableEnforcement, 0
 
+; TODO: Is this a loophole?
 DetectHiddenWindows, Off
 
 ShowMessage(msg) {
@@ -65,22 +73,52 @@ class Terminator {
   }
 }
 
-Loop {
-  WinGetTitle, windowTitle, A
-  if (!windowTitle) {
-    windowTitle := ""
+; Returns an array of titles. First title is the active window. If none is active, this is "".
+ListAllTitles() {
+  global IGNORE_WINDOWS
+  titlesMap := {}
+  titlesList := []
+  WinGet, windows, List
+  WinGetActiveTitle, activeTitle
+  ; When no windows are open, "MainWindow" is the active window. For our purposes, make that "".
+  activeTitle := IGNORE_WINDOWS[activeTitle] ? "" : activeTitle
+  Loop %windows%
+  {
+    id := windows%A_Index%
+    WinGet, pid, PID, ahk_id %id%
+    ; https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getancestor
+    rootID := DllCall("GetAncestor", UInt, WinExist("ahk_id" id), UInt, 3)
+    WinGetTitle, rootTitle, ahk_id %rootID%
+    if (rootTitle && rootTitle != activeTitle && !IGNORE_WINDOWS[rootTitle]) {
+      titlesMap[rootTitle] := 1
+    }
   }
 
+  titlesList.Push(activeTitle ? activeTitle : "")
+  for title, ignored in titlesMap {
+    titlesList.Push(title)
+  }
+  return titlesList
+}
+
+Loop {
+  WinGet, windows, List
+  titles := ListAllTitles()
+  data := USER
+  ; There will be at least one element: The active window, or "" if none is active.
+  Loop % titles.Length() {
+    data .=  "`n" titles[A_Index]
+  }
   request := ComObjCreate("MSXML2.XMLHTTP.6.0")
   request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
-  request.send(USER "`n" windowTitle)
+  request.send(data)
   responseLines := StrSplit(request.responseText, "`n")
   status := responseLines[1]
   if (status = "ok") {
     budgetId := responseLines[2]
     warnedBudgets.Delete(budgetId) ; budget might have been extended
   } else if (status = "close") {
-    if (!doomedWindows.HasKey(windowTitle)) {
+    if (!doomedWindows.HasKey(windowTitle)) { ; TODO: windowTitle
       doomedWindows[windowTitle] := 1
       Beep(2)
       budgetName := responseLines[2]

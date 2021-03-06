@@ -318,9 +318,13 @@ class KFC {
   public function insertWindowTitles($user, $titles) {
     $ts = $this->time();
     $focusIndex = 0;
-    if (!get($titles[0])) { // none has focus
+    if (!$titles[0]) { // none has focus
       $focusIndex = -1;
-      unset($titles[0]);
+      // The case "no windows at all" also leads here because it has $titles=[""]. We need to keep
+      // one title to produce a timestamp. "" is filtered when calculating times.
+      if (count($titles) > 1) {
+        unset($titles[0]);
+      }
     }
     $classifications = $this->classify($titles);
     if (count($classifications) != count($titles)) {

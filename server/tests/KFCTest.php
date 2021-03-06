@@ -487,6 +487,72 @@ final class KFCTest extends KFCTestBase {
         ['' => -10]);
   }
 
+  public function testZeroWeeklyLimit(): void {
+    $budgetId = $this->kfc->addBudget('b');
+    $this->kfc->addMapping('u', DEFAULT_CLASS_ID, $budgetId);
+
+    // Budgets default to zero.
+    $this->assertEquals(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u'),
+        [$budgetId => 0]);
+
+    // Daily limit is 42 minutes.
+    $this->kfc->setBudgetConfig($budgetId, 'daily_limit_minutes_default', 42);
+    $this->assertEquals(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u'),
+        [$budgetId => 42 * 60]);
+
+    // The weekly limit cannot extend the daily limit.
+    $this->kfc->setBudgetConfig($budgetId, 'weekly_limit_minutes', 666);
+    $this->assertEquals(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u'),
+        [$budgetId => 42 * 60]);
+
+    // The weekly limit can shorten the daily limit.
+    $this->kfc->setBudgetConfig($budgetId, 'weekly_limit_minutes', 5);
+    $this->assertEquals(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u'),
+        [$budgetId => 5 * 60]);
+
+    // The weekly limit can also be zero.
+    $this->kfc->setBudgetConfig($budgetId, 'weekly_limit_minutes', 0);
+    $this->assertEquals(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u'),
+        [$budgetId => 0]);
+
+    // Clear the limit.
+    $this->kfc->clearBudgetConfig($budgetId, 'weekly_limit_minutes');
+    $this->assertEquals(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u'),
+        [$budgetId => 42 * 60]);
+  }
+
+  public function testGetAllBudgetConfigs(): void {
+    // No budgets configured.
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs('u'),
+        []);
+
+    $budgetId = $this->kfc->addBudget('b');
+
+    // A mapping is required for the budget to be returned.
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs('u'),
+        []);
+    $this->kfc->addMapping('u', DEFAULT_CLASS_ID, $budgetId);
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs('u'),
+        [$budgetId => ['name' => 'b']]);
+
+    // Add a config.
+    $this->kfc->setBudgetConfig($budgetId, 'foo', 'bar');
+    $allBudgetConfigs = $this->kfc->getAllBudgetConfigs('u');
+    ksort($allBudgetConfigs[$budgetId]);
+    $this->assertEquals(
+        $allBudgetConfigs,
+        [$budgetId => ['foo' => 'bar', 'name' => 'b']]);
+  }
+
 }
 
 (new KFCTest())->run();

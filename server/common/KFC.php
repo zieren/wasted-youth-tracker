@@ -280,6 +280,16 @@ class KFC {
     return $config;
   }
 
+  /** Sets the specified budget config. */
+  public function setBudgetConfig($budgetId, $key, $value) {
+    DB::insertUpdate('budget_config', ['budget_id' => $budgetId, 'k' => $key, 'v' => $value]);
+  }
+
+  /** Clears the specified budget config. */
+  public function clearBudgetConfig($budgetId, $key) {
+    DB::delete('budget_config', 'budget_id = |s AND k = |s', $budgetId, $key);
+  }
+
   /**
    * Returns configs of all budgets that are mapped for the specified user. The virtual key
    * 'name' is populated with the budget's name.
@@ -300,7 +310,9 @@ class KFC {
       if (!array_key_exists($budgetId, $configs)) {
         $configs[$budgetId] = [];
       }
-      $configs[$budgetId][$row['k']] = $row['v'];
+      if ($row['k']) { // May be absent due to RIGHT JOIN.
+        $configs[$budgetId][$row['k']] = $row['v'];
+      }
       $configs[$budgetId]['name'] = $row['name'];
     }
     ksort($configs);
@@ -548,7 +560,7 @@ class KFC {
     }
     $timeLeftByBudget = array();
     foreach ($budgetIds as $budgetId) {
-      $config = get($configs[$budgetId], array());
+      $config = getOrDefault($configs, $budgetId, array());
       $timeSpentByDate = get($timeSpentByBudgetAndDate[$budgetId], array());
       $overrides = get($overridesByBudget[$budgetId], array());
       $timeLeftByBudget[$budgetId] = $this->computeTimeLeftToday(
@@ -564,7 +576,7 @@ class KFC {
     $timeSpentToday = get($timeSpentByDate[$nowString], 0);
 
     // Explicit overrides have highest priority.
-    $requireUnlock = get($config['require_unlock'], false);
+    $requireUnlock = getOrDefault($config, 'require_unlock', false);
     if ($overrides) {
       if ($requireUnlock && $overrides['unlocked'] != 1) {
         return 0;
@@ -576,11 +588,11 @@ class KFC {
       return 0;
     }
 
-    $minutesLimitToday = get($config[DAILY_LIMIT_MINUTES_PREFIX . 'default'], 0);
+    $minutesLimitToday = getOrDefault($config, DAILY_LIMIT_MINUTES_PREFIX . 'default', 0);
 
     // Weekday-specific limit overrides default limit.
     $key = DAILY_LIMIT_MINUTES_PREFIX . strtolower($now->format('D'));
-    $minutesLimitToday = get($config[$key], $minutesLimitToday);
+    $minutesLimitToday = getOrDefault($config, $key, $minutesLimitToday);
 
     $timeLeftToday = $minutesLimitToday * 60 - $timeSpentToday;
 

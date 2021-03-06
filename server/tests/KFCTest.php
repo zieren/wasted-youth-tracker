@@ -535,7 +535,7 @@ final class KFCTest extends KFCTestBase {
 
     $budgetId = $this->kfc->addBudget('b');
 
-    // A mapping is required for the budget to be returned.
+    // A mapping is required for the budget to be returned for the user.
     $this->assertEquals(
         $this->kfc->getAllBudgetConfigs('u'),
         []);

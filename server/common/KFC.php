@@ -437,6 +437,7 @@ class KFC {
                 WHERE user = |s0
                 AND ts >= |i1 AND ts < |i2
                 AND s <= 25
+                AND title != ""
             ) classes
             LEFT JOIN (
                 SELECT * FROM mappings WHERE user = |s0
@@ -465,6 +466,7 @@ class KFC {
    * of 0:00.
    *
    * TODO: Semantics, parameter names. How should we handle focus 0/1?
+   * TODO: Extract common code in query?
    */
   public function queryTimeSpentByTitle($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));

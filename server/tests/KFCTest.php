@@ -456,6 +456,25 @@ final class KFCTest extends KFCTestBase {
     }
   }
 
+  public function testIgnoreEmptyTitle(): void {
+    $fromTime = $this->newDateTime();
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
+    $this->mockTime += 5;
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
+    $this->mockTime += 5;
+    $this->kfc->insertWindowTitles('user_1', ['']);
+
+    $this->assertEquals(
+        $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        ['' => ['1970-01-01' => 10]]);
+
+    $this->mockTime += 5;
+    $this->kfc->insertWindowTitles('user_1', ['']);
+    $this->assertEquals(
+        $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime, null),
+        ['' => ['1970-01-01' => 10]]);
+  }
+
 }
 
 (new KFCTest())->run();

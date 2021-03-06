@@ -15,7 +15,7 @@ error_reporting(0);
  * ...
  *
  * At least the first line must be sent. Window title #0 is the one that has focus. If none has
- * focus, this line is empty.
+ * focus, this line is empty. This line may never be absent, even when there are no windows.
  *
  * Response format by line:
  *

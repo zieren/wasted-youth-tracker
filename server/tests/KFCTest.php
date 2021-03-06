@@ -475,6 +475,18 @@ final class KFCTest extends KFCTestBase {
         ['' => ['1970-01-01' => 10]]);
   }
 
+  public function testTimeLeftTodayAllBudgets_negative(): void {
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
+    $this->mockTime += 5;
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
+    $this->mockTime += 5;
+    $this->kfc->insertWindowTitles('user_1', ['']);
+
+    $this->assertEquals(
+        $this->kfc->queryTimeLeftTodayAllBudgets('user_1'),
+        ['' => -10]);
+  }
+
 }
 
 (new KFCTest())->run();

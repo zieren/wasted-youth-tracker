@@ -66,7 +66,7 @@ function getDateString($dateTime) {
 }
 
 function secondsToHHMMSS($seconds) {
-  return gmdate("H:i:s", $seconds);
+  return gmdate($seconds < 0 ? "-H:i:s" : "H:i:s", abs($seconds));
 }
 
 /**

@@ -30,12 +30,6 @@ function kfcFatalErrorHandler() {
 
 register_shutdown_function('kfcFatalErrorHandler');
 
-/** Returns the specified value if it is set, or $default otherwise. */
-function get(&$value, $default = null) {
-   // ö This function often modifies when called for an array.
-  return isset($value) ? $value : $default;
-}
-
 /** Returns the mapped value (possibly null) if $key exists, else $default. */
 function getOrDefault($array, $key, $default = null) {
   if (array_key_exists($key, $array)) {

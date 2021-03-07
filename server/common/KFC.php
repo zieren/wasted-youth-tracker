@@ -597,7 +597,7 @@ class KFC {
     $timeLeftToday = $minutesLimitToday * 60 - $timeSpentToday;
 
     // A weekly limit can shorten the daily limit, but not extend it.
-    if (isset($config['weekly_limit_minutes'])) { // TODO: array_key_exists! Check get() usages. ö
+    if (isset($config['weekly_limit_minutes'])) {
       $timeLeftInWeek = $config['weekly_limit_minutes'] * 60 - array_sum($timeSpentByDate);
       $timeLeftToday = min($timeLeftToday, $timeLeftInWeek);
     }

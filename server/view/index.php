@@ -12,12 +12,12 @@ require_once '../common/html_util.php';
 echo dateSelectorJs();
 
 $kfc = KFC::create(false /* create missing tables */);
-$dateString = get($_GET['date'], date('Y-m-d'));
+$dateString = getOrDefault($_GET, 'date', date('Y-m-d'));
 list($year, $month, $day) = explode('-', $dateString);
 // TODO: Catch invalid date.
 // TODO: Date needs to be pretty for the input (2-digit month/day etc.)
 $users = $kfc->getUsers();
-$user = get($_GET['user'], get($users[0], ''));
+$user = getOrDefault($_GET, 'user', getOrDefault($users, 0, ''));
 $configs = $kfc->getAllBudgetConfigs($user);
 
 echo '<h2>Links</h2>
@@ -42,7 +42,7 @@ $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
 $timeSpentByBudgetAndDate = $kfc->queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime);
 $timeSpentByBudget = [];
 foreach ($timeSpentByBudgetAndDate as $budgetId=>$timeSpentByDate) {
-  $timeSpentByBudget[$budgetId] = get($timeSpentByDate[$dateString], 0);
+  $timeSpentByBudget[$budgetId] = getOrDefault($timeSpentByDate, $dateString, 0);
 }
 // TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
 // budget at all.
@@ -57,7 +57,7 @@ for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
 }
 echoTable($timeSpentPerTitle);
 
-if (get($_GET['debug'])) {
+if (getOrDefault($_GET, 'debug')) {
   echo "<h2>Window title sequence</h2>";
   echoTable($kfc->queryTitleSequence($user, $fromTime));
 }

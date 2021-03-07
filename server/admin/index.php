@@ -62,7 +62,7 @@ if (isset($_POST['setUserConfig'])) {
   $user = $_POST['user'];
   $dateString = $_POST['date'];
   $budgetId = $_POST['budget'];
-  $minutes = get($_POST['overrideMinutes'], 0);
+  $minutes = getOrDefault($_POST, 'overrideMinutes', 0);
   $kfc->setOverrideMinutes($user, $dateString, $budgetId, $minutes);
 } else if (isset($_POST['unlock'])) {
   $user = $_POST['user'];
@@ -86,10 +86,10 @@ if (isset($_POST['setUserConfig'])) {
 
 $users = $kfc->getUsers();
 if (!isset($user)) {
-  $user = get($_GET['user'], get($users[0], ''));
+  $user = getOrDefault($_GET, 'user', getOrDefault($users, 0, ''));
 }
 if (!isset($dateString)) {
-  $dateString = get($_GET['date'], date('Y-m-d'));
+  $dateString = getOrDefault($_GET, 'date', date('Y-m-d'));
 }
 if (!isset($budgetId)) {
   $budgetId = 0;

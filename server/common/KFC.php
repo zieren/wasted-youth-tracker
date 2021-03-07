@@ -533,7 +533,7 @@ class KFC {
     $overrides = $this->queryOverrides($user, $budgetId, $now);
 
     $minutesSpentByBudgetAndDate = $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
-    $minutesSpentByDate = get($minutesSpentByBudgetAndDate[$budgetId], array());
+    $minutesSpentByDate = getOrDefault($minutesSpentByBudgetAndDate, $budgetId, array());
 
     return $this->computeMinutesLeftToday(
             $config, $now, $overrides, $minutesSpentByDate, $budgetId);
@@ -561,8 +561,8 @@ class KFC {
     $timeLeftByBudget = array();
     foreach ($budgetIds as $budgetId) {
       $config = getOrDefault($configs, $budgetId, array());
-      $timeSpentByDate = get($timeSpentByBudgetAndDate[$budgetId], array());
-      $overrides = get($overridesByBudget[$budgetId], array());
+      $timeSpentByDate = getOrDefault($timeSpentByBudgetAndDate, $budgetId, array());
+      $overrides = getOrDefault($overridesByBudget, $budgetId, array());
       $timeLeftByBudget[$budgetId] = $this->computeTimeLeftToday(
           $config, $now, $overrides, $timeSpentByDate, $budgetId);
     }
@@ -573,7 +573,7 @@ class KFC {
   // TODO: Placement
   private function computeTimeLeftToday($config, $now, $overrides, $timeSpentByDate) {
     $nowString = getDateString($now);
-    $timeSpentToday = get($timeSpentByDate[$nowString], 0);
+    $timeSpentToday = getOrDefault($timeSpentByDate, $nowString, 0);
 
     // Explicit overrides have highest priority.
     $requireUnlock = getOrDefault($config, 'require_unlock', false);

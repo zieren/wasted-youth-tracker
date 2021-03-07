@@ -6,7 +6,7 @@ require_once '../common/common.php';
 
 header("Cache-Control: max-age=0");
 
-$user = get($_GET['user']);
+$user = getOrDefault($_GET, 'user');
 if (!$user) {
   exit("Request is missing 'user' parameter");
 }

@@ -58,6 +58,13 @@ if (isset($_POST['setUserConfig'])) {
 } else if (isset($_POST['clearGlobalConfig'])) {
   $key = trim($_POST['configKey']);
   $kfc->clearGlobalConfig($key);
+} else if (isset($_POST['addBudget'])) {
+  $budgetName = trim($_POST['budgetName']);
+  $kfc->addBudget($budgetName);
+  echo "Budget added: " . $budgetName;
+} else if (isset($_POST['removeBudget'])) {
+  $budgetName = trim($_POST['budgetName']);
+  $kfc->removeBudget($budgetName);
 } else if (isset($_POST['setMinutes'])) {
   $user = $_POST['user'];
   $dateString = $_POST['date'];
@@ -97,6 +104,7 @@ if (!isset($budgetId)) {
 
 $budgetConfigs = $kfc->getAllBudgetConfigs($user);
 $budgetNames = budgetIdsToNames(array_keys($budgetConfigs), $budgetConfigs);
+$configs = $kfc->getAllBudgetConfigs($user);
 
 echo '<h1>'.KFC_SERVER_HEADING.'</h1>
 <p>(c) 2021 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
@@ -128,12 +136,44 @@ echo '
 echo '<h4>Current overrides</h4>';
 echoTable($kfc->queryRecentOverrides($user));
 
-echo '<h3>Budget configs</h3>';
+echo "<h3>Time left today</h3>";
+$timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
+echoTable(array(
+    budgetIdsToNames(array_keys($timeLeftByBudget), $configs),
+    array_map("secondsToHHMMSS", array_values($timeLeftByBudget))));
+
+// --- BEGIN duplicate code. TODO: Extract.
+echo "<h3>Time spent on selected date</h3>";
+$fromTime = new DateTime($dateString);
+$toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+$timeSpentByBudgetAndDate = $kfc->queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime);
+$timeSpentByBudget = [];
+foreach ($timeSpentByBudgetAndDate as $budgetId=>$timeSpentByDate) {
+  $timeSpentByBudget[$budgetId] = getOrDefault($timeSpentByDate, $dateString, 0);
+}
+// TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
+// budget at all.
+echoTable(array(
+    budgetIdsToNames(array_keys($timeSpentByBudget), $configs),
+    array_map("secondsToHHMMSS", array_values($timeSpentByBudget))));
+// --- END duplicate code
+
+echo '<h3>Budgets</h3>';
 
 foreach ($budgetConfigs as $budgetId => $config) {
   echo '<h4>' . html($budgetNames[$budgetId]) . "</h4>\n";
   echoTableAssociative($config);
 }
+
+echo '
+<h4>Add/remove budget</h4>
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">
+  <label for="idBudgetName">Budget name: </label>
+  <input id="idBudgetName" name="budgetName" type="text" value="">
+  <input type="submit" value="Add budget" name="addBudget">
+  <input type="submit" value="Remove budget and its config" name="removeBudget">
+</form>';
 
 /* There is currently no user config. But there probably will be soon.
 echo '<h3>User config</h3>';

@@ -12,7 +12,6 @@ require_once '../common/db.class.php';
 DB::$dbName = TEST_DB_NAME;
 DB::$user = TEST_DB_USER;
 DB::$password = TEST_DB_PASS;
-DB::$param_char = '|';
 
 final class KFCSlowTest extends KFCTestBase {
 
@@ -20,7 +19,7 @@ final class KFCSlowTest extends KFCTestBase {
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::WARNING);
     DB::query('SET FOREIGN_KEY_CHECKS = 0');
     $rows = DB::query(
-        'SELECT table_name FROM information_schema.tables WHERE table_schema = |s', DB::$dbName);
+        'SELECT table_name FROM information_schema.tables WHERE table_schema = %s', DB::$dbName);
     foreach ($rows as $row) {
       DB::query('DROP TABLE `' . $row['table_name'] . '`');
     }
@@ -32,6 +31,7 @@ final class KFCSlowTest extends KFCTestBase {
     for ($i = 0; $i < 2; $i++) {
       $this->onFailMessage("i=$i");
       KFC::createForTest(TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS, $this->mockTime, true);
+      $this->setErrorHandler();
 
       $classification = DB::query('SELECT * FROM classification');
       $this->assertEquals($classification, [[

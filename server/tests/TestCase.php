@@ -11,7 +11,7 @@ if (file_exists(TESTS_LOG)) {
 }
 Logger::initializeForTest(TESTS_LOG);
 
-class TestCase {
+abstract class TestCase {
 
   private $failedTests = [];
   private $passedTests = 0;

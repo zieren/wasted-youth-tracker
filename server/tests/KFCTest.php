@@ -19,7 +19,7 @@ final class KFCTest extends KFCTestBase {
           return $this->mockTime();
         });
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
-    parent::setUpTestCase();
+    $this->setErrorHandler();
     // TODO: Consider checking for errors (error_get_last() and DB error) in production code.
     // Errors often go unnoticed.
   }
@@ -551,6 +551,61 @@ final class KFCTest extends KFCTestBase {
     $this->assertEquals(
         $allBudgetConfigs,
         [$budgetId => ['foo' => 'bar', 'name' => 'b']]);
+  }
+
+  public function testManageBudgets(): void {
+    // No budgets set up.
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs(),
+        []);
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs('u1'),
+        []);
+    // Add a budget but no maping yet.
+    $budgetId1 = $this->kfc->addBudget('b1');
+    // Returned when user restriction is absent.
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs(),
+        [$budgetId1 => ['name' => 'b1']]);
+    // Not returned when user restriction is present.
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs('u1'),
+        []);
+    // Add a mapping.
+    $this->kfc->addMapping('u1', DEFAULT_CLASS_ID, $budgetId1);
+    // Returned when user restriction is absent.
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs(),
+        [$budgetId1 => ['name' => 'b1']]);
+    // Now also returned when user restriction is present.
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs('u1'),
+        [$budgetId1 => ['name' => 'b1']]);
+    // But not for another user.
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs('u2'),
+        []);
+
+    // TODO: Add budget config. Then remove budget (must remove mapping and config).
+
+    // Add budget config.
+    $this->kfc->setBudgetConfig($budgetId1, 'foo', 'bar');
+    $allBudgetConfigs = $this->kfc->getAllBudgetConfigs();
+    ksort($allBudgetConfigs[$budgetId1]);
+    $this->assertEquals(
+        $allBudgetConfigs,
+        [$budgetId1 => ['foo' => 'bar', 'name' => 'b1']]);
+    $allBudgetConfigs = $this->kfc->getAllBudgetConfigs('u1');
+    ksort($allBudgetConfigs[$budgetId1]);
+    $this->assertEquals(
+        $allBudgetConfigs,
+        [$budgetId1 => ['foo' => 'bar', 'name' => 'b1']]);
+
+    // Remove budget, including mappings and config.
+    $this->kfc->removeBudget('b1');
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs(),
+        []);
   }
 
 }

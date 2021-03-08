@@ -19,9 +19,11 @@ class KFCTestBase extends TestCase {
   public static $lastDbError = null;
   protected $mockTime; // epoch seconds, reset to 1000 before each test
 
-  protected function setUpTestCase(): void {
-    // This must happen after KFC instantiation: KFC also sets a DB error handler, and we need to
-    // override it here.
+  /**
+   * This must happen after KFC instantiation: KFC also sets a DB error handler, and we need to
+   * override it here.
+   */
+  protected function setErrorHandler(): void {
     DB::$error_handler = 'logDbQueryErrorInTest';
   }
 

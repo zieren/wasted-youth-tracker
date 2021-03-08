@@ -83,7 +83,8 @@ class KFC {
         'CREATE TABLE IF NOT EXISTS classes ('
         . 'id INT NOT NULL AUTO_INCREMENT, '
         . 'name VARCHAR(256) NOT NULL, '
-        . 'PRIMARY KEY (id)) '
+        . 'PRIMARY KEY (id) '
+        . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
         'CREATE TABLE IF NOT EXISTS activity ('
@@ -93,7 +94,8 @@ class KFC {
         . 'focus BOOL NOT NULL, '
         . 'title VARCHAR(256) NOT NULL, '
         . 'PRIMARY KEY (user, ts, class_id, title), '
-        . 'FOREIGN KEY (class_id) REFERENCES classes(id)) '
+        . 'FOREIGN KEY (class_id) REFERENCES classes(id) '
+        . ') '
         . CREATE_TABLE_SUFFIX);  // ON DELETE CASCADE?
     DB::query(
         'CREATE TABLE IF NOT EXISTS classification ('
@@ -102,13 +104,15 @@ class KFC {
         . 'priority INT NOT NULL, '
         . 're VARCHAR(1024) NOT NULL, '
         . 'PRIMARY KEY (id), '
-        . 'FOREIGN KEY (class_id) REFERENCES classes(id)) '
+        . 'FOREIGN KEY (class_id) REFERENCES classes(id) '
+        . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
         'CREATE TABLE IF NOT EXISTS budgets ('
         . 'id INT NOT NULL AUTO_INCREMENT, '
         . 'name VARCHAR(256) NOT NULL, '
-        . 'PRIMARY KEY (id)) '
+        . 'PRIMARY KEY (id) '
+        . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
         'CREATE TABLE IF NOT EXISTS mappings ('
@@ -117,8 +121,9 @@ class KFC {
         . 'class_id INT NOT NULL, '
         . 'budget_id INT NOT NULL, '
         . 'PRIMARY KEY (user, class_id, budget_id), '
-        . 'FOREIGN KEY (class_id) REFERENCES classes(id), '
-        . 'FOREIGN KEY (budget_id) REFERENCES budgets(id)) '
+        . 'FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE, '
+        . 'FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE '
+        . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
         'CREATE TABLE IF NOT EXISTS budget_config ('
@@ -126,20 +131,23 @@ class KFC {
         . 'k VARCHAR(100) NOT NULL, '
         . 'v VARCHAR(200) NOT NULL, '
         . 'PRIMARY KEY (budget_id, k), '
-        . 'FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE RESTRICT) '
+        . 'FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE '
+        . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
         'CREATE TABLE IF NOT EXISTS user_config ('
         . 'user VARCHAR(32) NOT NULL, '
         . 'k VARCHAR(100) NOT NULL, '
         . 'v VARCHAR(200) NOT NULL, '
-        . 'PRIMARY KEY (user, k)) '
+        . 'PRIMARY KEY (user, k) '
+        . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
         'CREATE TABLE IF NOT EXISTS global_config ('
         . 'k VARCHAR(100) NOT NULL, '
         . 'v VARCHAR(200) NOT NULL, '
-        . 'PRIMARY KEY (k)) '
+        . 'PRIMARY KEY (k) '
+        . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
         'CREATE TABLE IF NOT EXISTS overrides ('
@@ -148,7 +156,8 @@ class KFC {
         . 'budget_id INT NOT NULL, '
         . 'minutes INT, '
         . 'unlocked BOOL, '
-        . 'PRIMARY KEY (user, date, budget_id)) '
+        . 'PRIMARY KEY (user, date, budget_id) '
+        . ') '
         . CREATE_TABLE_SUFFIX);
     $this->insertDefaultRows();
   }
@@ -180,6 +189,10 @@ class KFC {
   public function addBudget($budgetName) {
     DB::insert('budgets', ['name' => $budgetName]);
     return DB::insertId();
+  }
+
+  public function removeBudget($budgetName) {
+    DB::delete('budgets', 'name = |s', $budgetName);
   }
 
   public function addClass($className) {
@@ -291,19 +304,20 @@ class KFC {
   }
 
   /**
-   * Returns configs of all budgets that are mapped for the specified user. The virtual key
-   * 'name' is populated with the budget's name.
-   * Returns a 2D array $configs[$budgetId][$key] = $value. The array is sorted by budget ID.
+   * Returns configs of all budgets, optionally restricted to those mapped for the specified user.
+   * The virtual key 'name' is populated with the budget's name. Returns a 2D array
+   * $configs[$budgetId][$key] = $value. The array is sorted by budget ID.
    */
-  public function getAllBudgetConfigs($user) {
-    $rows = DB::query(
-        'SELECT id, name, k, v'
+  public function getAllBudgetConfigs($user = null) {
+    $query = 'SELECT id, name, k, v'
         . ' FROM budget_config'
-        . ' RIGHT JOIN budgets ON budget_config.budget_id = budgets.id'
-        . ' JOIN mappings ON mappings.budget_id = budgets.id'
-        . ' WHERE user = |s'
-        . ' ORDER BY id, k',
-        $user);
+        . ' RIGHT JOIN budgets ON budget_config.budget_id = budgets.id';
+    if ($user) {
+      $query .= ' JOIN mappings ON mappings.budget_id = budgets.id'
+          . ' WHERE user = |s';
+    }
+    $query .= ' ORDER BY id, k';
+    $rows = $user ? DB::query($query, $user) : DB::query($query);
     $configs = [];
     foreach ($rows as $row) {
       $budgetId = $row['id'];

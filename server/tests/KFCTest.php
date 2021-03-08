@@ -571,8 +571,22 @@ final class KFCTest extends KFCTestBase {
     $this->assertEquals(
         $this->kfc->getAllBudgetConfigs('u1'),
         []);
+
     // Add a mapping.
+    // TODO: ksort
+    $this->assertEquals(
+        $this->kfc->classify(['foo']), [[
+            'class_id' => DEFAULT_CLASS_ID,
+            'class_name' => DEFAULT_CLASS_NAME,
+            'budget_ids' => [],
+            ]]);
     $this->kfc->addMapping('u1', DEFAULT_CLASS_ID, $budgetId1);
+    $this->assertEquals(
+        $this->kfc->classify(['foo']), [[
+            'class_id' => DEFAULT_CLASS_ID,
+            'class_name' => DEFAULT_CLASS_NAME,
+            'budget_ids' => [$budgetId1],
+            ]]);
     // Returned when user restriction is absent.
     $this->assertEquals(
         $this->kfc->getAllBudgetConfigs(),
@@ -587,6 +601,7 @@ final class KFCTest extends KFCTestBase {
         []);
 
     // TODO: Add budget config. Then remove budget (must remove mapping and config).
+    // Test that the right records are removed. E.g. classes should not be removed.
 
     // Add budget config.
     $this->kfc->setBudgetConfig($budgetId1, 'foo', 'bar');
@@ -601,11 +616,13 @@ final class KFCTest extends KFCTestBase {
         $allBudgetConfigs,
         [$budgetId1 => ['foo' => 'bar', 'name' => 'b1']]);
 
-    // Remove budget, including mappings and config.
+    // Remove budget, this cascades to mappings and config.
     $this->kfc->removeBudget('b1');
     $this->assertEquals(
         $this->kfc->getAllBudgetConfigs(),
         []);
+
+    // TODO: Assert absence of mapping.
   }
 
 }

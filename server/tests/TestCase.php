@@ -50,17 +50,40 @@ abstract class TestCase {
       return;
     }
 
+    // Walk stack from the top to find the invocation of the test method.
     $bt = debug_backtrace();
-    $caller = array_shift($bt);
+    $line = 'unknown';
+    for ($i = count($bt) - 1; $i >= 0; $i--) {
+      if ($bt[$i]['function'] == 'invoke') {
+        // 'line' is the caller's line, so subtract 2.
+        $line = $bt[$i - 2]['line'];
+        break;
+      }
+    }
 
     ob_start();
-    echo 'Line ' . $caller['line'] . ': Equality assertion failed:'
+    echo 'Line ' . $line . ': Equality assertion failed:'
         . '<br><span style="background-color: yellow">';
     var_dump($actual);
     echo '</span><br><span style="background-color: lightgreen">';
     var_dump($expected);
     echo '</span>';
     throw new AssertionError(ob_get_clean());
+  }
+
+  protected function assertEqualsIgnoreOrder($actual, $expected): void {
+    $this->sortArrays($actual);
+    $this->sortArrays($expected);
+    $this->assertEquals($actual, $expected);
+  }
+
+  private function sortArrays(&$a): void {
+    if (is_array($a)) {
+      ksort($a);
+      foreach (array_keys($a) as $k) {
+        $this->sortArrays($a[$k]);
+      }
+    }
   }
 
   public function run(): void {

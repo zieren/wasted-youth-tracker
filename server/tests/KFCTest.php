@@ -546,10 +546,8 @@ final class KFCTest extends KFCTestBase {
 
     // Add a config.
     $this->kfc->setBudgetConfig($budgetId, 'foo', 'bar');
-    $allBudgetConfigs = $this->kfc->getAllBudgetConfigs('u');
-    ksort($allBudgetConfigs[$budgetId]);
-    $this->assertEquals(
-        $allBudgetConfigs,
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->getAllBudgetConfigs('u'),
         [$budgetId => ['foo' => 'bar', 'name' => 'b']]);
   }
 
@@ -573,15 +571,14 @@ final class KFCTest extends KFCTestBase {
         []);
 
     // Add a mapping.
-    // TODO: ksort
-    $this->assertEquals(
+    $this->assertEqualsIgnoreOrder(
         $this->kfc->classify(['foo']), [[
             'class_id' => DEFAULT_CLASS_ID,
             'class_name' => DEFAULT_CLASS_NAME,
             'budget_ids' => [],
             ]]);
     $this->kfc->addMapping('u1', DEFAULT_CLASS_ID, $budgetId1);
-    $this->assertEquals(
+    $this->assertEqualsIgnoreOrder(
         $this->kfc->classify(['foo']), [[
             'class_id' => DEFAULT_CLASS_ID,
             'class_name' => DEFAULT_CLASS_NAME,
@@ -600,29 +597,26 @@ final class KFCTest extends KFCTestBase {
         $this->kfc->getAllBudgetConfigs('u2'),
         []);
 
-    // TODO: Add budget config. Then remove budget (must remove mapping and config).
-    // Test that the right records are removed. E.g. classes should not be removed.
-
     // Add budget config.
     $this->kfc->setBudgetConfig($budgetId1, 'foo', 'bar');
-    $allBudgetConfigs = $this->kfc->getAllBudgetConfigs();
-    ksort($allBudgetConfigs[$budgetId1]);
-    $this->assertEquals(
-        $allBudgetConfigs,
-        [$budgetId1 => ['foo' => 'bar', 'name' => 'b1']]);
-    $allBudgetConfigs = $this->kfc->getAllBudgetConfigs('u1');
-    ksort($allBudgetConfigs[$budgetId1]);
-    $this->assertEquals(
-        $allBudgetConfigs,
-        [$budgetId1 => ['foo' => 'bar', 'name' => 'b1']]);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->getAllBudgetConfigs(),
+        [$budgetId1 => ['name' => 'b1', 'foo' => 'bar']]);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->getAllBudgetConfigs('u1'),
+        [$budgetId1 => ['name' => 'b1', 'foo' => 'bar']]);
 
     // Remove budget, this cascades to mappings and config.
     $this->kfc->removeBudget('b1');
     $this->assertEquals(
         $this->kfc->getAllBudgetConfigs(),
         []);
-
-    // TODO: Assert absence of mapping.
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->classify(['foo']), [[
+            'class_id' => DEFAULT_CLASS_ID,
+            'class_name' => DEFAULT_CLASS_NAME,
+            'budget_ids' => [],
+            ]]);
   }
 
 }

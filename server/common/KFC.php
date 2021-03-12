@@ -451,7 +451,8 @@ class KFC {
 
   /**
    * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by budget
-   * ID (including NULL for "no budget") and date. $toTime may be null to omit the upper limit.
+   * ID (including NULL for "no budget", if applicable) and date. $toTime may be null to omit the
+   * upper limit.
    */
   public function queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime = null) {
     // TODO: Optionally restrict to activity.focus=1.
@@ -569,7 +570,8 @@ class KFC {
 
   /**
    * Like queryTimeLeftToday() above, but returns results for all budgets in an array keyed by
-   * budget ID.
+   * budget ID. The special ID null indicating "no budget" is present iff the value is < 0, meaning
+   * that time was spent outside of any budget.
    */
   public function queryTimeLeftTodayAllBudgets($user) {
     $configs = $this->getAllBudgetConfigs($user);
@@ -598,7 +600,6 @@ class KFC {
     return $timeLeftByBudget;
   }
 
-  // TODO: Placement
   private function computeTimeLeftToday($config, $now, $overrides, $timeSpentByDate) {
     $nowString = getDateString($now);
     $timeSpentToday = getOrDefault($timeSpentByDate, $nowString, 0);

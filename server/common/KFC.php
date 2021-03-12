@@ -337,33 +337,36 @@ class KFC {
   // ---------- WRITE ACTIVITY QUERIES ----------
 
   /**
-   * Records the specified window titles. The first title has focus. If no window has focus, the
-   * first title must be "". Return value is that of classify(), with an added field 'remaining'
-   * computed from the matching budget(s).
+   * Records the specified window titles. If no window has focus, $focusIndex should be -1.
+   * Return value is that of classify(), with an added field 'remaining' computed via the business
+   * logic. If this value is <= 0 the window should be closed.
+   *
+   * If no windows are open, $titles should be an empty array. In this case the timestamp is
+   * recorded for the computation of the previous interval.
    */
-  public function insertWindowTitles($user, $titles) {
+  public function insertWindowTitles($user, $titles, $focusIndex) {
     $ts = $this->time();
-    $focusIndex = 0;
-    if (!$titles[0]) { // none has focus
-      $focusIndex = -1;
-      // The case "no windows at all" also leads here because it has $titles=[""]. We need to keep
-      // one title to produce a timestamp. "" is later filtered when calculating times.
-      if (count($titles) > 1) {
-        unset($titles[0]);
-      }
-    }
-    $classifications = $this->classify($titles);
-    if (count($classifications) != count($titles)) {
-      $this->throwException('internal error: ' . count($titles) . ' titles vs. '
-          . count($classifications) . ' classifications');
+
+    // Special case: No windows open. We only record a timestamp.
+    if (!$titles) {
+      DB::replace('activity', [
+          'ts' => $ts,
+          'user' => $user,
+          'title' => '',
+          'class_id' => DEFAULT_CLASS_ID,
+          'focus' => 0]);
+      return [];
     }
 
+    $classifications = $this->classify($titles);
     $rows = [];
     foreach ($titles as $i => $title) {
       $rows[] = [
           'ts' => $ts,
           'user' => $user,
-          'title' => $title,
+          // An empty title is not counted and only serves to close the interval. In the unlikely
+          // event a window actually has no title, substitute something non-empty.
+          'title' => $title ? $title : '(no title)',
           'class_id' => $classifications[$i]['class_id'],
           'focus' => $i == $focusIndex ? 1 : 0,
           ];
@@ -450,7 +453,7 @@ class KFC {
    * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by budget
    * ID (including NULL for "no budget") and date. $toTime may be null to omit the upper limit.
    */
-  public function queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime) {
+  public function queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime = null) {
     // TODO: Optionally restrict to activity.focus=1.
     $toTimestamp = $toTime ? $toTime->getTimestamp() : 9223372036854775807; // max(BIGINT)
     DB::query('SET @prev_ts = 0'); // TODO: ":=" vs "="
@@ -526,6 +529,7 @@ class KFC {
                 WHERE user = |s0
                 AND ts >= |i1 AND ts < |i2
                 AND s <= 25
+                AND title != ""
                 ORDER BY ts_last_seen DESC
             ) with_ts_last_seen_desc
             GROUP BY title, class_id

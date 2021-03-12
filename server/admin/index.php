@@ -59,12 +59,21 @@ if (isset($_POST['setUserConfig'])) {
   $key = trim($_POST['configKey']);
   $kfc->clearGlobalConfig($key);
 } else if (isset($_POST['addBudget'])) {
-  $budgetName = trim($_POST['budgetName']);
+  $budgetName = trim($_POST['budgetNameOrId']);
   $kfc->addBudget($budgetName);
   echo "Budget added: " . $budgetName;
 } else if (isset($_POST['removeBudget'])) {
-  $budgetName = trim($_POST['budgetName']);
-  $kfc->removeBudget($budgetName);
+  $budgetId = trim($_POST['budgetNameOrId']);
+  $kfc->removeBudget($budgetId);
+} else if (isset($_POST['setBudgetConfig'])) {
+  $budgetId = trim($_POST['budgetId']);
+  $key = trim($_POST['budgetConfigKey']);
+  $value = trim($_POST['budgetConfigValue']);
+  $kfc->setBudgetConfig($budgetId, $key, $value);
+} else if (isset($_POST['clearBudgetConfig'])) {
+  $budgetId = trim($_POST['budgetId']);
+  $key = trim($_POST['budgetConfigKey']);
+  $kfc->clearBudgetConfig($budgetId, $key);
 } else if (isset($_POST['setMinutes'])) {
   $user = $_POST['user'];
   $dateString = $_POST['date'];
@@ -136,7 +145,7 @@ echo '
 echo '<h4>Current overrides</h4>';
 echoTable($kfc->queryRecentOverrides($user));
 
-echo "<h3>Time left today</h3>";
+echo '<h3>Time left today</h3>';
 $timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
 echoTable(array(
     budgetIdsToNames(array_keys($timeLeftByBudget), $configs),
@@ -162,6 +171,7 @@ echo '<h3>Budgets</h3>';
 
 foreach ($budgetConfigs as $budgetId => $config) {
   echo '<h4>' . html($budgetNames[$budgetId]) . "</h4>\n";
+  $config['id'] = $budgetId;
   echoTableAssociative($config);
 }
 
@@ -169,11 +179,23 @@ echo '
 <h4>Add/remove budget</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">
-  <label for="idBudgetName">Budget name: </label>
-  <input id="idBudgetName" name="budgetName" type="text" value="">
+  <label for="idBudgetNameOrId">Budget name/ID: </label>
+  <input id="idBudgetNameOrId" name="budgetNameOrId" type="text" value="">
   <input type="submit" value="Add budget" name="addBudget">
   <input type="submit" value="Remove budget and its config" name="removeBudget">
-</form>';
+</form>
+
+<h4>Configure budget</h4>
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">
+  <label for="idBudgetId">Budget ID: </label>
+  <input id="idBudgetId" name="budgetId" type="number" value="" min="1">
+  <input type="text" name="budgetConfigKey" value="" placeholder="key">
+  <input type="text" name="budgetConfigValue" value="" placeholder="value">
+  <input type="submit" value="Set config" name="setBudgetConfig">
+  <input type="submit" value="Clear config" name="clearBudgetConfig">
+</form>
+';
 
 /* There is currently no user config. But there probably will be soon.
 echo '<h3>User config</h3>';
@@ -185,7 +207,7 @@ echoTable($kfc->getGlobalConfig());
 
 echo '<h2>Update config</h2>
 <form method="post" enctype="multipart/form-data">
-  <input type="text" name="configUser" value="" placeholder="user">
+  <input type="hidden" name="configUser" value="' . $user . '">
   <input type="text" name="configKey" value="" placeholder="key">
   <input type="text" name="configValue" value="" placeholder="value">
   <input type="submit" name="setUserConfig" value="Set User Config">

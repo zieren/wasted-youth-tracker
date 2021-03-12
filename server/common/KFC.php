@@ -188,11 +188,11 @@ class KFC {
 
   public function addBudget($budgetName) {
     DB::insert('budgets', ['name' => $budgetName]);
-    return DB::insertId();
+    return intval(DB::insertId());
   }
 
-  public function removeBudget($budgetName) {
-    DB::delete('budgets', 'name = |s', $budgetName);
+  public function removeBudget($budgetId) {
+    DB::delete('budgets', 'id = |i', $budgetId);
   }
 
   public function addClass($className) {
@@ -215,6 +215,7 @@ class KFC {
         'class_id' => $classId,
         'budget_id' => $budgetId,
         ]);
+    return DB::insertId();
   }
 
   /** TODO */
@@ -347,7 +348,7 @@ class KFC {
     if (!$titles[0]) { // none has focus
       $focusIndex = -1;
       // The case "no windows at all" also leads here because it has $titles=[""]. We need to keep
-      // one title to produce a timestamp. "" is filtered when calculating times.
+      // one title to produce a timestamp. "" is later filtered when calculating times.
       if (count($titles) > 1) {
         unset($titles[0]);
       }
@@ -369,6 +370,16 @@ class KFC {
           ];
     }
     DB::replace('activity', $rows);
+
+    // Set remaining time.
+    $timeLeft = $this->queryTimeLeftTodayAllBudgets($user);
+    foreach ($classifications as &$classification) {
+      $remaining = $classification['budget_ids'] ? 24 * 60 * 60 : $timeLeft[null];
+      foreach ($classification['budget_ids'] as $budgetId) {
+        $remaining = min($remaining, $timeLeft[$budgetId]);
+      }
+      $classification['remaining'] = $remaining;
+    }
     return $classifications;
   }
 
@@ -438,7 +449,7 @@ class KFC {
 
   /**
    * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by budget
-   * ID and date. $toTime may be null to omit the upper limit.
+   * ID (including NULL for "no budget") and date. $toTime may be null to omit the upper limit.
    */
   public function queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime) {
     // TODO: Optionally restrict to activity.focus=1.

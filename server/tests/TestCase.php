@@ -80,8 +80,8 @@ abstract class TestCase {
   private function sortArrays(&$a): void {
     if (is_array($a)) {
       ksort($a);
-      foreach (array_keys($a) as $k) {
-        $this->sortArrays($a[$k]);
+      foreach ($a as &$v) {
+        $this->sortArrays($v);
       }
     }
   }

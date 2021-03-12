@@ -11,6 +11,7 @@ require_once '../common/db.class.php';
 
 final class KFCTest extends KFCTestBase {
 
+  /** @var KFC */
   protected $kfc;
 
   protected function setUpTestCase(): void {
@@ -655,65 +656,104 @@ final class KFCTest extends KFCTestBase {
         [$budgetId1 => 120]);
 
     // Start consuming time.
-    $singleClassification = [
+    $classification = [[
         'class_id' => $classId,
         'class_name' => 'c1',
-        'budget_ids' =>  [$budgetId1]];
+        'budget_ids' =>  [$budgetId1],
+        'remaining' => 120]];
 
-    $singleClassification['remaining'] = 120;
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 1']),
-        [$singleClassification]);
+        $classification);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
         [$budgetId1 => 120]);
 
     $this->mockTime += 15;
-    $singleClassification['remaining'] = 105;
+    $classification[0]['remaining'] = 105;
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 1']),
-        [$singleClassification]);
+        $classification);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
         [$budgetId1 => 105]);
 
     // Add a window that maps to no budget.
     $this->mockTime += 15;
-    $singleClassification['remaining'] = 90;
+    $classification[0]['remaining'] = 90;
+    $classification[] = [
+        'class_id' => DEFAULT_CLASS_ID,
+        'class_name' => DEFAULT_CLASS_NAME,
+        'budget_ids' => [],
+        'remaining' => 0];
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2']),
-        [$singleClassification, [
-            'class_id' => DEFAULT_CLASS_ID,
-            'class_name' => DEFAULT_CLASS_NAME,
-            'budget_ids' => [],
-            'remaining' => 0]]);
+        $classification);
     $this->mockTime += 15;
-    $singleClassification['remaining'] = 75;
+    $classification[0]['remaining'] = 75;
+    $classification[1]['remaining'] = -15;
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2']),
-        [$singleClassification, [
-            'class_id' => DEFAULT_CLASS_ID,
-            'class_name' => DEFAULT_CLASS_NAME,
-            'budget_ids' => [],
-            'remaining' => -15]]);
+        $classification);
 
     // Add a second budget for title 1 with only 1 minute.
     $budgetId2 = $this->kfc->addBudget('b2');
     $this->kfc->addMapping('u1', $classId, $budgetId2);
     $this->kfc->setBudgetConfig($budgetId2, 'daily_limit_minutes_default', 1);
     $this->mockTime += 1;
-    $singleClassification['remaining'] = 14;
-    $singleClassification['budget_ids'][] = $budgetId2;
+    $classification[0]['remaining'] = 14;
+    $classification[0]['budget_ids'][] = $budgetId2;
+    $classification[1]['remaining'] = -16;
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2']),
-        [$singleClassification, [
-            'class_id' => DEFAULT_CLASS_ID,
-            'class_name' => DEFAULT_CLASS_NAME,
-            'budget_ids' => [],
-            'remaining' => -16]]);
+        $classification);
   }
 
-  // TODO: Test that classification return values are OK when no window has focus.
+  private function classification($id, $name, $budgetIds, $remaining) {
+    return [
+        'class_id' => $id,
+        'class_name' => $name,
+        'budget_ids' => $budgetIds,
+        'remaining' => $remaining];
+  }
+
+  public function testClassify_noFocus(): void {
+    $classId1 = $this->kfc->addClass('c1');
+    $classId2 = $this->kfc->addClass('c2');
+    $this->kfc->addClassification($classId1, 0, '1$');
+    $this->kfc->addClassification($classId2, 10, '2$');
+
+    // Single window, with focus.
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['title 2']), [
+            $this->classification($classId2, 'c2', [], 0)]);
+
+    // Single window, no focus.
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['', 'title 2']), [
+            $this->classification($classId2, 'c2', [], 0)]);
+
+    // Two windows, with focus.
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2']), [
+            $this->classification($classId1, 'c1', [], 0),
+            $this->classification($classId2, 'c2', [], 0)]);
+
+    // Two windows, no focus.
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['', 'title 1', 'title 2']), [
+            $this->classification($classId1, 'c1', [], 0),
+            $this->classification($classId2, 'c2', [], 0)]);
+
+    // No window at all.
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['']), []);
+
+    // Single window, not focused.
+    // Two windows, none focused.
+  }
+
+  // TODO: Test that classification (also from insert) return values are OK when no window has focus.
 }
 
 (new KFCTest())->run();

@@ -39,7 +39,7 @@ function handleRequest() {
 
   $kfc = KFC::create();
 
-  $kfc->insertWindowTitles($user, $titles);
+  $classifications = $kfc->insertWindowTitles($user, $titles);
   return "ok\n42\n" ;
 
   /*

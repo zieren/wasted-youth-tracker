@@ -222,11 +222,11 @@ class KFC {
   public function classify($titles) {
     /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
       foreach ($titlesEsc as $i => $titleEsc) {
-      if ($i == 0) {
-      $q1 = 'SELECT "' . $titleEsc . '" AS title';
-      } else {
-      $q1 .= ' UNION ALL SELECT "' . $titleEsc . '"';
-      }
+        if ($i == 0) {
+          $q1 = 'SELECT "' . $titleEsc . '" AS title';
+        } else {
+          $q1 .= ' UNION ALL SELECT "' . $titleEsc . '"';
+        }
       }
      */
     $classifications = [];
@@ -338,10 +338,9 @@ class KFC {
 
   /**
    * Records the specified window titles. The first title has focus. If no window has focus, the
-   * first title must be "". Return value is that of classify().
+   * first title must be "". Return value is that of classify(), with an added field 'remaining'
+   * computed from the matching budget(s).
    */
-  // TODO: I assume this will have to return the budget ID as well, so we can tell the client
-  // which windows to close.
   public function insertWindowTitles($user, $titles) {
     $ts = $this->time();
     $focusIndex = 0;

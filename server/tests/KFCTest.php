@@ -8,6 +8,7 @@ require_once 'TestCase.php'; // Must initialize Logger before...
 require_once '../common/common.php'; // ... Logger is used here.
 require_once 'config_tests.php';
 require_once '../common/db.class.php';
+require_once '../rx/RX.php';
 
 final class KFCTest extends KFCTestBase {
 
@@ -817,6 +818,93 @@ final class KFCTest extends KFCTestBase {
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
         ['' => ['1970-01-01' => 1]]);
+  }
+
+  public function testHandleRequest_invalidRequests(): void {
+    foreach (['', "u1\nfoo", "\n123"] as $content) {
+      $this->onFailMessage("content: $content");
+      $this->assertEquals(
+          explode("\n", RX::handleRequest($content, $this->kfc), 1)[0],
+          "error\nInvalid request");
+    }
+  }
+
+  public function testHandleRequest_smokeTest(): void {
+    $this->assertEquals(
+        RX::handleRequest("u1\n-1", $this->kfc),
+        '');
+    $this->mockTime++;
+    $this->assertEquals(
+        RX::handleRequest("u1\n0\ntitle 1", $this->kfc),
+        '0:0:no_budget');
+  }
+
+  public function testHandleRequest_withBudgets(): void {
+    $classId1 = $this->kfc->addClass('c1');
+    $this->kfc->addClassification($classId1, 0, '1$');
+    $budgetId1 = $this->kfc->addBudget('b1');
+    $this->kfc->addMapping('u1', $classId1, $budgetId1);
+    $this->kfc->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 5);
+
+    $this->assertEquals(RX::handleRequest("u1\n-1", $this->kfc), '');
+    $this->mockTime++;
+    $this->assertEquals(
+        RX::handleRequest("u1\n0\ntitle 1", $this->kfc),
+        '0:300:b1');
+    $this->mockTime++;
+    $this->assertEquals(
+        RX::handleRequest("u1\n0\ntitle 1", $this->kfc),
+        '0:299:b1');
+    $this->mockTime++;
+    $this->assertEquals(
+        RX::handleRequest("u1\n0\ntitle 1\nfoo", $this->kfc),
+        "0:298:b1\n" .
+        '1:0:no_budget');
+    $this->mockTime++;
+    $this->assertEquals(
+        RX::handleRequest("u1\n0\ntitle 1\nfoo", $this->kfc),
+        "0:297:b1\n" .
+        '1:-1:no_budget');
+
+    // Flip order.
+    $this->mockTime++;
+    $this->assertEquals(
+        RX::handleRequest("u1\n0\nfoo\ntitle 1", $this->kfc),
+        "0:-2:no_budget\n" .
+        '1:296:b1');
+
+    // Add second budget.
+    $classId2 = $this->kfc->addClass('c2');
+    $this->kfc->addClassification($classId2, 10, '2$');
+    $budgetId2 = $this->kfc->addBudget('b2');
+    $this->kfc->addMapping('u1', $classId1, $budgetId2);
+    $this->kfc->addMapping('u1', $classId2, $budgetId2);
+    $this->kfc->setBudgetConfig($budgetId2, 'daily_limit_minutes_default', 2);
+
+    $this->mockTime++;
+    $this->assertEquals(
+        RX::handleRequest("u1\n0\ntitle 1\nfoo", $this->kfc),
+        "0:295:b1\n" .
+        "0:115:b2\n" .
+        '1:-3:no_budget');
+    $this->mockTime++;
+    $this->assertEquals(
+        RX::handleRequest("u1\n0\ntitle 1\ntitle 2", $this->kfc),
+        "0:294:b1\n" .
+        "0:114:b2\n" .
+        '1:114:b2');
+    $this->mockTime++;
+    $this->assertEquals(
+        RX::handleRequest("u1\n0\ntitle 2", $this->kfc),
+        '0:113:b2');
+    $this->mockTime++; // This still counts towards title 2.
+    $this->assertEquals(
+        RX::handleRequest("u1\n-1", $this->kfc),
+        '');
+    $this->mockTime++;
+    $this->assertEquals(
+        RX::handleRequest("u1\n0\ntitle 2", $this->kfc),
+        '0:112:b2');
   }
 
   // TODO: Consider writing a test case that follows a representative sequence of events.

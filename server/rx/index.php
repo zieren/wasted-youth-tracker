@@ -35,11 +35,23 @@ function handleRequest() {
   }
 
   $user = $lines[0];
-  $titles = array_slice($lines, 1);
+  $titles = array_slice($lines, 1); // could be empty
 
   $kfc = KFC::create();
 
   $classifications = $kfc->insertWindowTitles($user, $titles);
+
+
+  foreach ($classifications as $classification) {
+
+  }
+
+  // Special case: Nothing is running.
+  // TODO: Whether this is OK or not should probably be a config option.
+  if (!$classifications) {
+  }
+
+
   return "ok\n42\n" ;
 
   /*

@@ -805,27 +805,18 @@ final class KFCTest extends KFCTestBase {
         ['' => ['1970-01-01' => 8]]);
   }
 
-  public function OBSOLETE_testNoBudgetAlwaysReturned(): void {
-    $fromTime = $this->newDateTime();
-    $classId = $this->kfc->addClass('c1');
-    $this->kfc->addClassification($classId, 42, '1$');
-    $budgetId = $this->kfc->addBudget('b1');
-    $this->kfc->addMapping('u1', $classId, $budgetId);
-
-    $this->kfc->insertWindowTitles('u1', ['window 1'], 0);
-    $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['window 1'], 0);
-
-    $this->assertEqualsIgnoreOrder(
-        $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
-        ['' =>  0, $budgetId => -1]);
-  }
-
-  // TODO: Insert two windows with the same title. Should only produce one record due to PK.
   public function testSameTitle(): void {
     $fromTime = $this->newDateTime();
     $this->kfc->insertWindowTitles('u1', ['Calculator', 'Calculator'], 0);
-    // TODO: PK should include focus flag. We need to add the focus options.
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', ['Calculator', 'Calculator'], 0);
+    $lastSeen = $this->dateTimeString();
+    $this->assertEquals(
+        $this->kfc->queryTimeSpentByTitle('u1', $fromTime), [
+            [$lastSeen, 1, DEFAULT_CLASS_NAME, 'Calculator']]);
+    $this->assertEquals(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
+        ['' => ['1970-01-01' => 1]]);
   }
 
   // TODO: Consider writing a test case that follows a representative sequence of events.

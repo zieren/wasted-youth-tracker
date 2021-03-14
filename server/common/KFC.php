@@ -93,7 +93,7 @@ class KFC {
         . 'class_id INT NOT NULL, '
         . 'focus BOOL NOT NULL, '
         . 'title VARCHAR(256) NOT NULL, '
-        . 'PRIMARY KEY (user, ts, class_id, title), '
+        . 'PRIMARY KEY (user, ts, class_id, title, focus), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id) '
         . ') '
         . CREATE_TABLE_SUFFIX);  // ON DELETE CASCADE?
@@ -520,7 +520,6 @@ class KFC {
    * of 0:00.
    *
    * TODO: Semantics, parameter names. How should we handle focus 0/1?
-   * TODO: Extract common code in query?
    */
   public function queryTimeSpentByTitle($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
@@ -529,7 +528,7 @@ class KFC {
     $rows = DB::query('
         SELECT title, name, sum_s, ts_last_seen FROM (
             SELECT title, class_id, SUM(s) AS sum_s, ts_last_seen FROM (
-                SELECT title, class_id, s, ts + s as ts_last_seen FROM (
+                SELECT DISTINCT title, class_id, s, ts + s as ts_last_seen FROM (
                     SELECT
                         IF(@prev_ts = 0, 0, @prev_ts - ts) AS s,
                         @prev_ts := ts AS ts_key

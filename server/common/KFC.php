@@ -383,16 +383,10 @@ class KFC {
     // Set remaining time.
     $timeLeftByBudget = $this->queryTimeLeftTodayAllBudgets($user);
 
-    // TODO: This shouldn't really happen because even a single record that maps to the null
-    // budget will ensure it is present in $timeLeftByBudget, so it will immediately, i.e. on first
-    // occurence, be available here. Test that!
-    /*
-    if (!array_key_exists('', $timeLeftByBudget)) {
-      $timeLeftByBudget[''] = 0;
-    }*/
     foreach ($classifications as &$classification) {
       foreach ($classification['budgets'] as &$budget) {
-        assert(array_key_exists($budget['id'], $timeLeftByBudget)); // TODO: Should be obsolete.
+        // As soon as there is a record for a budget, it will be present in $timeLeftByBudget. This
+        // also holds for null, i.e. no_budget.
         $budget['remaining'] = $timeLeftByBudget[$budget['id']];
       }
     }
@@ -792,6 +786,9 @@ class KFC {
   /**
    * Helper method to return a new DateTime object representing $this->time() in the server's
    * timezone.
+   *
+   * TODO: Timestamp for "now" should be set on construction, to ensure it remains constant during
+   * the entire request. But that requires changing the code in the test that advances time.
    */
   private function newDateTime() {
     $d = new DateTime();

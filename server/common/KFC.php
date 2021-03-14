@@ -218,7 +218,12 @@ class KFC {
     return DB::insertId();
   }
 
-  /** TODO */
+  /**
+   * Returns an array the size of $titles that contains, at the corresponding position, an array
+   * with keys 'class_id', 'class_name' and 'budgets'. The latter is again an array and contains,
+   * for every budget, an array with the the budget ID as 'id'. If no budget is associated, this
+   * will contain the mapping 'id' => null.
+   */
   public function classify($titles) {
     /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
       foreach ($titlesEsc as $i => $titleEsc) {
@@ -248,11 +253,13 @@ class KFC {
       $classification = [];
       $classification['class_id'] = intval($rows[0]['id']);
       $classification['class_name'] = $rows[0]['name'];
-      $classification['budget_ids'] = [];
+      $classification['budgets'] = [];
       foreach ($rows as $row) {
-        // Budget ID maybe be null.
+        // Budget ID may be null.
         if ($budgetId = $row['budget_id']) {
-        $classification['budget_ids'][] = intval($budgetId);
+          $classification['budgets'][] = ['id' => intval($budgetId)];
+        } else {
+          $classification['budgets'][] = ['id' => null];
         }
       }
       $classifications[] = $classification;
@@ -374,13 +381,20 @@ class KFC {
     DB::replace('activity', $rows);
 
     // Set remaining time.
-    $timeLeft = $this->queryTimeLeftTodayAllBudgets($user);
+    $timeLeftByBudget = $this->queryTimeLeftTodayAllBudgets($user);
+
+    // TODO: This shouldn't really happen because even a single record that maps to the null
+    // budget will ensure it is present in $timeLeftByBudget, so it will immediately, i.e. on first
+    // occurence, be available here. Test that!
+    /*
+    if (!array_key_exists('', $timeLeftByBudget)) {
+      $timeLeftByBudget[''] = 0;
+    }*/
     foreach ($classifications as &$classification) {
-      $remaining = $classification['budget_ids'] ? 24 * 60 * 60 : $timeLeft[null];
-      foreach ($classification['budget_ids'] as $budgetId) {
-        $remaining = min($remaining, $timeLeft[$budgetId]);
+      foreach ($classification['budgets'] as &$budget) {
+        assert(array_key_exists($budget['id'], $timeLeftByBudget)); // TODO: Should be obsolete.
+        $budget['remaining'] = $timeLeftByBudget[$budget['id']];
       }
-      $classification['remaining'] = $remaining;
     }
     return $classifications;
   }

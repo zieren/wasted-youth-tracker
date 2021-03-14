@@ -33,12 +33,9 @@ final class KFCTest extends KFCTestBase {
     $this->mockTime = 1000;
   }
 
-  private function classification($id, $name, $budgetIds, $remaining) {
-    return [
-        'class_id' => $id,
-        'class_name' => $name,
-        'budget_ids' => $budgetIds,
-        'remaining' => $remaining];
+  private function classification($id, $name, $budgets) {
+    $c = ['class_id' => $id, 'class_name' => $name, 'budgets' => $budgets];
+    return $c;
   }
 
   public function testSmokeTest(): void {
@@ -140,9 +137,9 @@ final class KFCTest extends KFCTestBase {
     // Class 1 mapped to budget 1, other classes are not assigned to any budget.
     $classification = $this->kfc->classify(['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
-        ['class_id' => DEFAULT_CLASS_ID, 'class_name' => DEFAULT_CLASS_NAME, 'budget_ids' => []],
-        ['class_id' => $classId1, 'class_name' => 'c1', 'budget_ids' => [$budgetId1]],
-        ['class_id' => $classId2, 'class_name' => 'c2', 'budget_ids' => []],
+        $this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [['id' => null]]),
+        $this->classification($classId1, 'c1', [['id' => $budgetId1]]),
+        $this->classification($classId2, 'c2', [['id' => null]]),
     ]);
 
     // Add a second mapping for the same class.
@@ -151,9 +148,9 @@ final class KFCTest extends KFCTestBase {
     // Class 1 is now mapped to budgets 1 and 2.
     $classification = $this->kfc->classify(['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
-        ['class_id' => DEFAULT_CLASS_ID, 'class_name' => DEFAULT_CLASS_NAME, 'budget_ids' => []],
-        ['class_id' => $classId1, 'class_name' => 'c1', 'budget_ids' => [$budgetId1, $budgetId2]],
-        ['class_id' => $classId2, 'class_name' => 'c2', 'budget_ids' => []],
+        $this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [['id' => null]]),
+        $this->classification($classId1, 'c1', [['id' => $budgetId1], ['id' => $budgetId2]]),
+        $this->classification($classId2, 'c2', [['id' => null]]),
     ]);
 
     // Add a mapping for the default class.
@@ -162,10 +159,9 @@ final class KFCTest extends KFCTestBase {
     // Default class is now mapped to budget 2.
     $classification = $this->kfc->classify(['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
-        ['class_id' => DEFAULT_CLASS_ID, 'class_name' => DEFAULT_CLASS_NAME,
-            'budget_ids' => [$budgetId2]],
-        ['class_id' => $classId1, 'class_name' => 'c1', 'budget_ids' => [$budgetId1, $budgetId2]],
-        ['class_id' => $classId2, 'class_name' => 'c2', 'budget_ids' => []],
+        $this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [['id' => $budgetId2]]),
+        $this->classification($classId1, 'c1', [['id' => $budgetId1], ['id' => $budgetId2]]),
+        $this->classification($classId2, 'c2', [['id' => null]]),
     ]);
   }
 
@@ -570,19 +566,15 @@ final class KFCTest extends KFCTestBase {
         []);
 
     // Add a mapping.
-    $this->assertEqualsIgnoreOrder(
-        $this->kfc->classify(['foo']), [[
-        'class_id' => DEFAULT_CLASS_ID,
-        'class_name' => DEFAULT_CLASS_NAME,
-        'budget_ids' => [],
-    ]]);
+    $this->assertEquals(
+        $this->kfc->classify(['foo']), [
+            $this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [['id' => null]])
+            ]);
     $this->kfc->addMapping('u1', DEFAULT_CLASS_ID, $budgetId1);
-    $this->assertEqualsIgnoreOrder(
-        $this->kfc->classify(['foo']), [[
-        'class_id' => DEFAULT_CLASS_ID,
-        'class_name' => DEFAULT_CLASS_NAME,
-        'budget_ids' => [$budgetId1],
-    ]]);
+    $this->assertEquals(
+        $this->kfc->classify(['foo']), [
+            $this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [['id' => $budgetId1]])
+            ]);
     // Returned when user restriction is absent.
     $this->assertEquals(
         $this->kfc->getAllBudgetConfigs(),
@@ -610,12 +602,10 @@ final class KFCTest extends KFCTestBase {
     $this->assertEquals(
         $this->kfc->getAllBudgetConfigs(),
         []);
-    $this->assertEqualsIgnoreOrder(
-        $this->kfc->classify(['foo']), [[
-        'class_id' => DEFAULT_CLASS_ID,
-        'class_name' => DEFAULT_CLASS_NAME,
-        'budget_ids' => [],
-    ]]);
+    $this->assertEquals(
+        $this->kfc->classify(['foo']), [
+            $this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [['id' => null]])
+            ]);
   }
 
   public function testTimeLeftTodayAllBudgets_negative(): void {
@@ -653,57 +643,53 @@ final class KFCTest extends KFCTestBase {
         [$budgetId1 => 120]);
 
     // Start consuming time.
-    $classification = [[
-        'class_id' => $classId,
-        'class_name' => 'c1',
-        'budget_ids' =>  [$budgetId1],
-        'remaining' => 120]];
+    $classification1 =
+        $this->classification($classId, 'c1', [['id' => $budgetId1, 'remaining' => 120]]);
 
-    $this->assertEqualsIgnoreOrder(
+    $this->assertEquals(
         $this->kfc->insertWindowTitles('u1', ['title 1'], 0),
-        $classification);
+        [$classification1]);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
         [$budgetId1 => 120]);
 
     $this->mockTime += 15;
-    $classification[0]['remaining'] = 105;
+    $classification1['budgets'][0]['remaining'] = 105;
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 1'], 0),
-        $classification);
+        [$classification1]);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
         [$budgetId1 => 105]);
 
     // Add a window that maps to no budget.
     $this->mockTime += 15;
-    $classification[0]['remaining'] = 90;
-    $classification[] = [
-        'class_id' => DEFAULT_CLASS_ID,
-        'class_name' => DEFAULT_CLASS_NAME,
-        'budget_ids' => [],
-        'remaining' => 0];
+    $classification1['budgets'][0]['remaining'] = 90;
+    $classification2 = $this->classification(
+        DEFAULT_CLASS_ID,
+        DEFAULT_CLASS_NAME,
+        [['id' => null, 'remaining' => 0]]);
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2'], 0),
-        $classification);
+        [$classification1, $classification2]);
     $this->mockTime += 15;
-    $classification[0]['remaining'] = 75;
-    $classification[1]['remaining'] = -15;
+    $classification1['budgets'][0]['remaining'] = 75;
+    $classification2['budgets'][0]['remaining'] = -15;
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2'], 0),
-        $classification);
+        [$classification1, $classification2]);
 
     // Add a second budget for title 1 with only 1 minute.
     $budgetId2 = $this->kfc->addBudget('b2');
     $this->kfc->addMapping('u1', $classId, $budgetId2);
     $this->kfc->setBudgetConfig($budgetId2, 'daily_limit_minutes_default', 1);
     $this->mockTime += 1;
-    $classification[0]['remaining'] = 14;
-    $classification[0]['budget_ids'][] = $budgetId2;
-    $classification[1]['remaining'] = -16;
+    $classification1['budgets'][0]['remaining'] = 74;
+    $classification1['budgets'][] = ['id' => $budgetId2, 'remaining' => 14];
+    $classification2['budgets'][0]['remaining'] = -16;
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2'], 0),
-        $classification);
+        [$classification1, $classification2]);
   }
 
   public function testInsertClassification(): void {
@@ -713,29 +699,29 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addClassification($classId2, 10, '2$');
 
     // Single window, with focus.
-    $this->assertEqualsIgnoreOrder(
+    $this->assertEquals(
         $this->kfc->insertWindowTitles('u1', ['title 2'], 0), [
-            $this->classification($classId2, 'c2', [], 0)]);
+            $this->classification($classId2, 'c2', [['id' => null, 'remaining' => 0]])]);
 
     // Single window, no focus.
-    $this->assertEqualsIgnoreOrder(
+    $this->assertEquals(
         $this->kfc->insertWindowTitles('u1', ['title 2'], -1), [
-            $this->classification($classId2, 'c2', [], 0)]);
+            $this->classification($classId2, 'c2', [['id' => null, 'remaining' => 0]])]);
 
     // Two windows, with focus.
-    $this->assertEqualsIgnoreOrder(
+    $this->assertEquals(
         $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2'], 0), [
-            $this->classification($classId1, 'c1', [], 0),
-            $this->classification($classId2, 'c2', [], 0)]);
+            $this->classification($classId1, 'c1', [['id' => null, 'remaining' => 0]]),
+            $this->classification($classId2, 'c2', [['id' => null, 'remaining' => 0]])]);
 
     // Two windows, no focus.
-    $this->assertEqualsIgnoreOrder(
+    $this->assertEquals(
         $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2'], -1), [
-            $this->classification($classId1, 'c1', [], 0),
-            $this->classification($classId2, 'c2', [], 0)]);
+            $this->classification($classId1, 'c1', [['id' => null, 'remaining' => 0]]),
+            $this->classification($classId2, 'c2', [['id' => null, 'remaining' => 0]])]);
 
     // No window at all.
-    $this->assertEqualsIgnoreOrder(
+    $this->assertEquals(
         $this->kfc->insertWindowTitles('u1', [], -1), []);
   }
 
@@ -746,14 +732,14 @@ final class KFCTest extends KFCTestBase {
     $budgetId = $this->kfc->addBudget('b1');
     $this->kfc->addMapping('u1', $classId, $budgetId);
 
-    $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['window 1'], 0),
-        [$this->classification($classId, 'c1', [$budgetId], 0)]);
+    $this->assertEquals(
+        $this->kfc->insertWindowTitles('u1', ['window 1'], 0), [
+            $this->classification($classId, 'c1', [['id' => $budgetId, 'remaining' => 0]])]);
 
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['window 1'], 0),
-        [$this->classification($classId, 'c1', [$budgetId], -1)]);
+        $this->kfc->insertWindowTitles('u1', ['window 1'], 0), [
+            $this->classification($classId, 'c1', [['id' => $budgetId, 'remaining' => -1]])]);
 
     // All windows closed. Bill time to last window.
     $this->mockTime++;

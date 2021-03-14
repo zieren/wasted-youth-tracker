@@ -224,7 +224,7 @@ class KFC {
    * for every budget, an array with the the budget ID as 'id'. If no budget is associated, this
    * will contain the mapping 'id' => null.
    */
-  public function classify($titles) {
+  public function classify($user, $titles) {
     /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
       foreach ($titlesEsc as $i => $titleEsc) {
         if ($i == 0) {
@@ -241,11 +241,13 @@ class KFC {
             SELECT classes.id, classes.name
             FROM classification
             JOIN classes ON classes.id = classification.class_id
-            WHERE |s REGEXP re
+            WHERE |s1 REGEXP re
             ORDER BY priority DESC
             LIMIT 1) AS t1
-          LEFT JOIN mappings on t1.id = mappings.class_id
-          ORDER BY budget_id', $title);
+          LEFT JOIN (
+            SELECT * FROM mappings WHERE user = |s0
+          ) user_mappings ON t1.id = user_mappings.class_id
+          ORDER BY budget_id', $user, $title);
       if (!$rows) { // This should never happen, the default class catches all.
         $this->throwException('Failed to classify "' . $title . '"');
       }
@@ -365,7 +367,7 @@ class KFC {
       return [];
     }
 
-    $classifications = $this->classify($titles);
+    $classifications = $this->classify($user, $titles);
     $rows = [];
     foreach ($titles as $i => $title) {
       $rows[] = [

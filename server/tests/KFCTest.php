@@ -925,11 +925,11 @@ final class KFCTest extends KFCTestBase {
   }
 
   public function testHandleRequest_mappedForOtherUser(): void {
-    $classId1 = $this->kfc->addClass('c1');
-    $this->kfc->addClassification($classId1, 0, '1$');
-    $budgetId1 = $this->kfc->addBudget('b1');
-    $this->kfc->addMapping('u1', $classId1, $budgetId1);
-    $this->kfc->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 5);
+    $classId = $this->kfc->addClass('c1');
+    $this->kfc->addClassification($classId, 0, '1$');
+    $budgetId = $this->kfc->addBudget('b1');
+    $this->kfc->addMapping('u1', $classId, $budgetId);
+    $this->kfc->setBudgetConfig($budgetId, 'daily_limit_minutes_default', 1);
 
     $this->assertEquals(RX::handleRequest("u2\n-1", $this->kfc), '');
     $this->mockTime++;
@@ -940,6 +940,13 @@ final class KFCTest extends KFCTestBase {
     $this->assertEquals(
         RX::handleRequest("u2\n0\ntitle 1", $this->kfc),
         '0:-1:no_budget');
+
+    // Now map for user u2.
+    $this->kfc->addMapping('u2', $classId, $budgetId);
+    $this->mockTime++;
+    $this->assertEquals(
+        RX::handleRequest("u2\n0\ntitle 1", $this->kfc),
+        '0:58:b1');
   }
 
   // TODO: Consider writing a test case that follows a representative sequence of events.

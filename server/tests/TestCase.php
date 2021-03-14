@@ -63,11 +63,11 @@ abstract class TestCase {
 
     ob_start();
     echo 'Line ' . $line . ': Equality assertion failed:'
-        . '<br><span style="background-color: yellow">';
+        . '<table><tr><td style="background-color: yellow; vertical-align: top;"><pre>';
     var_dump($actual);
-    echo '</span><br><span style="background-color: lightgreen">';
+    echo '</pre></td><td style="background-color: lightgreen; vertical-align: top;"><pre>';
     var_dump($expected);
-    echo '</span>';
+    echo '</pre></td></tr></table>';
     throw new AssertionError(ob_get_clean());
   }
 

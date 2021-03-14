@@ -77,9 +77,18 @@ function secondsToHHMMSS($seconds) {
  * KFC::getAllBudgetConfigs().
  */
 function budgetIdsToNames($ids, $configs) {
-  $names = array();
+  $names = [];
   foreach ($ids as $id) {
-    $names[$id] = isset($configs[$id]) ? $configs[$id]['name'] : "no_budget";
+    $names[$id] = isset($configs[$id]) ? $configs[$id]['name'] : 'no_budget';
   }
   return $names;
+}
+
+/** Returns a map of budget ID to name. */
+function getBudgetIdToNameMap($configs) {
+  $idToName = ['' => 'no_budget'];
+  foreach ($configs as $id => $config) {
+    $idToName[$id] = $config['name'];
+  }
+  return $idToName;
 }

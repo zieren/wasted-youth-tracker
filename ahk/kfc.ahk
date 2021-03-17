@@ -96,7 +96,7 @@ GetAllWindows() {
   WinGet, activeID, ID, A ; get active window ID
   Loop %ids% {
     id := ids%A_Index%
-	; Get the ancestor window because we may have dialogs titled "Open File" etc.
+    ; Get the ancestor window because we may have dialogs titled "Open File" etc.
     ; https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getancestor
     rootID := DllCall("GetAncestor", UInt, WinExist("ahk_id" id), UInt, 3)
     WinGetTitle, rootTitle, ahk_id %rootID%

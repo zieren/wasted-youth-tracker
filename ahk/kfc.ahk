@@ -125,7 +125,7 @@ Loop {
   for title, window in windows {
     windowList .= "`n" title
     if (window["active"]) {
-      focusIndex := indexToTitle.MaxIndex()
+      focusIndex := indexToTitle.Length()
     }
     indexToTitle.Push(title)
   }
@@ -142,35 +142,45 @@ Loop {
   ; Collect messages to show (and beeps to beep) after processing the response.
   messages := []
   beeps := 0
-  for ignored, line in responseLines {
-    s := StrSplit(line, ":", "", 3)
-    title := indexToTitle[s[1] + 1] ; on the API indexes are 0-based
-    secondsLeft := s[2]
-    budget := s[3]
-    if (secondsLeft <= 0) {
-      for id, ignored2 in windows[title]["ids"] {
-        if (!doomedWindows[id]) {
-          doomedWindows[id] := 1
-          terminateWindow := ObjBindMethod(Terminator, "terminate", id)
-          SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
-          messages.Push("Time is up for budget '" budget "', please close '" title "'")
-          beeps := 5
+  
+  if (responseLines[1] == "error") {
+    beeps := 1
+    messages := responseLines
+    messages[1] := "The server reported an error:"
+  } else {
+    for ignored, line in responseLines {
+      s := StrSplit(line, ":", "", 3)
+      title := indexToTitle[s[1] + 1] ; on the API indexes are 0-based
+      secondsLeft := s[2]
+      budget := s[3]
+      if (secondsLeft <= 0) {
+        for id, ignored2 in windows[title]["ids"] {
+          if (!doomedWindows[id]) {
+            doomedWindows[id] := 1
+            terminateWindow := ObjBindMethod(Terminator, "terminate", id)
+            SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
+            messages.Push("Time is up for budget '" budget "', please close '" title "'")
+            beeps := 5
+          }
         }
+      } else if (secondsLeft <= 300) { 
+        ; TODO: Make this configurable. Maybe pull config from server on start?
+        if (!warnedBudgets[budget]) {
+          ; Using the budget name as key is awkward, but avoids budget IDs on the client.
+          warnedBudgets[budget] := 1
+          timeLeftString := Format("{:02}:{:02}", Floor(secondsLeft / 60), Mod(secondsLeft, 60))
+          messages.Push("Budget '" budget "' for '" title "' has " timeLeftString " left.")
+          beeps := 2
+        }
+      } else if (warnedBudgets[budget]) { ; budget time was increased, need to warn again
+        warnedBudgets.Delete(budget)
       }
-    } else if (secondsLeft <= 300) { 
-      ; TODO: Make this configurable. Maybe pull config from server on start?
-      if (!warnedBudgets[budget]) {
-        ; Using the budget name as key is awkward, but avoids budget IDs on the client.
-        warnedBudgets[budget] := 1
-        timeLeftString := Format("{:02}:{:02}", Floor(secondsLeft / 60), Mod(secondsLeft, 60))
-        messages.Push("Budget '" budget "' for '" title "' has " timeLeftString " left.")
-        beeps := 2
-      }
-    } else if (warnedBudgets[budget]) { ; budget time was increased, need to warn again
-      warnedBudgets.Delete(budget)
     }
+    ; TODO: Add option to logout/shutdown:
+    ; Shutdown, 0 ; 0 means logout
   }
-  if (messages.MaxIndex()) {
+  
+  if (messages.Length()) {
     Beep(beeps)
     text := ""
     for ignored, message in messages {
@@ -178,9 +188,7 @@ Loop {
     }
     ShowMessage(SubStr(text, 2))
   }
-  ; TODO: Add option to logout/shutdown:
-  ; Shutdown, 0 ; 0 means logout
-
+  
   waitMillis := SAMPLE_INTERVAL_SECONDS * 1000
   Sleep, waitMillis
 }

@@ -11,9 +11,10 @@ KILL_AFTER_SECONDS := 30
 ; Contact the server every x seconds.
 SAMPLE_INTERVAL_SECONDS := 15
 
-; Special (invisible) windows that don't mean a thing.
-; Localization is not needed; names are always English.
-IGNORE_WINDOWS := {"MainWindow": 1, "Program Manager": 1}
+; Special processes that should never be closed.
+IGNORE_PROCESSES := {}
+IGNORE_PROCESSES["explorer.exe"] := 1 ; also runs the task bar and the start menu
+IGNORE_PROCESSES["LogiOverlay.exe"] := 1 ; Logitech mouse/trackball driver
 
 EnvGet, TMP, TMP ; current user's temp directory
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
@@ -53,96 +54,125 @@ doomedWindows := {}
 warnedBudgets := {}
 
 class Terminator {
-  terminate(title) {
+  terminate(id) {
+; TODO: Are these necessary? Also, can this just be a function?
+    global DEBUG_NO_ENFORCE
     global KILL_AFTER_SECONDS
     global doomedWindows
-    WinGet, id, ID, %title%
-    if (id) {
+    if (WinExist("ahk_id" id)) {
       WinGet, pid, PID, ahk_id %id%
       WinClose, ahk_id %id%, , %KILL_AFTER_SECONDS%
-      id2 := WinExist("ahk_id" . id)
+      id2 := WinExist("ahk_id" id)
       if (id2) {
         if (DEBUG_NO_ENFORCE) {
           ShowMessage("enforcement disabled: kill process " pid)
         } else {
+          ; The PID can be too high up in the hierarchy. E.g. calculator.exe has its own PID, but
+          ; the below call returns that of "Application Frame Host", which is shared with other
+          ; processes (try Solitaire). DllCall("GetWindowThreadProcessId"...) has the same problem.
+          ; I'm not sure how common this problem is in practice. For now we accept that the blast
+          ; radius in case of "force close" may be too large. The main problem is that, presumably,
+          ; this may close system/driver processes that are missing in IGNORE_PROCESSES.
+          ; TODO: Fix this. Maybe send window info incl. process name to server, so IGNORE_PROCESSES
+          ; can be extended? But there really should be a way to get the proper PID.
+          WinGet, pid, PID, ahk_id %id%
           Process, Close, %pid%
         }
       }
     }
-    doomedWindows.Delete(title)
+    doomedWindows.Delete(id)
   }
 }
 
-; Returns an array of titles. First title is the active window. If none is active, this is "".
-ListAllTitles() {
-  global IGNORE_WINDOWS
-  titlesMap := {}
-  titlesList := []
-  WinGet, windows, List
-  WinGetActiveTitle, activeTitle
-  ; When no windows are open, "MainWindow" is the active window. For our purposes, make that "".
-  activeTitle := IGNORE_WINDOWS[activeTitle] ? "" : activeTitle
-  Loop %windows%
-  {
-    id := windows%A_Index%
-    WinGet, pid, PID, ahk_id %id%
+; Returns an associative array describing all windows, keyed by title. 
+; Elements are arrays with these keys:
+; "ids": ahk_id-s of all windows with that title
+; "active": 0 or 1 to indicate whether the window is active (has focus)
+; "name": The process name, for debugging.
+GetAllWindows() {
+  global IGNORE_PROCESSES
+  windows := {}
+  WinGet, ids, List ; get all window IDs
+  WinGet, activeID, ID, A ; get active window ID
+  Loop %ids% {
+    id := ids%A_Index%
+	; Get the ancestor window because we may have dialogs titled "Open File" etc.
     ; https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getancestor
     rootID := DllCall("GetAncestor", UInt, WinExist("ahk_id" id), UInt, 3)
     WinGetTitle, rootTitle, ahk_id %rootID%
-    if (rootTitle && rootTitle != activeTitle && !IGNORE_WINDOWS[rootTitle]) {
-      titlesMap[rootTitle] := 1
+	WinGet, processName, ProcessName, ahk_id %id%
+	if (rootTitle && !IGNORE_PROCESSES[processName]) {
+      ; Store process name for debugging: This is needed when we close a window that should have
+      ; been ignored.
+      if (!windows.HasKey(rootTitle)) {
+        windows[rootTitle] := {"ids": {(rootID): 1}, "active": id == activeID, "name": processName}
+      } else {
+        windows[rootTitle]["ids"][(rootID)] := 1
+        windows[rootTitle]["active"] := windows[rootTitle]["active"] || id == activeID
+      }
     }
   }
-
-  titlesList.Push(activeTitle ? activeTitle : "")
-  for title, ignored in titlesMap {
-    titlesList.Push(title)
-  }
-  return titlesList
+  return windows
 }
 
 Loop {
-  WinGet, windows, List
-  titles := ListAllTitles()
+  windows := GetAllWindows()
+  
+  ; Build request payload.
   data := USER
-  ; There will be at least one element: The active window, or "" if none is active.
-  Loop % titles.Length() {
-    data .=  "`n" titles[A_Index]
+  indexToTitle := []
+  for title, ignored in windows {
+    data .= "`n" title
+    indexToTitle.Push(title)
   }
+
+  ; Perform request.
   request := ComObjCreate("MSXML2.XMLHTTP.6.0")
   request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
   request.send(data)
+  
+  ; Parse response. Format is:
+  ; <title index> ":" <budget seconds remaining> ":" <budget name>
   responseLines := StrSplit(request.responseText, "`n")
-  status := responseLines[1]
-  if (status = "ok") {
-    budgetId := responseLines[2]
-    warnedBudgets.Delete(budgetId) ; budget might have been extended
-  } else if (status = "close") {
-    if (!doomedWindows.HasKey(windowTitle)) { ; TODO: windowTitle
-      doomedWindows[windowTitle] := 1
-      Beep(2)
-      budgetName := responseLines[2]
-      ShowMessage("Time is up for " budgetName ", please close:`n" windowTitle)
-      terminateWindow := ObjBindMethod(Terminator, "terminate", windowTitle)
-      SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
+  warnings := ""
+  for ignored, line in responseLines {
+    s := StrSplit(line, ":", "", 3)
+    title := indexToTitle[s[0]]
+    secondsLeft := s[1]
+    budget := s[2]
+    if (secondsLeft <= 0) {
+      ; Show a warning dialog only when a new window is doomed.
+      showWarning := false
+      for ignored2, id in windows[title]["ids"] {
+        if (!doomedWindows[id]) {
+          doomedWindows[id] := 1
+          terminateWindow := ObjBindMethod(Terminator, "terminate", id)
+          SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
+          showWarning := true
+        }
+      }
+      if (showWarning) {
+        Beep(2)
+        ShowMessage("Time is up for budget '" budget "', please close:`n" title)
+      }
+    } else if (secondsLeft <= 300) { 
+      ; TODO: Make this configurable. Maybe pull config from server on start?
+      if (!warnedBudgets[budget]) {
+        ; Using the budget name as key is awkward, but avoids budget IDs on the client.
+        warnedBudgets[budget] := 1
+        timeLeftString := Format("{1:02}:{2:02}", secondsLeft / 60, Mod(secondsLeft, 60))
+        if (warnings) {
+          warnings .= "`n"
+        }
+        warnings .= "Budget '" budget "' for '" title "' has " timeLeftString " left"
+      }
+    } else if (warnedBudgets[budget]) { ; budget time was increased, need to warn again
+      warnedBudgets.Delete(budget)
     }
-  } else if (status = "warn") {
-    budgetId := responseLines[2]
-    message := responseLines[3]
-    if (!warnedBudgets.HasKey(budgetId)) {
-      warnedBudgets[budgetId] := 1
-      ShowMessage(message)
-    }
-  } else if (status = "logout") {
-    if (DEBUG_NO_ENFORCE) {
-      ShowMessage("enforcement disabled: logout")
-    } else {
-      Shutdown, 0 ; 0 means logout
-    }
-  } else { ; an error message - TODO: Handle "error" status explicitly
-    ShowMessage(request.responseText)
-    Beep(5)
   }
+  ; TODO: Add option to logout/shutdown:
+  ; Shutdown, 0 ; 0 means logout
+
   waitMillis := SAMPLE_INTERVAL_SECONDS * 1000
   Sleep, waitMillis
 }
@@ -161,6 +191,7 @@ ShowTimeLeft() {
   httpUser := g3
   httpPass := g4
   try {
+    ; https://docs.microsoft.com/en-us/previous-versions/windows/desktop/ms759148(v=vs.85)
     request := ComObjCreate("MSXML2.XMLHTTP.6.0")
     request.open("GET", leftUrl, False, httpUser, httpPass)
     request.send()
@@ -174,8 +205,27 @@ ShowTimeLeft() {
   }
 }
 
-; Query time left
-; https://docs.microsoft.com/en-us/previous-versions/windows/desktop/ms759148(v=vs.85)
+DebugShowWindows() {
+  for title, window in GetAllWindows()
+  {
+    ids := ""
+    for id, ignored in window["ids"]
+    {
+      ids .= id "/"
+    }
+    msg .= "title=" title " ids=" ids " active=" window["active"] " name=" window["name"] "`n"
+  }
+  MsgBox % msg
+}
+
+; --- User hotkeys ---
+
 ^F12::
 ShowTimeLeft()
+return
+
+; --- Debug hotkeys ---
+
+^+F12::
+DebugShowWindows()
 return

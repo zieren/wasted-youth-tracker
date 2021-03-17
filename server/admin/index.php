@@ -169,6 +169,8 @@ echoTable(array(
 
 echo '<h3>Budgets</h3>';
 
+// TODO: Handle invalid budget ID below. Currently a silent error.
+
 foreach ($budgetConfigs as $budgetId => $config) {
   echo '<h4>' . html($budgetNames[$budgetId]) . "</h4>\n";
   $config['id'] = $budgetId;

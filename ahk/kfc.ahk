@@ -2,7 +2,7 @@
 
 ; Time the user has to manually close a window for which time has expired.
 ; After this time the script attempts to close the window.
-GRACE_PERIOD_MILLIS := -30000 ; negative for SetTimer semantics
+GRACE_PERIOD_MILLIS := 30 * -1000 ; negative for SetTimer semantics
 
 ; Time the script allows for closing the window. After this time the process
 ; is killed.
@@ -64,18 +64,18 @@ class Terminator {
       WinClose, ahk_id %id%, , %KILL_AFTER_SECONDS%
       id2 := WinExist("ahk_id" id)
       if (id2) {
+        ; The PID can be too high up in the hierarchy. E.g. calculator.exe has its own PID, but
+        ; the below call returns that of "Application Frame Host", which is shared with other
+        ; processes (try Solitaire). DllCall("GetWindowThreadProcessId"...) has the same problem.
+        ; I'm not sure how common this problem is in practice. For now we accept that the blast
+        ; radius in case of "force close" may be too large. The main problem is that, presumably,
+        ; this may close system/driver processes that are missing in IGNORE_PROCESSES.
+        ; TODO: Fix this. Maybe send window info incl. process name to server, so IGNORE_PROCESSES
+        ; can be extended? But there really should be a way to get the proper PID.
+        WinGet, pid, PID, ahk_id %id%
         if (DEBUG_NO_ENFORCE) {
           ShowMessage("enforcement disabled: kill process " pid)
         } else {
-          ; The PID can be too high up in the hierarchy. E.g. calculator.exe has its own PID, but
-          ; the below call returns that of "Application Frame Host", which is shared with other
-          ; processes (try Solitaire). DllCall("GetWindowThreadProcessId"...) has the same problem.
-          ; I'm not sure how common this problem is in practice. For now we accept that the blast
-          ; radius in case of "force close" may be too large. The main problem is that, presumably,
-          ; this may close system/driver processes that are missing in IGNORE_PROCESSES.
-          ; TODO: Fix this. Maybe send window info incl. process name to server, so IGNORE_PROCESSES
-          ; can be extended? But there really should be a way to get the proper PID.
-          WinGet, pid, PID, ahk_id %id%
           Process, Close, %pid%
         }
       }
@@ -121,8 +121,14 @@ Loop {
   ; Build request payload.
   data := USER
   indexToTitle := []
+responseLines := [] ; ö
   for title, ignored in windows {
     data .= "`n" title
+    if (title == "Rechner") { ;ö
+      responseLines.Push("" indexToTitle.MaxIndex() ":-42:some budget")
+    } else if (title == "EditPlus") {
+      responseLines.Push("" indexToTitle.MaxIndex() ":1:some almost used up budget")
+    }
     indexToTitle.Push(title)
   }
 
@@ -131,24 +137,25 @@ Loop {
   request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
   request.send(data)
   
-  ; Parse response. Format is:
+  ; Parse response. Format per line is:
   ; <title index> ":" <budget seconds remaining> ":" <budget name>
   responseLines := StrSplit(request.responseText, "`n")
   warnings := ""
   for ignored, line in responseLines {
     s := StrSplit(line, ":", "", 3)
-    title := indexToTitle[s[0]]
-    secondsLeft := s[1]
-    budget := s[2]
+    title := indexToTitle[s[1] + 1] ; on the API indexes are 0-based
+    secondsLeft := s[2]
+    budget := s[3]
+MsgBox % title "/" secondsLeft "/" budget
     if (secondsLeft <= 0) {
       ; Show a warning dialog only when a new window is doomed.
-      showWarning := false
-      for ignored2, id in windows[title]["ids"] {
+      showWarning := 0
+      for id, ignored2 in windows[title]["ids"] {
         if (!doomedWindows[id]) {
           doomedWindows[id] := 1
           terminateWindow := ObjBindMethod(Terminator, "terminate", id)
           SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
-          showWarning := true
+          showWarning := 1
         }
       }
       if (showWarning) {
@@ -160,15 +167,19 @@ Loop {
       if (!warnedBudgets[budget]) {
         ; Using the budget name as key is awkward, but avoids budget IDs on the client.
         warnedBudgets[budget] := 1
-        timeLeftString := Format("{1:02}:{2:02}", secondsLeft / 60, Mod(secondsLeft, 60))
+        timeLeftString := Format("{:02}:{:02}", Floor(secondsLeft / 60), Mod(secondsLeft, 60))
         if (warnings) {
           warnings .= "`n"
         }
-        warnings .= "Budget '" budget "' for '" title "' has " timeLeftString " left"
+        warnings .= "Budget '" budget "' for '" title "' has " timeLeftString " left."
       }
     } else if (warnedBudgets[budget]) { ; budget time was increased, need to warn again
       warnedBudgets.Delete(budget)
     }
+  }
+  if (warnings) {
+    Beep(1)
+    ShowMessage(warnings)
   }
   ; TODO: Add option to logout/shutdown:
   ; Shutdown, 0 ; 0 means logout

@@ -15,6 +15,7 @@ SAMPLE_INTERVAL_SECONDS := 15
 IGNORE_PROCESSES := {}
 IGNORE_PROCESSES["explorer.exe"] := 1 ; also runs the task bar and the start menu
 IGNORE_PROCESSES["LogiOverlay.exe"] := 1 ; Logitech mouse/trackball driver
+IGNORE_PROCESSES["AutoHotkey.exe"] := 1 ; KFC itself (and other scripts)
 
 EnvGet, TMP, TMP ; current user's temp directory
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
@@ -119,15 +120,13 @@ Loop {
   windows := GetAllWindows()
   
   ; Build request payload.
-  data := USER
+  windowList := ""
   indexToTitle := []
-responseLines := [] ; ö
-  for title, ignored in windows {
-    data .= "`n" title
-    if (title == "Rechner") { ;ö
-      responseLines.Push("" indexToTitle.MaxIndex() ":-42:some budget")
-    } else if (title == "EditPlus") {
-      responseLines.Push("" indexToTitle.MaxIndex() ":1:some almost used up budget")
+  focusIndex := -1
+  for title, window in windows {
+    windowList .= "`n" title
+    if (window["active"]) {
+      focusIndex := indexToTitle.MaxIndex()
     }
     indexToTitle.Push(title)
   }
@@ -135,7 +134,7 @@ responseLines := [] ; ö
   ; Perform request.
   request := ComObjCreate("MSXML2.XMLHTTP.6.0")
   request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
-  request.send(data)
+  request.send(USER "`n" focusIndex windowList)
   
   ; Parse response. Format per line is:
   ; <title index> ":" <budget seconds remaining> ":" <budget name>
@@ -146,7 +145,7 @@ responseLines := [] ; ö
     title := indexToTitle[s[1] + 1] ; on the API indexes are 0-based
     secondsLeft := s[2]
     budget := s[3]
-MsgBox % title "/" secondsLeft "/" budget
+; MsgBox % title "/" secondsLeft "/" budget
     if (secondsLeft <= 0) {
       ; Show a warning dialog only when a new window is doomed.
       showWarning := 0

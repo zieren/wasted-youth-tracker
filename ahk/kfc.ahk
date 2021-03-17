@@ -34,8 +34,8 @@ ShowMessage(msg) {
   Gui, Destroy
   Gui, +AlwaysOnTop
   Gui, Add, Text,, %msg%
-  Gui, Add, Button, default w80, OK
-  Gui, Show, NoActivate, KFC
+  Gui, Add, Button, default w80, OK ; this implicitly sets a handler of ButtonOK
+  Gui, Show, , KFC
 }
 
 Beep(t) {
@@ -56,7 +56,6 @@ warnedBudgets := {}
 
 class Terminator {
   terminate(id) {
-; TODO: Are these necessary? Also, can this just be a function?
     global DEBUG_NO_ENFORCE
     global KILL_AFTER_SECONDS
     global doomedWindows
@@ -132,6 +131,7 @@ Loop {
   }
 
   ; Perform request.
+  ; https://docs.microsoft.com/en-us/previous-versions/windows/desktop/ms759148(v=vs.85)
   request := ComObjCreate("MSXML2.XMLHTTP.6.0")
   request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
   request.send(USER "`n" focusIndex windowList)
@@ -139,27 +139,23 @@ Loop {
   ; Parse response. Format per line is:
   ; <title index> ":" <budget seconds remaining> ":" <budget name>
   responseLines := StrSplit(request.responseText, "`n")
-  warnings := ""
+  ; Collect messages to show (and beeps to beep) after processing the response.
+  messages := []
+  beeps := 0
   for ignored, line in responseLines {
     s := StrSplit(line, ":", "", 3)
     title := indexToTitle[s[1] + 1] ; on the API indexes are 0-based
     secondsLeft := s[2]
     budget := s[3]
-; MsgBox % title "/" secondsLeft "/" budget
     if (secondsLeft <= 0) {
-      ; Show a warning dialog only when a new window is doomed.
-      showWarning := 0
       for id, ignored2 in windows[title]["ids"] {
         if (!doomedWindows[id]) {
           doomedWindows[id] := 1
           terminateWindow := ObjBindMethod(Terminator, "terminate", id)
           SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
-          showWarning := 1
+          messages.Push("Time is up for budget '" budget "', please close '" title "'")
+          beeps := 5
         }
-      }
-      if (showWarning) {
-        Beep(2)
-        ShowMessage("Time is up for budget '" budget "', please close:`n" title)
       }
     } else if (secondsLeft <= 300) { 
       ; TODO: Make this configurable. Maybe pull config from server on start?
@@ -167,18 +163,20 @@ Loop {
         ; Using the budget name as key is awkward, but avoids budget IDs on the client.
         warnedBudgets[budget] := 1
         timeLeftString := Format("{:02}:{:02}", Floor(secondsLeft / 60), Mod(secondsLeft, 60))
-        if (warnings) {
-          warnings .= "`n"
-        }
-        warnings .= "Budget '" budget "' for '" title "' has " timeLeftString " left."
+        messages.Push("Budget '" budget "' for '" title "' has " timeLeftString " left.")
+        beeps := 2
       }
     } else if (warnedBudgets[budget]) { ; budget time was increased, need to warn again
       warnedBudgets.Delete(budget)
     }
   }
-  if (warnings) {
-    Beep(1)
-    ShowMessage(warnings)
+  if (messages.MaxIndex()) {
+    Beep(beeps)
+    text := ""
+    for ignored, message in messages {
+      text .= "`n" message
+    }
+    ShowMessage(SubStr(text, 2))
   }
   ; TODO: Add option to logout/shutdown:
   ; Shutdown, 0 ; 0 means logout
@@ -186,10 +184,6 @@ Loop {
   waitMillis := SAMPLE_INTERVAL_SECONDS * 1000
   Sleep, waitMillis
 }
-
-ButtonOK:
-Gui, Destroy
-return
 
 ShowTimeLeft() {
   global URL
@@ -201,7 +195,6 @@ ShowTimeLeft() {
   httpUser := g3
   httpPass := g4
   try {
-    ; https://docs.microsoft.com/en-us/previous-versions/windows/desktop/ms759148(v=vs.85)
     request := ComObjCreate("MSXML2.XMLHTTP.6.0")
     request.open("GET", leftUrl, False, httpUser, httpPass)
     request.send()
@@ -215,18 +208,33 @@ ShowTimeLeft() {
   }
 }
 
-DebugShowWindows() {
+DebugShowStatus() {
+  global warnedBudgets
+  global doomedWindows
+  msg := ""
   for title, window in GetAllWindows()
   {
     ids := ""
-    for id, ignored in window["ids"]
-    {
-      ids .= id "/"
+    for id, ignored in window["ids"] {
+      ids .= (ids ? "/" : "") id
     }
     msg .= "title=" title " ids=" ids " active=" window["active"] " name=" window["name"] "`n"
   }
-  MsgBox % msg
+  msg .= "-----`n"
+  for budget, ignored in warnedBudgets {
+    msg .= "warned: " budget "`n"
+  }
+  msg .= "-----`n"
+  for id, ignored in doomedWindows {
+    msg .= "doomed: " id "`n"
+  }
+  
+  ShowMessage(msg)
 }
+
+ButtonOK:
+Gui, Destroy
+return
 
 ; --- User hotkeys ---
 
@@ -237,5 +245,5 @@ return
 ; --- Debug hotkeys ---
 
 ^+F12::
-DebugShowWindows()
+DebugShowStatus()
 return

@@ -218,6 +218,13 @@ class KFC {
     return DB::insertId();
   }
 
+  public function mapAllToBudget($user, $budgetId) {
+    DB::query(
+        'INSERT IGNORE INTO MAPPINGS (budget_id, class_id, user)
+          SELECT |i, classes.id, |s FROM classes',
+        $budgetId, $user);
+  }
+
   /**
    * Returns an array the size of $titles that contains, at the corresponding position, an array
    * with keys 'class_id', 'class_name' and 'budgets'. The latter is again an array and contains,

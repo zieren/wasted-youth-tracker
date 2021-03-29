@@ -218,6 +218,8 @@ class KFC {
     return DB::insertId();
   }
 
+  // TODO: Maybe it would be easier to automatically maintain a budget that matches all classes,
+  // by means of SQL triggers or simply explicit update hooks?
   public function mapAllToBudget($user, $budgetId) {
     DB::query(
         'INSERT IGNORE INTO MAPPINGS (budget_id, class_id, user)
@@ -266,9 +268,9 @@ class KFC {
       foreach ($rows as $row) {
         // Budget ID may be null.
         if ($budgetId = $row['budget_id']) {
-          $classification['budgets'][] = ['id' => intval($budgetId)];
+          $classification['budgets'][] = intval($budgetId);
         } else {
-          $classification['budgets'][] = ['id' => null];
+          $classification['budgets'][] = 0;
         }
       }
       $classifications[] = $classification;
@@ -388,17 +390,6 @@ class KFC {
           ];
     }
     DB::replace('activity', $rows);
-
-    // Set remaining time.
-    $timeLeftByBudget = $this->queryTimeLeftTodayAllBudgets($user);
-
-    foreach ($classifications as &$classification) {
-      foreach ($classification['budgets'] as &$budget) {
-        // As soon as there is a record for a budget, it will be present in $timeLeftByBudget. This
-        // also holds for null, i.e. no_budget.
-        $budget['remaining'] = $timeLeftByBudget[$budget['id']];
-      }
-    }
     return $classifications;
   }
 
@@ -587,7 +578,7 @@ class KFC {
   /**
    * Like queryTimeLeftToday() above, but returns results for all budgets in an array keyed by
    * budget ID. The special ID null indicating "no budget" is present iff the value is < 0, meaning
-   * that time was spent outside of any budget.
+   * that time was spent outside of any budget. The result is sorted by key.
    */
   public function queryTimeLeftTodayAllBudgets($user) {
     $configs = $this->getAllBudgetConfigs($user);

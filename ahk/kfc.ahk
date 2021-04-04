@@ -15,7 +15,7 @@ global SAMPLE_INTERVAL_SECONDS := 15
 global IGNORE_PROCESSES := {}
 IGNORE_PROCESSES["explorer.exe"] := 1 ; also runs the task bar and the start menu
 IGNORE_PROCESSES["LogiOverlay.exe"] := 1 ; Logitech mouse/trackball driver
-IGNORE_PROCESSES["AutoHotkey.exe"] := 1 ; KFC itself (and other scripts)
+IGNORE_PROCESSES["AutoHotkey.exe"] := 1 ; KFC itself (and other AHK scripts)
 
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 
@@ -57,6 +57,14 @@ ShowMessage(msg) {
   Gui, Show, , KFC
 }
 
+FormatSeconds(seconds) {
+  hours := Floor(seconds / (60 * 60))
+  seconds -= hours * 60 * 60
+  minutes := Floor(seconds / 60)
+  seconds -= minutes * 60
+  return Format("{:02}:{:02}:{:02}", hours, minutes, seconds)
+}
+
 Terminate(id) {
   if (WinExist("ahk_id" id)) {
     WinGet, pid, PID, ahk_id %id%
@@ -85,7 +93,7 @@ Terminate(id) {
 FindLowestBudget(budgetIds, budgets) {
   lowestBudgetId := -1
   for ignored, budgetId in budgetIds {
-    if (lowestBudgetId == -1 
+    if (lowestBudgetId == -1
         || budgets[budgetId]["remaining"] < budgets[lowestBudgetId]["remaining"]) {
       lowestBudgetId := budgetId
     }
@@ -93,8 +101,14 @@ FindLowestBudget(budgetIds, budgets) {
   return lowestBudgetId
 }
 
-ParseTitleResponse(line, windows, title, budgets, messages) {
+ParseTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
   budgetIds := StrSplit(line, ",")
+  for ignored, id in budgetIds {
+    if (!titlesByBudget.HasKey(id)) {
+      titlesByBudget[id] := []
+    }
+    titlesByBudget[id].Push(title)
+  }
   lowestBudgetId := FindLowestBudget(budgetIds, budgets)
   secondsLeft := budgets[lowestBudgetId]["remaining"]
   budget := budgets[lowestBudgetId]["name"]
@@ -107,12 +121,12 @@ ParseTitleResponse(line, windows, title, budgets, messages) {
         messages.Push("Time is up for budget '" budget "', please close '" title "'")
       }
     }
-  } else if (secondsLeft <= 300) { 
+  } else if (secondsLeft <= 300) {
     ; TODO: Make this configurable. Maybe pull config from server on start?
     if (!warnedBudgets[budget]) {
       ; Using the budget name as key is awkward, but avoids budget IDs on the client.
       warnedBudgets[budget] := 1
-      timeLeftString := Format("{:02}:{:02}", Floor(secondsLeft / 60), Mod(secondsLeft, 60))
+      timeLeftString := FormatSeconds(secondsLeft)
       messages.Push("Budget '" budget "' for '" title "' has " timeLeftString " left.")
     }
   } else if (warnedBudgets[budget]) { ; budget time was increased, need to warn again
@@ -120,18 +134,20 @@ ParseTitleResponse(line, windows, title, budgets, messages) {
   }
 }
 
-ShowMessages(messages) {
+ShowMessages(messages, enableBeep = true) {
   if (messages.Length()) {
-    Beep(3)
     text := ""
     for ignored, message in messages {
       text .= "`n" message
     }
     ShowMessage(SubStr(text, 2))
+    if (enableBeep) {
+      Beep(3)
+    }
   }
 }
 
-; Returns an associative array describing all windows, keyed by title. 
+; Returns an associative array describing all windows, keyed by title.
 ; Elements are arrays with these keys:
 ; "ids": ahk_id-s of all windows with that title
 ; "active": 0 or 1 to indicate whether the window is active (has focus)
@@ -163,7 +179,7 @@ GetAllWindows() {
 
 DoTheThing(reportStatus) {
   windows := GetAllWindows()
-  
+
   ; Build request payload.
   windowList := ""
   indexToTitle := []
@@ -181,13 +197,15 @@ DoTheThing(reportStatus) {
   request := ComObjCreate("MSXML2.XMLHTTP.6.0")
   request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
   request.send(USER "`n" focusIndex windowList)
-  
+
   ; Parse response. Format per line is:
   ; <title index> ":" <budget seconds remaining> ":" <budget name>
   responseLines := StrSplit(request.responseText, "`n")
   ; Collect messages to show after processing the response.
   messages := []
-  
+  ; Collect titles by budget ID so we can show them if reportStatus is set.
+  titlesByBudget := {}
+
   if (responseLines[1] == "error") {
     messages := responseLines
     messages[1] := "The server reported an error:"
@@ -206,7 +224,7 @@ DoTheThing(reportStatus) {
           s := StrSplit(line, ":", "", 3)
           budgets[s[1]] := {"remaining": s[2], "name": s[3]}
         case 2:
-          ParseTitleResponse(line, windows, indexToTitle[index++], budgets, messages)
+          ParseTitleResponse(line, windows, indexToTitle[index++], budgets, titlesByBudget, messages)
         default:
           messages := responseLines
           messages.InsertAt(1, "Invalid response received from server:")
@@ -215,42 +233,44 @@ DoTheThing(reportStatus) {
     ; TODO: Add option to logout/shutdown:
     ; Shutdown, 0 ; 0 means logout
   }
-  
+
   if (reportStatus) {
-    messages.Push("oh yeah!")
+    AddStatusReport(budgets, titlesByBudget, messages)
   }
-  
+
   return messages
 }
 
-GetEpochSeconds() {
-  ts := A_NowUTC
-  ; This substracts in time format, producing "S"econds
-  ts -= 19700101000000, S
-  return ts
-}
-
-; NOTE: The hotkey itself should not interrupt its own DoTheThing().
-
-; The main loop. Can be interrupted only while sleeping.
-Loop {
-  ; 
-  Critical, On
-  ; Account for async calls via hotkey that might have run while we were sleeping below.
-  now := GetEpochSeconds()
-  waitedSeconds := now - lastRequest
-  if (waitedSeconds >= SAMPLE_INTERVAL_SECONDS) { ; normal case
-    ShowMessages(DoTheThing(false))
-    lastRequest := now
-    Sleep, SAMPLE_INTERVAL_SECONDS * 1000
-  } else { ; we did an async request via hotkey
-    MsgBox % (SAMPLE_INTERVAL_SECONDS - waitedSeconds) ; TODO debugging
-    Sleep, (SAMPLE_INTERVAL_SECONDS - waitedSeconds) * 1000
+AddStatusReport(budgets, titlesByBudget, messages) {
+  if (messages.length()) {
+    messages.Push("", "---------- *** ----------")
+  }
+  messages.Push("STATUS:")
+  budgetsSorted := {}
+  for id, budget in budgets {
+    budgetsSorted[budget["name"]] := {"remaining": budget["remaining"], "id": id}
+  }
+  for name, budget in budgetsSorted {
+    messages.Push("")
+    messages.Push(FormatSeconds(budget["remaining"]) " " name)
+    for ignored, title in titlesByBudget[budget["id"]] {
+      messages.Push("  --> " title)
+    }
   }
 }
 
-ShowTimeLeft() {
-  ShowMessages(DoTheThing(true))
+; The main loop that does the thing.
+Loop {
+  Critical, On
+  ShowMessages(DoTheThing(false))
+  Critical, Off
+  Sleep, SAMPLE_INTERVAL_SECONDS * 1000
+}
+
+ShowStatus() {
+  Critical, On
+  ShowMessages(DoTheThing(true), false)
+  Critical, Off
 }
 
 DebugShowStatus() {
@@ -271,9 +291,11 @@ DebugShowStatus() {
   for id, ignored in doomedWindows {
     msg .= "doomed: " id "`n"
   }
-  
+
   ShowMessage(msg)
 }
+
+; --- GUI ---
 
 ButtonOK:
 Gui, Destroy
@@ -282,7 +304,7 @@ return
 ; --- User hotkeys ---
 
 ^F12::
-ShowTimeLeft()
+ShowStatus()
 return
 
 ; --- Debug hotkeys ---

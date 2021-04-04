@@ -181,6 +181,9 @@ GetAllWindows() {
   return windows
 }
 
+; This function does the thing. "Critical" should be set while this is running, since the code
+; uses global state. Interruptions may currently only occur from the status hotkey, which calls
+; this function asynchronously to the main loop.
 DoTheThing(reportStatus) {
   windows := GetAllWindows()
 
@@ -247,9 +250,9 @@ DoTheThing(reportStatus) {
 
 AddStatusReport(budgets, titlesByBudget, messages) {
   if (messages.length()) {
-    messages.Push("", "---------- *** ----------")
+    messages.Push("")
   }
-  messages.Push("STATUS:")
+  messages.Push("---------- * STATUS * ----------", "")
   budgetsSorted := {}
   for id, budget in budgets {
     budgetsSorted[budget["name"]] := {"remaining": budget["remaining"], "id": id}

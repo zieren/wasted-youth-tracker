@@ -128,14 +128,13 @@ ParseTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
     }
   } else if (secondsLeft <= 300) {
     ; TODO: Make this configurable. Maybe pull config from server on start?
-    if (!warnedBudgets[budget]) {
-      ; Using the budget name as key is awkward, but avoids budget IDs on the client.
-      warnedBudgets[budget] := 1
+    if (!warnedBudgets[lowestBudgetId]) {
+      warnedBudgets[lowestBudgetId] := 1
       timeLeftString := FormatSeconds(secondsLeft)
       messages.Push("Budget '" budget "' for '" title "' has " timeLeftString " left.")
     }
-  } else if (warnedBudgets[budget]) { ; budget time was increased, need to warn again
-    warnedBudgets.Delete(budget)
+  } else if (warnedBudgets[lowestBudgetId]) { ; budget time was increased, need to warn again
+    warnedBudgets.Delete(lowestBudgetId)
   }
 }
 

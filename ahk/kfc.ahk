@@ -58,11 +58,16 @@ ShowMessage(msg) {
 }
 
 FormatSeconds(seconds) {
+  sign := ""
+  if (seconds < 0) {
+    sign := "-"
+    seconds := -seconds
+  }
   hours := Floor(seconds / (60 * 60))
   seconds -= hours * 60 * 60
   minutes := Floor(seconds / 60)
   seconds -= minutes * 60
-  return Format("{:02}:{:02}:{:02}", hours, minutes, seconds)
+  return sign Format("{:02}:{:02}:{:02}", hours, minutes, seconds)
 }
 
 Terminate(id) {

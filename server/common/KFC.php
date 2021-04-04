@@ -558,27 +558,15 @@ class KFC {
   }
 
   /**
-   * Returns the minutes left today. In order of decreasing priority, this considers the unlock
-   * requirement, an override limit, the limit configured for the day of the week, and the default
-   * daily limit. For the last two, a possible weekly limit is additionally applied.
-   */
-  public function queryMinutesLeftToday($user, $classId) {
-    $config = $this->getBudgetConfig($user, $budgetId);
-    $now = $this->newDateTime();
-
-    $overrides = $this->queryOverrides($user, $budgetId, $now);
-
-    $minutesSpentByBudgetAndDate = $this->queryMinutesSpentByBudgetAndDate($user, getWeekStart($now), null);
-    $minutesSpentByDate = getOrDefault($minutesSpentByBudgetAndDate, $budgetId, array());
-
-    return $this->computeMinutesLeftToday(
-            $config, $now, $overrides, $minutesSpentByDate, $budgetId);
-  }
-
-  /**
-   * Like queryTimeLeftToday() above, but returns results for all budgets in an array keyed by
-   * budget ID. The special ID null indicating "no budget" is present iff the value is < 0, meaning
-   * that time was spent outside of any budget. The result is sorted by key.
+   * Returns the time (in seconds) left today, in an array keyed by budget ID. In order of
+   * decreasing priority, this considers the unlock requirement, an override limit, the limit
+   * configured for the day of the week, and the default daily limit. For the last two, a possible
+   * weekly limit is additionally applied.
+   *
+   * The special ID null indicating "no budget" is present iff the value is < 0, meaning that time
+   * was spent outside of any budget.
+   *
+   * The result is sorted by key.
    */
   public function queryTimeLeftTodayAllBudgets($user) {
     $configs = $this->getAllBudgetConfigs($user);
@@ -645,33 +633,30 @@ class KFC {
 
   /** Overrides the budget minutes limit for $date, which is a String in the format 'YYYY-MM-DD'. */
   public function setOverrideMinutes($user, $date, $budgetId, $minutes) {
-    $this->query('INSERT INTO overrides SET'
-        . ' user="' . $this->esc($user) . '",'
-        . ' date="' . $date . '",'
-        . ' budget_id=' . $budgetId . ','
-        . ' minutes=' . $minutes
-        . ' ON DUPLICATE KEY UPDATE minutes=' . $minutes);
+    DB::insertUpdate('overrides', [
+        'user' => $user,
+        'date' => $date,
+        'budget_id' => $budgetId,
+        'minutes' => $minutes],
+        'minutes=|i', $minutes);
   }
 
   /** Unlocks the specified budget for $date, which is a String in the format 'YYYY-MM-DD'. */
   public function setOverrideUnlock($user, $date, $budgetId) {
-    $this->query('INSERT INTO overrides SET'
-        . ' user="' . $this->esc($user) . '",'
-        . ' date="' . $date . '",'
-        . ' budget_id=' . $budgetId . ","
-        . ' unlocked=1'
-        . ' ON DUPLICATE KEY UPDATE unlocked=1');
+    DB::insertUpdate('overrides', [
+        'user' => $user,
+        'date' => $date,
+        'budget_id' => $budgetId,
+        'unlocked' => 1],
+        'unlocked=|i', 1);
   }
 
   /**
    * Clears all overrides (minutes and unlock) for the specified budget for $date, which is a
-   *  String in the format 'YYYY-MM-DD'.
+   * String in the format 'YYYY-MM-DD'.
    */
   public function clearOverride($user, $date, $budgetId) {
-    $this->query('DELETE FROM overrides'
-        . ' WHERE user="' . $this->esc($user) . '"'
-        . ' AND date="' . $date . '"'
-        . ' AND budget_id=' . $budgetId);
+    DB::delete('overrides', 'user=|s AND date=|s AND budget_id=|i', $user, $date, $budgetId);
   }
 
   /** Returns all overrides for the specified user, starting the week before the current week. */

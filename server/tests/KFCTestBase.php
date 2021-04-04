@@ -45,6 +45,10 @@ class KFCTestBase extends TestCase {
     return $d;
   }
 
+  protected function dateString() {
+    return $this->newDateTime()->format('Y-m-d');
+  }
+
   protected function dateTimeString() {
     return $this->newDateTime()->format('Y-m-d H:i:s');
   }

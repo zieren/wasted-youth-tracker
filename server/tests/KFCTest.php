@@ -958,6 +958,44 @@ final class KFCTest extends KFCTestBase {
         "$budgetId:58:b1\n\n$budgetId");
   }
 
+  public function testSetOverrideMinutesAndUnlock(): void {
+    $budgetId = $this->kfc->addBudget('b1');
+    $this->kfc->addMapping('u1', DEFAULT_CLASS_ID, $budgetId);
+    $this->kfc->setBudgetConfig($budgetId, 'daily_limit_minutes_default', 42);
+    $this->kfc->setBudgetConfig($budgetId, 'require_unlock', 1);
+
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
+        [$budgetId => 0]);
+
+    $this->kfc->setOverrideUnlock('u1', $this->dateString(), $budgetId);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
+        [$budgetId => 42 * 60]);
+
+    $this->kfc->setOverrideMinutes('u1', $this->dateString(), $budgetId, 666);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
+        [$budgetId => 666 * 60]);
+
+    // Test updating.
+    $this->kfc->setOverrideMinutes('u1', $this->dateString(), $budgetId, 123);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
+        [$budgetId => 123 * 60]);
+
+    $this->kfc->clearOverride('u1', $this->dateString(), $budgetId);
+
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
+        [$budgetId => 0]);
+
+    $this->kfc->setOverrideUnlock('u1', $this->dateString(), $budgetId);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
+        [$budgetId => 42 * 60]);
+  }
+
   // TODO: Consider writing a test case that follows a representative sequence of events.
 }
 

@@ -230,9 +230,12 @@ GetEpochSeconds() {
   return ts
 }
 
-; TODO: Should probably set DoTheThing() Critical...
+; NOTE: The hotkey itself should not interrupt its own DoTheThing().
 
+; The main loop. Can be interrupted only while sleeping.
 Loop {
+  ; 
+  Critical, On
   ; Account for async calls via hotkey that might have run while we were sleeping below.
   now := GetEpochSeconds()
   waitedSeconds := now - lastRequest
@@ -241,31 +244,13 @@ Loop {
     lastRequest := now
     Sleep, SAMPLE_INTERVAL_SECONDS * 1000
   } else { ; we did an async request via hotkey
+    MsgBox % (SAMPLE_INTERVAL_SECONDS - waitedSeconds) ; TODO debugging
     Sleep, (SAMPLE_INTERVAL_SECONDS - waitedSeconds) * 1000
   }
 }
 
 ShowTimeLeft() {
-  global URL
-  global USER
-  leftUrl := URL "/view/left.php?user=" USER
-  ; Extract HTTP basic authentication, if present.
-  RegExMatch(leftUrl, "(https?://)(([^:]+):(.+)@)?([^@]+)", g)
-  leftUrl := g1 g5
-  httpUser := g3
-  httpPass := g4
-  try {
-    request := ComObjCreate("MSXML2.XMLHTTP.6.0")
-    request.open("GET", leftUrl, False, httpUser, httpPass)
-    request.send()
-    if (request.StatusText() = "OK") {
-      ShowMessage("Time left:`n" request.ResponseText())
-    } else {
-      ShowMessage("Error: " request.StatusText())
-    }
-  } catch e {
-    ShowMessage("Error: " e.message)
-  }
+  ShowMessages(DoTheThing(true))
 }
 
 DebugShowStatus() {

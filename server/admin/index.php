@@ -102,7 +102,9 @@ if (isset($_POST['setUserConfig'])) {
 
 $users = $kfc->getUsers();
 if (!isset($user)) {
-  $user = getOrDefault($_GET, 'user', getOrDefault($users, 0, ''));
+  $user = getOrDefault($_GET, 'user',
+      getOrDefault($_POST, 'user',
+      getOrDefault($users, 0, '')));
 }
 if (!isset($dateString)) {
   $dateString = getOrDefault($_GET, 'date', date('Y-m-d'));
@@ -170,6 +172,7 @@ echoTable(array(
 echo '<h3>Budgets</h3>';
 
 // TODO: Handle invalid budget ID below. Currently a silent error.
+// TODO: Show classes mapped to budget.
 
 foreach ($budgetConfigs as $id => $config) {
   echo '<h4>' . html($budgetNames[$id]) . "</h4>\n";

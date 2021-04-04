@@ -69,7 +69,7 @@ function getDateString($dateTime) {
 }
 
 function secondsToHHMMSS($seconds) {
-  return gmdate($seconds < 0 ? "-H:i:s" : "H:i:s", abs($seconds));
+  return gmdate($seconds < 0 ? "-G:i:s" : "G:i:s", abs($seconds));
 }
 
 /**

@@ -66,12 +66,12 @@ if (isset($_POST['setUserConfig'])) {
   $budgetId = trim($_POST['budgetNameOrId']);
   $kfc->removeBudget($budgetId);
 } else if (isset($_POST['setBudgetConfig'])) {
-  $budgetId = trim($_POST['budgetId']);
+  $budgetId = $_POST['budget'];
   $key = trim($_POST['budgetConfigKey']);
   $value = trim($_POST['budgetConfigValue']);
   $kfc->setBudgetConfig($budgetId, $key, $value);
 } else if (isset($_POST['clearBudgetConfig'])) {
-  $budgetId = trim($_POST['budgetId']);
+  $budgetId = $_POST['budget'];
   $key = trim($_POST['budgetConfigKey']);
   $kfc->clearBudgetConfig($budgetId, $key);
 } else if (isset($_POST['setMinutes'])) {
@@ -157,8 +157,8 @@ $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
 $timeSpentByBudgetAndDate = $kfc->queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime);
 $timeSpentByBudget = [];
-foreach ($timeSpentByBudgetAndDate as $budgetId=>$timeSpentByDate) {
-  $timeSpentByBudget[$budgetId] = getOrDefault($timeSpentByDate, $dateString, 0);
+foreach ($timeSpentByBudgetAndDate as $id=>$timeSpentByDate) {
+  $timeSpentByBudget[$id] = getOrDefault($timeSpentByDate, $dateString, 0);
 }
 // TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
 // budget at all.
@@ -171,9 +171,9 @@ echo '<h3>Budgets</h3>';
 
 // TODO: Handle invalid budget ID below. Currently a silent error.
 
-foreach ($budgetConfigs as $budgetId => $config) {
-  echo '<h4>' . html($budgetNames[$budgetId]) . "</h4>\n";
-  $config['id'] = $budgetId;
+foreach ($budgetConfigs as $id => $config) {
+  echo '<h4>' . html($budgetNames[$id]) . "</h4>\n";
+  $config['id'] = $id;
   echoTableAssociative($config);
 }
 
@@ -189,10 +189,9 @@ echo '
 
 <h4>Configure budget</h4>
 <form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '">
-  <label for="idBudgetId">Budget ID: </label>
-  <input id="idBudgetId" name="budgetId" type="number" value="" min="1">
-  <input type="text" name="budgetConfigKey" value="" placeholder="key">
+  <input type="hidden" name="user" value="' . $user . '">'
+  . budgetSelector($budgetNames, $budgetId) .
+  '<input type="text" name="budgetConfigKey" value="" placeholder="key">
   <input type="text" name="budgetConfigValue" value="" placeholder="value">
   <input type="submit" value="Set config" name="setBudgetConfig">
   <input type="submit" value="Clear config" name="clearBudgetConfig">

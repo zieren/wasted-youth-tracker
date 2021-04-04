@@ -93,7 +93,7 @@ class KFC {
         . 'class_id INT NOT NULL, '
         . 'focus BOOL NOT NULL, '
         . 'title VARCHAR(256) NOT NULL, '
-        . 'PRIMARY KEY (user, ts, class_id, title, focus), '
+        . 'PRIMARY KEY (user, ts, class_id, focus, title), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id) '
         . ') '
         . CREATE_TABLE_SUFFIX);  // ON DELETE CASCADE?
@@ -367,7 +367,7 @@ class KFC {
 
     // Special case: No windows open. We only record a timestamp.
     if (!$titles) {
-      DB::replace('activity', [
+      DB::insertIgnore('activity', [
           'ts' => $ts,
           'user' => $user,
           'title' => '',
@@ -389,7 +389,7 @@ class KFC {
           'focus' => $i == $focusIndex ? 1 : 0,
           ];
     }
-    DB::replace('activity', $rows);
+    DB::insertIgnore('activity', $rows);
     return $classifications;
   }
 

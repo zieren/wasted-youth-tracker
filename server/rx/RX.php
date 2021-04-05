@@ -1,6 +1,16 @@
 <?php
 
-/** Handle an incoming request. */
+/**
+ * Handle an incoming request. It is OK for the client to call this concurrently: If the timestamp
+ * (epoch seconds) is the same as for the previous call, identical titles will result in duplicate
+ * PKs in the activity table, which are ignored (INSERT IGNORE), while other titles are simply
+ * added, i.e. the result is the union of both calls.
+ *
+ * Theoretically the classification could change between calls, resulting in the same title at the
+ * same timestamp with different classifications. This is highly unlikely though, and would only
+ * result in an accounting inaccuracy: Both titles would count towards their budget with the
+ * interval since the previous timestamp, when in fact one of the intervals was really zero.
+ */
 class RX {
 
   /**
@@ -53,7 +63,6 @@ class RX {
     $titles = array_slice($lines, 2); // could be empty, but we still need to insert a timestamp
 
     $classifications = $kfc->insertWindowTitles($user, $titles, $focusIndex);
-
 
     // Build response.
 

@@ -996,6 +996,93 @@ final class KFCTest extends KFCTestBase {
         [$budgetId => 42 * 60]);
   }
 
+  public function testConcurrentRequests(): void {
+    $fromTime = $this->newDateTime();
+
+    $classId1 = $this->kfc->addClass('c1');
+    $this->kfc->addClassification($classId1, 0, '1$');
+    $budgetId1 = $this->kfc->addBudget('b1');
+    $this->kfc->addMapping('u1', $classId1, $budgetId1);
+
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['title 2'], 0),
+        [$this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [0])]);
+    $this->mockTime++;
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['title 2'], 0),
+        [$this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [0])]);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
+        ['' => ['1970-01-01' => 1]]);
+
+    // Repeating the last call is idempotent.
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['title 2'], 0),
+        [$this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [0])]);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
+        ['' => ['1970-01-01' => 1]]);
+
+    // Add a title that matches the budget, but don't elapse time for it yet. This will extend the
+    // title from the previous call.
+    $classification2and1 = [
+        $this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [0]),
+        $this->classification($classId1, 'c1', [$budgetId1])];
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0),
+        $classification2and1);
+    $timeSpent2and1 = [
+        '' => ['1970-01-01' => 1],
+        $budgetId1 => ['1970-01-01' => 0]];
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
+        $timeSpent2and1);
+
+    // Repeating the previous insertion is idempotent.
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0),
+        $classification2and1);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
+        $timeSpent2and1);
+
+    // Changing the classification rules between concurrent reqeusts creates a second activity
+    // record that differs only in class_id (which is part of the PK).
+    $classId2 = $this->kfc->addClass('c2');
+    $this->kfc->addClassification($classId2, 10 /* higher priority */, '1$');
+    $budgetId2 = $this->kfc->addBudget('b2');
+    $this->kfc->addMapping('u1', $classId2, $budgetId2);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0), [
+        $this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [0]),
+        $this->classification($classId2, 'c2', [$budgetId2])]); // changed to c2, which maps to b2
+
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
+        '' => ['1970-01-01' => 1],
+        $budgetId1 => ['1970-01-01' => 0],
+        $budgetId2 => ['1970-01-01' => 0]]);
+
+    // Accumulate time.
+    $this->mockTime++;
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0), [
+        $this->classification(DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME, [0]),
+        $this->classification($classId2, 'c2', [$budgetId2])]);
+
+    // Check results.
+    $this->assertEquals(
+        $this->kfc->queryTimeSpentByTitle('u1', $fromTime), [
+            [$this->dateTimeString(), 2, DEFAULT_CLASS_NAME, 'title 2'],
+            [$this->dateTimeString(), 1, 'c1', 'title 1'],
+            [$this->dateTimeString(), 1, 'c2', 'title 1']]);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
+        '' => ['1970-01-01' => 2],
+        $budgetId1 => ['1970-01-01' => 1],
+        $budgetId2 => ['1970-01-01' => 1]]);
+  }
+
   // TODO: Consider writing a test case that follows a representative sequence of events.
 }
 

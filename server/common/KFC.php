@@ -96,7 +96,7 @@ class KFC {
         . 'PRIMARY KEY (user, ts, class_id, focus, title), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id) '
         . ') '
-        . CREATE_TABLE_SUFFIX);  // ON DELETE CASCADE?
+        . CREATE_TABLE_SUFFIX);
     DB::query(
         'CREATE TABLE IF NOT EXISTS classification ('
         . 'id INT NOT NULL AUTO_INCREMENT, '
@@ -228,10 +228,11 @@ class KFC {
   }
 
   /**
-   * Returns an array the size of $titles that contains, at the corresponding position, an array
-   * with keys 'class_id', 'class_name' and 'budgets'. The latter is again an array and contains,
-   * for every budget, an array with the the budget ID as 'id'. If no budget is associated, this
-   * will contain the mapping 'id' => null.
+   * Returns an array the size of $titles array that contains, at the corresponding position, an
+   * array with keys 'class_id', 'class_name' and 'budgets'. The latter is again an array and
+   * contains the list of budget IDs to which the class_id maps, where 0 indicates "no budget".
+   *
+   * TODO: class_name is never read.
    */
   public function classify($user, $titles) {
     /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
@@ -356,8 +357,7 @@ class KFC {
 
   /**
    * Records the specified window titles. If no window has focus, $focusIndex should be -1.
-   * Return value is that of classify(), with an added field 'remaining' computed via the business
-   * logic. If this value is <= 0 the window should be closed.
+   * Return value is that of classify().
    *
    * If no windows are open, $titles should be an empty array. In this case the timestamp is
    * recorded for the computation of the previous interval.
@@ -370,7 +370,7 @@ class KFC {
       DB::insertIgnore('activity', [
           'ts' => $ts,
           'user' => $user,
-          'title' => '',
+          'title' => '', // Below we map actually empty titles to something else.
           'class_id' => DEFAULT_CLASS_ID,
           'focus' => 0]);
       return [];
@@ -763,7 +763,11 @@ class KFC {
     throw new Exception($message);
   }
 
-  /** Returns epoch time in seconds. Allows manual dependency injection in test. */
+  /**
+   * Returns epoch time in seconds. Allows manual dependency injection in test.
+   *
+   * TODO: It is probably cleaner to pass this in instead.
+   */
   private function time() {
     return ($this->timeFunction)();
   }

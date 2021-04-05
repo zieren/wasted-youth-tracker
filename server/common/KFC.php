@@ -74,7 +74,6 @@ class KFC {
   }
 
   // ---------- TABLE MANAGEMENT ----------
-  // TODO: Consider FOREIGN KEY.
 
   // TODO: This also inserts a few default rows. Reflect that in the name.
   public function createMissingTables() {
@@ -229,10 +228,8 @@ class KFC {
 
   /**
    * Returns an array the size of $titles array that contains, at the corresponding position, an
-   * array with keys 'class_id', 'class_name' and 'budgets'. The latter is again an array and
-   * contains the list of budget IDs to which the class_id maps, where 0 indicates "no budget".
-   *
-   * TODO: class_name is never read.
+   * array with keys 'class_id' and 'budgets'. The latter is again an array and contains the list of
+   * budget IDs to which the class_id maps, where 0 indicates "no budget".
    */
   public function classify($user, $titles) {
     /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
@@ -247,7 +244,7 @@ class KFC {
     $classifications = [];
     foreach ($titles as $title) {
       $rows = DB::query(
-          'SELECT id, name, budget_id FROM (
+          'SELECT id, budget_id FROM (
             SELECT classes.id, classes.name
             FROM classification
             JOIN classes ON classes.id = classification.class_id
@@ -264,7 +261,6 @@ class KFC {
 
       $classification = [];
       $classification['class_id'] = intval($rows[0]['id']);
-      $classification['class_name'] = $rows[0]['name'];
       $classification['budgets'] = [];
       foreach ($rows as $row) {
         // Budget ID may be null.

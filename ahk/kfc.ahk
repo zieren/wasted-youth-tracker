@@ -166,8 +166,8 @@ GetAllWindows() {
     ; https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getancestor
     rootID := DllCall("GetAncestor", UInt, WinExist("ahk_id" id), UInt, 3)
     WinGetTitle, rootTitle, ahk_id %rootID%
-	WinGet, processName, ProcessName, ahk_id %id%
-	if (rootTitle && !IGNORE_PROCESSES[processName]) {
+  WinGet, processName, ProcessName, ahk_id %id%
+  if (rootTitle && !IGNORE_PROCESSES[processName]) {
       ; Store process name for debugging: This is needed when we close a window that should have
       ; been ignored.
       if (!windows.HasKey(rootTitle)) {

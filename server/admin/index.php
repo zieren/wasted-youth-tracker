@@ -181,16 +181,7 @@ foreach ($budgetConfigs as $id => $config) {
 }
 
 echo '
-<h4>Add/remove budget</h4>
-<form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '">
-  <label for="idBudgetNameOrId">Budget name/ID: </label>
-  <input id="idBudgetNameOrId" name="budgetNameOrId" type="text" value="">
-  <input type="submit" value="Add budget" name="addBudget">
-  <input type="submit" value="Remove budget and its config" name="removeBudget">
-</form>
-
-<h4>Configure budget</h4>
+<h4>Configuration</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
   . budgetSelector($budgetNames, $budgetId) .
@@ -198,6 +189,15 @@ echo '
   <input type="text" name="budgetConfigValue" value="" placeholder="value">
   <input type="submit" value="Set config" name="setBudgetConfig">
   <input type="submit" value="Clear config" name="clearBudgetConfig">
+</form>
+
+<h4>Special operations</h4>
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">
+  <label for="idBudgetNameOrId">Budget (name for add, ID otherwise): </label>
+  <input id="idBudgetNameOrId" name="budgetNameOrId" type="text" value="">
+  <input type="submit" value="Add budget" name="addBudget">
+  <input type="submit" value="Remove budget and its config" name="removeBudget">
 </form>
 ';
 

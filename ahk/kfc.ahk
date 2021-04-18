@@ -20,20 +20,20 @@ IGNORE_PROCESSES["AutoHotkey.exe"] := 1 ; KFC itself (and other AHK scripts)
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 
 INI_FILE := USERPROFILE "\kfc.ini"
-global URL, HTTP_USER, HTTP_PASS, USER, DEBUG_NO_ENFORCE, PROCESSES
+global URL, HTTP_USER, HTTP_PASS, USER, DEBUG_NO_ENFORCE, WATCH_PROCESSES
 IniRead, URL, %INI_FILE%, server, url
 IniRead, HTTP_USER, %INI_FILE%, server, username
 IniRead, HTTP_PASS, %INI_FILE%, server, password
 IniRead, USER, %INI_FILE%, account, user
 IniRead, DEBUG_NO_ENFORCE, %INI_FILE%, debug, disableEnforcement, 0
-PROCESSES := {}
+WATCH_PROCESSES := {}
 Loop, 99 {
   IniRead, p, %INI_FILE%, processes, process_%A_Index%, %A_Space%
   if (p) {
     i := RegExMatch(p, "=[^=]+$")
     if (i > 0) {
       name := trim(SubStr(p, 1, i - 1))
-      PROCESSES[name] := trim(SubStr(p, i + 1))
+      WATCH_PROCESSES[name] := trim(SubStr(p, i + 1))
     } else {
       MsgBox, Ignoring invalid INI value in %INI_FILE%: `nprocess_%A_Index%=%p%
     }
@@ -197,7 +197,7 @@ GetAllWindows() {
     }
   }
   ; Inject synthetic titles for configured processes.
-  for name, title in PROCESSES {
+  for name, title in WATCH_PROCESSES {
     Process, Exist, %name%
     if ErrorLevel {
       ; TODO: Use the PID in ErrorLevel to terminate the process, as there is no window ID.
@@ -325,7 +325,7 @@ DebugShowStatus() {
     msg .= "doomed: " id "`n"
   }
   msg .= "-----`n"
-  for name, title in PROCESSES {
+  for name, title in WATCH_PROCESSES {
     msg .= "process: " name " -> " title "`n"
   }
 

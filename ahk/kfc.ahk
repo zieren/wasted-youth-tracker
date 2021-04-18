@@ -20,12 +20,25 @@ IGNORE_PROCESSES["AutoHotkey.exe"] := 1 ; KFC itself (and other AHK scripts)
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 
 INI_FILE := USERPROFILE "\kfc.ini"
-global URL, HTTP_USER, HTTP_PASS, USER, DEBUG_NO_ENFORCE
+global URL, HTTP_USER, HTTP_PASS, USER, DEBUG_NO_ENFORCE, PROCESSES
 IniRead, URL, %INI_FILE%, server, url
 IniRead, HTTP_USER, %INI_FILE%, server, username
 IniRead, HTTP_PASS, %INI_FILE%, server, password
 IniRead, USER, %INI_FILE%, account, user
 IniRead, DEBUG_NO_ENFORCE, %INI_FILE%, debug, disableEnforcement, 0
+PROCESSES := {}
+Loop, 99 {
+  IniRead, p, %INI_FILE%, processes, process_%A_Index%, %A_Space%
+  if (p) {
+    i := RegExMatch(p, "=[^=]+$")
+    if (i > 0) {
+      name := trim(SubStr(p, 1, i - 1))
+      PROCESSES[name] := trim(SubStr(p, i + 1))
+    } else {
+      MsgBox, Ignoring invalid INI value in %INI_FILE%: `nprocess_%A_Index%=%p%
+    }
+  }
+}
 
 ; TODO: Is this a loophole?
 DetectHiddenWindows, Off
@@ -152,6 +165,11 @@ ShowMessages(messages, enableBeep = true) {
 }
 
 ; Returns an associative array describing all windows, keyed by title.
+; For processes without windows, or whose windows cannot be detected
+; (see https://github.com/zieren/kids-freedom-control/issues/18), process
+; names can be configured in the .ini file together with a "synthetic" title.
+; If these processes are detected, the synthetic title is injected into the
+; result, with an window ID of 0 and an activity status of false.
 ; Elements are arrays with these keys:
 ; "ids": ahk_id-s of all windows with that title
 ; "active": 0 or 1 to indicate whether the window is active (has focus)
@@ -176,6 +194,14 @@ GetAllWindows() {
         windows[rootTitle]["ids"][(rootID)] := 1
         windows[rootTitle]["active"] := windows[rootTitle]["active"] || id == activeID
       }
+    }
+  }
+  ; Inject synthetic titles for configured processes.
+  for name, title in PROCESSES {
+    Process, Exist, %name%
+    if ErrorLevel {
+      ; TODO: Use the PID in ErrorLevel to terminate the process, as there is no window ID.
+      windows[title] := {"ids": {0: 1}, "active": false, "name": name}
     }
   }
   return windows
@@ -297,6 +323,10 @@ DebugShowStatus() {
   msg .= "-----`n"
   for id, ignored in doomedWindows {
     msg .= "doomed: " id "`n"
+  }
+  msg .= "-----`n"
+  for name, title in PROCESSES {
+    msg .= "process: " name " -> " title "`n"
   }
 
   ShowMessage(msg)

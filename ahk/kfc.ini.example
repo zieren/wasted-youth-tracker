@@ -1,6 +1,13 @@
 [account]
-url=https://webuser:pass@server.com/kfc
 user=kfcuser
+
+[server]
+url=https://webuser:pass@server.com/kfc
+username=johndoe
+password=secret
+
+[processes]
+process_1=Minecraft.Windows.exe=Minecraft
 
 [debug]
 disableEnforcement=0

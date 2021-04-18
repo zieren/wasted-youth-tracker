@@ -131,7 +131,7 @@ ParseTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
   secondsLeft := budgets[lowestBudgetId]["remaining"]
   budget := budgets[lowestBudgetId]["name"]
   if (secondsLeft <= 0) {
-    for id, ignored2 in windows[title]["ids"] {
+    for ignored, id in windows[title]["ids"] {
       if (!doomedWindows[id]) {
         doomedWindows[id] := 1
         terminateWindow := Func("Terminate").Bind(id)
@@ -189,9 +189,9 @@ GetAllWindows() {
       ; Store process name for debugging: This is needed when we close a window that should have
       ; been ignored.
       if (!windows.HasKey(rootTitle)) {
-        windows[rootTitle] := {"ids": {(rootID): 1}, "active": id == activeID, "name": processName}
+        windows[rootTitle] := {"ids": [rootID], "active": id == activeID, "name": processName}
       } else {
-        windows[rootTitle]["ids"][(rootID)] := 1
+        windows[rootTitle]["ids"].Push(rootID)
         windows[rootTitle]["active"] := windows[rootTitle]["active"] || id == activeID
       }
     }
@@ -199,7 +199,7 @@ GetAllWindows() {
   ; Inject synthetic titles for configured processes.
   for name, title in WATCH_PROCESSES {
     Process, Exist, %name%
-    if ErrorLevel {
+    if (ErrorLevel) {
       ; TODO: Use the PID in ErrorLevel to terminate the process, as there is no window ID.
       windows[title] := {"ids": {0: 1}, "active": false, "name": name}
     }
@@ -231,8 +231,7 @@ DoTheThing(reportStatus) {
   request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
   request.send(USER "`n" focusIndex windowList)
 
-  ; Parse response. Format per line is:
-  ; <title index> ":" <budget seconds remaining> ":" <budget name>
+  ; Parse response. Format is described in RX.php.
   responseLines := StrSplit(request.responseText, "`n")
   ; Collect messages to show after processing the response.
   messages := []

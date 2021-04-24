@@ -50,6 +50,9 @@ DetectHiddenWindows, Off
 ; There's no set type, so use an associative array.
 global doomedWindows := {}
 
+; Same for processes without windows.
+global doomedProcesses := {}
+
 ; Remember budgets for which a "time is almost up" message has been shown.
 global warnedBudgets := {}
 
@@ -83,7 +86,11 @@ FormatSeconds(seconds) {
   return sign Format("{}:{:02}:{:02}", hours, minutes, seconds)
 }
 
-Terminate(id) {
+; Close the window with the specified ahk_id.
+; WinKill does not seem to work: E.g. EditPlus with an unsaved file will just prompt to save,
+; but not actually close. So maybe it sends a close request, and when the program acks that
+; request it considers that success.
+TerminateWindow(id) {
   if (WinExist("ahk_id" id)) {
     WinGet, pid, PID, ahk_id %id%
     WinClose, ahk_id %id%, , %KILL_AFTER_SECONDS%
@@ -99,13 +106,22 @@ Terminate(id) {
       ; can be extended? But there really should be a way to get the proper PID.
       WinGet, pid, PID, ahk_id %id%
       if (DEBUG_NO_ENFORCE) {
-        ShowMessage("enforcement disabled: kill process " pid)
+        ShowMessage("enforcement disabled: kill process " pid " (window " id ")")
       } else {
         Process, Close, %pid%
       }
     }
   }
   doomedWindows.Delete(id)
+}
+
+TerminateProcess(pid) {
+  if (DEBUG_NO_ENFORCE) {
+    ShowMessage("enforcement disabled: kill process " pid)
+  } else {
+    Process, Close, %pid%
+  }
+  doomedProcesses.Delete(pid)
 }
 
 FindLowestBudget(budgetIds, budgets) {
@@ -119,7 +135,7 @@ FindLowestBudget(budgetIds, budgets) {
   return lowestBudgetId
 }
 
-ParseTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
+ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
   budgetIds := StrSplit(line, ",")
   for ignored, id in budgetIds {
     if (!titlesByBudget.HasKey(id)) {
@@ -132,11 +148,22 @@ ParseTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
   budget := budgets[lowestBudgetId]["name"]
   if (secondsLeft <= 0) {
     for ignored, id in windows[title]["ids"] {
-      if (!doomedWindows[id]) {
+      if (!doomedWindows.HasKey(id)) {
         doomedWindows[id] := 1
-        terminateWindow := Func("Terminate").Bind(id)
+        terminateWindow := Func("TerminateWindow").Bind(id)
         SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
-        messages.Push("Time is up for budget '" budget "', please close '" title "'")
+        messages.Push("Time is up for budget '" budget "', please close window '" title "'")
+      }
+    }
+    if (windows[title].HasKey("pid")) {
+      pid := windows[title]["pid"]
+      if (!doomedProcesses.HasKey(pid)) {
+        doomedProcesses[pid] := 1
+        terminateProcess := Func("TerminateProcess").Bind(pid)
+        ; The kill should happen after the same amount of time as for a window.
+        millis := GRACE_PERIOD_MILLIS + KILL_AFTER_SECONDS
+        SetTimer, %terminateProcess%, %millis%
+        messages.Push("Time is up for budget '" budget "', please close process '" title "'")
       }
     }
   } else if (secondsLeft <= 300) {
@@ -200,8 +227,15 @@ GetAllWindows() {
   for name, title in WATCH_PROCESSES {
     Process, Exist, %name%
     if (ErrorLevel) {
-      ; TODO: Use the PID in ErrorLevel to terminate the process, as there is no window ID.
-      windows[title] := {"ids": {0: 1}, "active": false, "name": name}
+      ; It is possible that this title already exists, e.g. if the user has deliberately
+      ; chosen such a title. Processes have no window IDs to close and are always considered
+      ; to be non-active (to avoid mulitple active titles).
+      if (!windows.HasKey(title)) {
+        windows[title] := {"ids": [], "pid": ErrorLevel, "active": false, "name": name}
+      } else {
+        ; Just add the PID for termination handling.
+        windows[title]["pid"] := Errorlevel
+      }
     }
   }
   return windows
@@ -256,7 +290,7 @@ DoTheThing(reportStatus) {
           s := StrSplit(line, ":", "", 3)
           budgets[s[1]] := {"remaining": s[2], "name": s[3]}
         case 2:
-          ParseTitleResponse(line, windows, indexToTitle[index++], budgets, titlesByBudget, messages)
+          ProcessTitleResponse(line, windows, indexToTitle[index++], budgets, titlesByBudget, messages)
         default:
           messages := responseLines
           messages.InsertAt(1, "Invalid response received from server:")
@@ -315,15 +349,19 @@ DebugShowStatus() {
     }
     msg .= "title=" title " ids=" ids " active=" window["active"] " name=" window["name"] "`n"
   }
-  msg .= "-----`n"
+  msg .= "----- warned budgets:`n"
   for budget, ignored in warnedBudgets {
     msg .= "warned: " budget "`n"
   }
-  msg .= "-----`n"
+  msg .= "----- doomed windows`n"
   for id, ignored in doomedWindows {
     msg .= "doomed: " id "`n"
   }
-  msg .= "-----`n"
+  msg .= "----- doomed processes`n"
+  for pid, ignored in doomedProcesses {
+    msg .= "doomed: " pid "`n"
+  }
+  msg .= "----- watched processes`n"
   for name, title in WATCH_PROCESSES {
     msg .= "process: " name " -> " title "`n"
   }

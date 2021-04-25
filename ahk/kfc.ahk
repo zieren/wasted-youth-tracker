@@ -138,7 +138,7 @@ FindLowestBudget(budgetIds, budgets) {
 ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
   budgetIds := StrSplit(line, ",")
   for ignored, id in budgetIds {
-    if (!titlesByBudget.HasKey(id)) {
+    if (!titlesByBudget[id]) {
       titlesByBudget[id] := []
     }
     titlesByBudget[id].Push(title)
@@ -148,16 +148,16 @@ ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
   budget := budgets[lowestBudgetId]["name"]
   if (secondsLeft <= 0) {
     for ignored, id in windows[title]["ids"] {
-      if (!doomedWindows.HasKey(id)) {
+      if (!doomedWindows[id]) {
         doomedWindows[id] := 1
         terminateWindow := Func("TerminateWindow").Bind(id)
         SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
         messages.Push("Time is up for budget '" budget "', please close window '" title "'")
       }
     }
-    if (windows[title].HasKey("pid")) {
+    if (windows[title]["pid"]) {
       pid := windows[title]["pid"]
-      if (!doomedProcesses.HasKey(pid)) {
+      if (!doomedProcesses[pid]) {
         doomedProcesses[pid] := 1
         terminateProcess := Func("TerminateProcess").Bind(pid)
         ; The kill should happen after the same amount of time as for a window.
@@ -215,7 +215,7 @@ GetAllWindows() {
   if (rootTitle && !IGNORE_PROCESSES[processName]) {
       ; Store process name for debugging: This is needed when we close a window that should have
       ; been ignored.
-      if (!windows.HasKey(rootTitle)) {
+      if (!windows[rootTitle]) {
         windows[rootTitle] := {"ids": [rootID], "active": id == activeID, "name": processName}
       } else {
         windows[rootTitle]["ids"].Push(rootID)
@@ -230,7 +230,7 @@ GetAllWindows() {
       ; It is possible that this title already exists, e.g. if the user has deliberately
       ; chosen such a title. Processes have no window IDs to close and are always considered
       ; to be non-active (to avoid mulitple active titles).
-      if (!windows.HasKey(title)) {
+      if (!windows[title]) {
         windows[title] := {"ids": [], "pid": ErrorLevel, "active": false, "name": name}
       } else {
         ; Just add the PID for termination handling.

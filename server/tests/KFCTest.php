@@ -1065,6 +1065,13 @@ final class KFCTest extends KFCTestBase {
 
     // Accumulate time.
     $this->mockTime++;
+    // Only now; previous requests had the same timestamp.
+    $lastC1DateTimeString = $this->dateTimeString();
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0), [
+        $this->classification(DEFAULT_CLASS_ID, [0]),
+        $this->classification($classId2, [$budgetId2])]);
+    $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
@@ -1073,17 +1080,29 @@ final class KFCTest extends KFCTestBase {
     // Check results.
     $this->assertEquals(
         $this->kfc->queryTimeSpentByTitle('u1', $fromTime), [
-            [$this->dateTimeString(), 2, DEFAULT_CLASS_NAME, 'title 2'],
-            [$this->dateTimeString(), 1, 'c1', 'title 1'],
-            [$this->dateTimeString(), 1, 'c2', 'title 1']]);
+            [$this->dateTimeString(), 3, DEFAULT_CLASS_NAME, 'title 2'],
+            [$this->dateTimeString(), 2, 'c2', 'title 1'],
+            [$lastC1DateTimeString, 1, 'c1', 'title 1']]);
     $this->assertEqualsIgnoreOrder(
         $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
-        '' => ['1970-01-01' => 2],
+        '' => ['1970-01-01' => 3],
         $budgetId1 => ['1970-01-01' => 1],
-        $budgetId2 => ['1970-01-01' => 1]]);
+        $budgetId2 => ['1970-01-01' => 2]]);
   }
 
-  // TODO: Consider writing a test case that follows a representative sequence of events.
+  function testUmlauts(): void {
+    $classId = $this->kfc->addClass('c');
+    $this->kfc->addClassification($classId, 0, 'ä.*ß');
+
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['täßt'], 0),
+        [$this->classification($classId, [0])]);
+
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->insertWindowTitles('u1', ['tößt'], 0),
+        [$this->classification(DEFAULT_CLASS_ID, [0])]);
+  }
 }
 
 (new KFCTest())->run();
+// TODO: Consider writing a test case that follows a representative sequence of events.

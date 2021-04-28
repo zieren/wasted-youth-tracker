@@ -60,6 +60,7 @@ class KFC {
     DB::$dbName = $dbName;
     DB::$user = $dbUser;
     DB::$password = $dbPass;
+    DB::$encoding = 'utf8';
     $this->timeFunction = $timeFunction;
     if ($createMissingTables) {
       $this->createMissingTables();

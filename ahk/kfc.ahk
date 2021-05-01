@@ -17,6 +17,12 @@ IGNORE_PROCESSES["explorer.exe"] := 1 ; also runs the task bar and the start men
 IGNORE_PROCESSES["LogiOverlay.exe"] := 1 ; Logitech mouse/trackball driver
 IGNORE_PROCESSES["AutoHotkey.exe"] := 1 ; KFC itself (and other AHK scripts)
 
+; Track last successful request to server. If this exceeds a threshold, we
+; assume the network is down and will doom everything because we can no longer
+; enforce limits.
+global LAST_SUCCESSFUL_REQUEST := EpochSeconds()
+global MAX_OFFLINE_SECONDS := 2 * 60
+
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 
 INI_FILE := USERPROFILE "\kfc.ini"
@@ -47,7 +53,9 @@ DetectHiddenWindows, Off
 ; Killing it with the task manager, removing it from autostart or disabling
 ; enforcement in the .ini file require significantly more skill; for now this
 ; is good enough.
-Menu, Tray, NoIcon
+if (!DEBUG_NO_ENFORCE) {
+  Menu, Tray, NoIcon
+}
 
 ; Shared variables should be safe since AutoHotkey simulates concurrency
 ; using a single thread: https://www.autohotkey.com/docs/misc/Threads.htm
@@ -61,9 +69,6 @@ global doomedProcesses := {}
 
 ; Remember budgets for which a "time is almost up" message has been shown.
 global warnedBudgets := {}
-
-; Remember last request timestamp (Unix epoch seconds).
-global lastRequest := 0
 
 Beep(t) {
   Loop, %t% {
@@ -79,6 +84,7 @@ ShowMessage(msg) {
   Gui, Show, , KFC
 }
 
+; Returns the specified seconds formatted as "hh:mm:ss".
 FormatSeconds(seconds) {
   sign := ""
   if (seconds < 0) {
@@ -89,7 +95,7 @@ FormatSeconds(seconds) {
   seconds -= hours * 60 * 60
   minutes := Floor(seconds / 60)
   seconds -= minutes * 60
-  return sign Format("{}:{:02}:{:02}", hours, minutes, seconds)
+  return sign Format("{:i}:{:02i}:{:02i}", hours, minutes, seconds)
 }
 
 ; Close the window with the specified ahk_id.
@@ -97,23 +103,23 @@ FormatSeconds(seconds) {
 ; but not actually close. So maybe it sends a close request, and when the program acks that
 ; request it considers that success.
 TerminateWindow(id) {
-  if (WinExist("ahk_id" id)) {
-    WinGet, pid, PID, ahk_id %id%
-    WinClose, ahk_id %id%, , %KILL_AFTER_SECONDS%
-    id2 := WinExist("ahk_id" id)
-    if (id2) {
-      ; The PID can be too high up in the hierarchy. E.g. calculator.exe has its own PID, but
-      ; the below call returns that of "Application Frame Host", which is shared with other
-      ; processes (try Solitaire). DllCall("GetWindowThreadProcessId"...) has the same problem.
-      ; I'm not sure how common this problem is in practice. For now we accept that the blast
-      ; radius in case of "force close" may be too large. The main problem is that, presumably,
-      ; this may close system/driver processes that are missing in IGNORE_PROCESSES.
-      ; TODO: Fix this. Maybe send window info incl. process name to server, so IGNORE_PROCESSES
-      ; can be extended? But there really should be a way to get the proper PID.
+  if (DEBUG_NO_ENFORCE) {
+    ShowMessage("enforcement disabled: close window " id)
+  } else {
+    if (WinExist("ahk_id" id)) {
       WinGet, pid, PID, ahk_id %id%
-      if (DEBUG_NO_ENFORCE) {
-        ShowMessage("enforcement disabled: kill process " pid " (window " id ")")
-      } else {
+      WinClose, ahk_id %id%, , %KILL_AFTER_SECONDS%
+      id2 := WinExist("ahk_id" id)
+      if (id2) {
+        ; The PID can be too high up in the hierarchy. E.g. calculator.exe has its own PID, but
+        ; the below call returns that of "Application Frame Host", which is shared with other
+        ; processes (try Solitaire). DllCall("GetWindowThreadProcessId"...) has the same problem.
+        ; I'm not sure how common this problem is in practice. For now we accept that the blast
+        ; radius in case of "force close" may be too large. The main problem is that, presumably,
+        ; this may close system/driver processes that are missing in IGNORE_PROCESSES.
+        ; TODO: Fix this. Maybe send window info incl. process name to server, so IGNORE_PROCESSES
+        ; can be extended? But there really should be a way to get the proper PID.
+        WinGet, pid, PID, ahk_id %id%
         Process, Close, %pid%
       }
     }
@@ -139,49 +145,6 @@ FindLowestBudget(budgetIds, budgets) {
     }
   }
   return lowestBudgetId
-}
-
-ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
-  budgetIds := StrSplit(line, ",")
-  for ignored, id in budgetIds {
-    if (!titlesByBudget[id]) {
-      titlesByBudget[id] := []
-    }
-    titlesByBudget[id].Push(title)
-  }
-  lowestBudgetId := FindLowestBudget(budgetIds, budgets)
-  secondsLeft := budgets[lowestBudgetId]["remaining"]
-  budget := budgets[lowestBudgetId]["name"]
-  if (secondsLeft <= 0) {
-    for ignored, id in windows[title]["ids"] {
-      if (!doomedWindows[id]) {
-        doomedWindows[id] := 1
-        terminateWindow := Func("TerminateWindow").Bind(id)
-        SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
-        messages.Push("Time is up for budget '" budget "', please close window '" title "'")
-      }
-    }
-    if (windows[title]["pid"]) {
-      pid := windows[title]["pid"]
-      if (!doomedProcesses[pid]) {
-        doomedProcesses[pid] := 1
-        terminateProcess := Func("TerminateProcess").Bind(pid)
-        ; The kill should happen after the same amount of time as for a window.
-        millis := GRACE_PERIOD_MILLIS + KILL_AFTER_SECONDS
-        SetTimer, %terminateProcess%, %millis%
-        messages.Push("Time is up for budget '" budget "', please close process '" title "'")
-      }
-    }
-  } else if (secondsLeft <= 300) {
-    ; TODO: Make this configurable. Maybe pull config from server on start?
-    if (!warnedBudgets[lowestBudgetId]) {
-      warnedBudgets[lowestBudgetId] := 1
-      timeLeftString := FormatSeconds(secondsLeft)
-      messages.Push("Budget '" budget "' for '" title "' has " timeLeftString " left.")
-    }
-  } else if (warnedBudgets[lowestBudgetId]) { ; budget time was increased, need to warn again
-    warnedBudgets.Delete(lowestBudgetId)
-  }
 }
 
 ShowMessages(messages, enableBeep = true) {
@@ -268,8 +231,13 @@ DoTheThing(reportStatus) {
   ; Perform request.
   ; https://docs.microsoft.com/en-us/previous-versions/windows/desktop/ms759148(v=vs.85)
   request := ComObjCreate("MSXML2.XMLHTTP.6.0")
-  request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
-  request.send(USER "`n" focusIndex windowList)
+  try {
+    request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
+    request.send(USER "`n" focusIndex windowList)
+    LAST_SUCCESSFUL_REQUEST = EpochSeconds()
+  } catch {
+    return HandleOffline(windows)
+  }
 
   ; Parse response. Format is described in RX.php.
   responseLines := StrSplit(request.responseText, "`n")
@@ -313,6 +281,70 @@ DoTheThing(reportStatus) {
   return messages
 }
 
+HandleOffline(windows) {
+  offlineSecondsLeft := MAX_OFFLINE_SECONDS - (EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
+  if (offlineSecondsLeft < 0) {
+    messages := []
+    for title, window in windows {
+      DoomWindow(window, messages, "No uplink to the mothership. Please close '" title "'")
+    }
+    return messages
+  }
+  return ["No uplink to the mothership. Time left: " FormatSeconds(offlineSecondsLeft)]
+}
+
+ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
+  budgetIds := StrSplit(line, ",")
+  for ignored, id in budgetIds {
+    if (!titlesByBudget[id]) {
+      titlesByBudget[id] := []
+    }
+    titlesByBudget[id].Push(title)
+  }
+  lowestBudgetId := FindLowestBudget(budgetIds, budgets)
+  secondsLeft := budgets[lowestBudgetId]["remaining"]
+  budget := budgets[lowestBudgetId]["name"]
+  if (secondsLeft <= 0) {
+    closeMessage := "Time is up for budget '" budget "', please close '" title "'"
+    DoomWindow(windows[title], messages, closeMessage)
+  } else if (secondsLeft <= 300) {
+    ; TODO: Make this configurable. Maybe pull config from server on start?
+    if (!warnedBudgets[lowestBudgetId]) {
+      warnedBudgets[lowestBudgetId] := 1
+      timeLeftString := FormatSeconds(secondsLeft)
+      messages.Push("Budget '" budget "' for '" title "' has " timeLeftString " left.")
+    }
+  } else if (warnedBudgets[lowestBudgetId]) { ; budget time was increased, need to warn again
+    warnedBudgets.Delete(lowestBudgetId)
+  }
+}
+
+; Dooms the specified window/process, adding the appropriate message to messages.
+DoomWindow(window, messages, closeMessage) {
+  pushCloseMessage := false
+  for ignored, id in window["ids"] {
+    if (!doomedWindows[id]) {
+      doomedWindows[id] := 1
+      terminateWindow := Func("TerminateWindow").Bind(id)
+      SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
+      pushCloseMessage = true
+    }
+  }
+  if (window["pid"]) {
+    pid := window["pid"]
+    if (!doomedProcesses[pid]) {
+      doomedProcesses[pid] := 1
+      terminateProcess := Func("TerminateProcess").Bind(pid)
+      ; The kill should happen after the same amount of time as for a window.
+      millis := GRACE_PERIOD_MILLIS + KILL_AFTER_SECONDS
+      SetTimer, %terminateProcess%, %millis%
+      pushCloseMessage = true
+    }
+  }
+  if (pushCloseMessage)
+    messages.Push(closeMessage)
+}
+
 AddStatusReport(budgets, titlesByBudget, messages) {
   if (messages.length()) {
     messages.Push("")
@@ -339,6 +371,12 @@ Loop {
   Sleep, SAMPLE_INTERVAL_SECONDS * 1000
 }
 
+EpochSeconds() {
+  ts := A_NowUTC
+  EnvSub, ts, 19700101000000, Seconds
+  return ts
+}
+
 ShowStatus() {
   Critical, On
   ShowMessages(DoTheThing(true), false)
@@ -346,33 +384,33 @@ ShowStatus() {
 }
 
 DebugShowStatus() {
-  msg := ""
+  msgs := []
   for title, window in GetAllWindows()
   {
     ids := ""
     for id, ignored in window["ids"] {
       ids .= (ids ? "/" : "") id
     }
-    msg .= "title=" title " ids=" ids " active=" window["active"] " name=" window["name"] "`n"
+    msgs.Push("title=" title " ids=" ids " active=" window["active"] " name=" window["name"])
   }
-  msg .= "----- warned budgets:`n"
+  msgs.Push("----- warned budgets:")
   for budget, ignored in warnedBudgets {
-    msg .= "warned: " budget "`n"
+    msgs.Push("warned: " budget)
   }
-  msg .= "----- doomed windows`n"
+  msgs.Push("----- doomed windows")
   for id, ignored in doomedWindows {
-    msg .= "doomed: " id "`n"
+    msgs.Push("doomed: " id)
   }
-  msg .= "----- doomed processes`n"
+  msgs.Push("----- doomed processes")
   for pid, ignored in doomedProcesses {
-    msg .= "doomed: " pid "`n"
+    msgs.Push("doomed: " pid)
   }
-  msg .= "----- watched processes`n"
+  msgs.Push("----- watched processes")
   for name, title in WATCH_PROCESSES {
-    msg .= "process: " name " -> " title "`n"
+    msgs.Push("process: " name " -> " title)
   }
 
-  ShowMessage(msg)
+  ShowMessages(msgs)
 }
 
 ; --- GUI ---

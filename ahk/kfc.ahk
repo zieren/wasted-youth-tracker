@@ -20,8 +20,9 @@ IGNORE_PROCESSES["AutoHotkey.exe"] := 1 ; KFC itself (and other AHK scripts)
 ; Track last successful request to server. If this exceeds a threshold, we
 ; assume the network is down and will doom everything because we can no longer
 ; enforce limits.
-global LAST_SUCCESSFUL_REQUEST := EpochSeconds()
-global MAX_OFFLINE_SECONDS := 2 * 60
+global LAST_SUCCESSFUL_REQUEST := 0 ; epoch seconds
+global OFFLINE_WARN_SECONDS := 60
+global OFFLINE_CLOSE_SECONDS := 2 * 60
 
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 
@@ -282,15 +283,18 @@ DoTheThing(reportStatus) {
 }
 
 HandleOffline(windows) {
-  offlineSecondsLeft := MAX_OFFLINE_SECONDS - (EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
-  if (offlineSecondsLeft < 0) {
+  offlineWarnSecondsLeft := OFFLINE_WARN_SECONDS - (EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
+  offlineCloseSecondsLeft := OFFLINE_CLOSE_SECONDS - (EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
+  if (offlineCloseSecondsLeft < 0) {
     messages := []
     for title, window in windows {
       DoomWindow(window, messages, "No uplink to the mothership. Please close '" title "'")
     }
     return messages
   }
-  return ["No uplink to the mothership. Time left: " FormatSeconds(offlineSecondsLeft)]
+  if (offlineWarnSecondsLeft < 0) {
+    return ["No uplink to the mothership. Will close everything in " FormatSeconds(offlineCloseSecondsLeft)]
+  }
 }
 
 ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
@@ -409,6 +413,7 @@ DebugShowStatus() {
   for name, title in WATCH_PROCESSES {
     msgs.Push("process: " name " -> " title)
   }
+  msgs.Push("", "Last successful request: " LAST_SUCCESSFUL_REQUEST)
 
   ShowMessages(msgs)
 }

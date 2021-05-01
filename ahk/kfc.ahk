@@ -43,6 +43,12 @@ Loop, 99 {
 ; TODO: Is this a loophole?
 DetectHiddenWindows, Off
 
+; The tray icon allows the user to exit the script, so don't show it.
+; Killing it with the task manager, removing it from autostart or disabling
+; enforcement in the .ini file require significantly more skill; for now this
+; is good enough.
+Menu, Tray, NoIcon
+
 ; Shared variables should be safe since AutoHotkey simulates concurrency
 ; using a single thread: https://www.autohotkey.com/docs/misc/Threads.htm
 

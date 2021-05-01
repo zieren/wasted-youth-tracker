@@ -27,13 +27,14 @@ global OFFLINE_CLOSE_SECONDS := 2 * 60
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 
 INI_FILE := USERPROFILE "\kfc.ini"
-global URL, HTTP_USER, HTTP_PASS, USER, DEBUG_NO_ENFORCE, WATCH_PROCESSES
+global URL, HTTP_USER, HTTP_PASS, USER, DEBUG_NO_ENFORCE
 IniRead, URL, %INI_FILE%, server, url
 IniRead, HTTP_USER, %INI_FILE%, server, username
 IniRead, HTTP_PASS, %INI_FILE%, server, password
 IniRead, USER, %INI_FILE%, account, user
 IniRead, DEBUG_NO_ENFORCE, %INI_FILE%, debug, disableEnforcement, 0
-WATCH_PROCESSES := {}
+
+global WATCH_PROCESSES := {}
 Loop, 99 {
   IniRead, p, %INI_FILE%, processes, process_%A_Index%, %A_Space%
   if (p) {
@@ -63,13 +64,13 @@ if (!DEBUG_NO_ENFORCE) {
 
 ; Track windows for which a "please close" message was already shown.
 ; There's no set type, so use an associative array.
-global doomedWindows := {}
+global DOOMED_WINDOWS := {}
 
 ; Same for processes without windows.
-global doomedProcesses := {}
+global DOOMED_PROCESSES := {}
 
 ; Remember budgets for which a "time is almost up" message has been shown.
-global warnedBudgets := {}
+global WARNED_BUDGETS := {}
 
 Beep(t) {
   Loop, %t% {
@@ -125,7 +126,7 @@ TerminateWindow(id) {
       }
     }
   }
-  doomedWindows.Delete(id)
+  DOOMED_WINDOWS.Delete(id)
 }
 
 TerminateProcess(pid) {
@@ -134,7 +135,7 @@ TerminateProcess(pid) {
   } else {
     Process, Close, %pid%
   }
-  doomedProcesses.Delete(pid)
+  DOOMED_PROCESSES.Delete(pid)
 }
 
 FindLowestBudget(budgetIds, budgets) {
@@ -313,13 +314,13 @@ ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
     DoomWindow(windows[title], messages, closeMessage)
   } else if (secondsLeft <= 300) {
     ; TODO: Make this configurable. Maybe pull config from server on start?
-    if (!warnedBudgets[lowestBudgetId]) {
-      warnedBudgets[lowestBudgetId] := 1
+    if (!WARNED_BUDGETS[lowestBudgetId]) {
+      WARNED_BUDGETS[lowestBudgetId] := 1
       timeLeftString := FormatSeconds(secondsLeft)
       messages.Push("Budget '" budget "' for '" title "' has " timeLeftString " left.")
     }
-  } else if (warnedBudgets[lowestBudgetId]) { ; budget time was increased, need to warn again
-    warnedBudgets.Delete(lowestBudgetId)
+  } else if (WARNED_BUDGETS[lowestBudgetId]) { ; budget time was increased, need to warn again
+    WARNED_BUDGETS.Delete(lowestBudgetId)
   }
 }
 
@@ -327,8 +328,8 @@ ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
 DoomWindow(window, messages, closeMessage) {
   pushCloseMessage := false
   for ignored, id in window["ids"] {
-    if (!doomedWindows[id]) {
-      doomedWindows[id] := 1
+    if (!DOOMED_WINDOWS[id]) {
+      DOOMED_WINDOWS[id] := 1
       terminateWindow := Func("TerminateWindow").Bind(id)
       SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
       pushCloseMessage = true
@@ -336,8 +337,8 @@ DoomWindow(window, messages, closeMessage) {
   }
   if (window["pid"]) {
     pid := window["pid"]
-    if (!doomedProcesses[pid]) {
-      doomedProcesses[pid] := 1
+    if (!DOOMED_PROCESSES[pid]) {
+      DOOMED_PROCESSES[pid] := 1
       terminateProcess := Func("TerminateProcess").Bind(pid)
       ; The kill should happen after the same amount of time as for a window.
       millis := GRACE_PERIOD_MILLIS + KILL_AFTER_SECONDS
@@ -398,15 +399,15 @@ DebugShowStatus() {
     msgs.Push("title=" title " ids=" ids " active=" window["active"] " name=" window["name"])
   }
   msgs.Push("----- warned budgets:")
-  for budget, ignored in warnedBudgets {
+  for budget, ignored in WARNED_BUDGETS {
     msgs.Push("warned: " budget)
   }
   msgs.Push("----- doomed windows")
-  for id, ignored in doomedWindows {
+  for id, ignored in DOOMED_WINDOWS {
     msgs.Push("doomed: " id)
   }
   msgs.Push("----- doomed processes")
-  for pid, ignored in doomedProcesses {
+  for pid, ignored in DOOMED_PROCESSES {
     msgs.Push("doomed: " pid)
   }
   msgs.Push("----- watched processes")

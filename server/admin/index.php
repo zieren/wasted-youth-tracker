@@ -1,7 +1,7 @@
 <html>
 <head>
   <title>KFC Admin</title>
-  <meta charset="utf-8"/>
+  <meta charset="iso-8859-1"/>
   <link rel="stylesheet" href="../common/kfc.css">
 </head>
 <body>
@@ -62,7 +62,6 @@ if (isset($_POST['setUserConfig'])) {
   $user = $_POST['user'];
   $budgetName = trim($_POST['budgetNameOrId']);
   $kfc->addBudget($user, $budgetName);
-  echo "Budget added: " . $budgetName;
 } else if (isset($_POST['removeBudget'])) {
   $budgetId = trim($_POST['budgetNameOrId']);
   $kfc->removeBudget($budgetId);

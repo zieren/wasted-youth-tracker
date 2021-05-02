@@ -1,7 +1,7 @@
 <html>
 <head>
   <title>KFC View</title>
-  <meta charset="utf-8"/>
+  <meta charset="iso-8859-1"/>
   <link rel="stylesheet" href="../common/kfc.css">
 </head>
 <body>

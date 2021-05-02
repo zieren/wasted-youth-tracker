@@ -5,12 +5,16 @@ require_once 'db.class.php';
 
 define('DAILY_LIMIT_MINUTES_PREFIX', 'daily_limit_minutes_');
 
-// Background:
-// https://stackoverflow.com/questions/54885178
-// https://dba.stackexchange.com/questions/76788
-// https://dev.mysql.com/doc/refman/8.0/en/charset-table.html
-// needs 8.0+: define('CREATE_TABLE_SUFFIX', 'CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci');
-define('CREATE_TABLE_SUFFIX', 'CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ');
+// We use MySQL's RegExp library, which does not support utf8. So we have to fall back to latin1.
+// See here: https://github.com/zieren/kids-freedom-control/issues/33
+define('CREATE_TABLE_SUFFIX', 'CHARACTER SET latin1 COLLATE latin1_german1_ci ');
+// Background for utf8 support (which we can't use):
+// - https://stackoverflow.com/questions/54885178
+// - https://dba.stackexchange.com/questions/76788
+// - needs 8.0+: 'CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci'
+// General charset info:
+// - https://dev.mysql.com/doc/refman/8.0/en/charset-table.html
+// - https://stackoverflow.com/questions/1049728/
 
 // TODO: Consider caching repeated queries.
 // TODO: Handle user timezone != server timezone.
@@ -60,7 +64,7 @@ class KFC {
     DB::$dbName = $dbName;
     DB::$user = $dbUser;
     DB::$password = $dbPass;
-    DB::$encoding = 'utf8';
+    DB::$encoding = 'latin1'; // aka iso-8859-1
     $this->timeFunction = $timeFunction;
     if ($createMissingTables) {
       $this->createMissingTables();

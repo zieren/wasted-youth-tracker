@@ -958,6 +958,18 @@ final class KFCTest extends KFCTestBase {
         "$budgetId:58:b1\n\n$budgetId");
   }
 
+  public function testHandleRequest_utf8Conversion(): void {
+    $classId = $this->kfc->addClass('c1');
+    $this->kfc->addClassification($classId, 0, '^...$');
+    $budgetId = $this->kfc->addBudget('b1');
+    $this->kfc->addMapping('u1', $classId, $budgetId);
+
+    // This file uses utf8 encoding. The word 'süß' would not match the above RE in utf8 because
+    // MySQL's RE library does not support utf8 and would see 5 bytes.
+    $this->assertEquals(RX::handleRequest("u1\n0\nsüß", $this->kfc),
+        $budgetId . ":0:b1\n\n" . $budgetId);
+  }
+
   public function testSetOverrideMinutesAndUnlock(): void {
     $budgetId = $this->kfc->addBudget('b1');
     $this->kfc->addMapping('u1', DEFAULT_CLASS_ID, $budgetId);
@@ -1092,15 +1104,22 @@ final class KFCTest extends KFCTestBase {
 
   function testUmlauts(): void {
     $classId = $this->kfc->addClass('c');
-    $this->kfc->addClassification($classId, 0, 'ä.*ß');
+    // The single '.' should match the 'ä' umlaut. In utf8 this fails because the MySQL RegExp
+    // library does not support utf8 and the character is encoded as two bytes.
+    $this->kfc->addClassification($classId, 0, 't.st');
+    // Word boundaries should support umlauts. Match any three letter word.
+    $this->kfc->addClassification($classId, 0, '[[:<:]]...[[:>:]]');
 
+    // This file uses utf8. Insert an 'ä' (&auml;) character in latin1 encoding.
+    // https://cs.stanford.edu/people/miles/iso8859.html
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['täßt'], 0),
+        $this->kfc->insertWindowTitles('u1', ['t' . chr(228) .'st'], 0),
         [$this->classification($classId, [0])]);
 
+    // Test second classification rule for the word 'süß'.
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['tößt'], 0),
-        [$this->classification(DEFAULT_CLASS_ID, [0])]);
+        $this->kfc->insertWindowTitles('u1', ['x s' . chr(252) . chr(223) . ' x'], 0),
+        [$this->classification($classId, [0])]);
   }
 }
 

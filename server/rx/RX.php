@@ -31,12 +31,13 @@ class RX {
    * Minecraft
    * Calculator
    *
-   * The response contains two parts. The first part lists all budgets configured for the user:
+   * The response contains two parts. The first part lists all budgets configured for the user and
+   * the remaining time today in seconds.
    *
    * budgetId ":" timeLeftToday ":" budgetName
    *
-   * The second part, separated by a blank line, lists the budgets to which each window title map,
-   * in the order they appear in the request. If multiple budgets matcha title, they are separated
+   * The second part, separated by a blank line, lists the budgets to which each window title maps,
+   * in the order they appear in the request. If multiple budgets match a title, they are separated
    * by commas:
    *
    * budgetId ( "," budgetId )*
@@ -61,6 +62,9 @@ class RX {
       return "error\nInvalid request";
     }
     $titles = array_slice($lines, 2); // could be empty, but we still need to insert a timestamp
+    // AutoHotkey sends strings in utf8, but we use latin1 because MySQL's RegExp library doesn't
+    // support utf8. https://github.com/zieren/kids-freedom-control/issues/33
+    $titles = array_map('utf8_decode', $titles);
 
     $classifications = $kfc->insertWindowTitles($user, $titles, $focusIndex);
 

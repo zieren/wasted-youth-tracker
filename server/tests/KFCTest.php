@@ -1135,6 +1135,13 @@ final class KFCTest extends KFCTestBase {
         [$budgetId2 => ['name' => 'b1']]);
     $this->assertEquals($this->kfc->getAllBudgetConfigs('nobody'), []);
   }
+
+  function testBudgetWithUmlauts(): void {
+    $budgetName = 't' . chr(228) .'st';
+    $budgetId = $this->kfc->addBudget('u1', $budgetName);
+    $this->assertEquals($this->kfc->getAllBudgetConfigs('u1'),
+        [$budgetId => ['name' => $budgetName]]);
+  }
 }
 
 (new KFCTest())->run();

@@ -18,7 +18,7 @@ function echoTableAssociative($data) {
 }
 
 function html($text) {
-  return htmlentities($text, ENT_COMPAT | ENT_HTML401, 'UTF-8');
+  return htmlentities($text, ENT_COMPAT | ENT_HTML401, 'ISO-8859-1');
 }
 
 function userSelector($users, $selectedUser) {

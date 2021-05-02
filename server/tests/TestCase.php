@@ -88,7 +88,7 @@ abstract class TestCase {
 
   public function run(): void {
     $this->startTime = microtime(true);
-    Logger::Instance()->info('----- setUp');
+    Logger::Instance()->info('----- setUpTestCase');
     $this->setUpTestCase();
 
     $tests = array_filter(get_class_methods(get_class($this)), function($k) {
@@ -126,7 +126,7 @@ abstract class TestCase {
     }
     echo 'Runtime: ' . round(microtime(true) - $this->startTime, 2) . 's<hr>';
 
-    Logger::Instance()->info('----- tearDown');
+    Logger::Instance()->info('----- tearDownTestCase');
     $this->tearDownTestCase();
     $this->dumpAndClearLog();
   }

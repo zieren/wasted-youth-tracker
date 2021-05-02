@@ -13,10 +13,14 @@ DB::$dbName = TEST_DB_NAME;
 DB::$user = TEST_DB_USER;
 DB::$password = TEST_DB_PASS;
 
+function logDbQueryInSetUp($params) {
+  Logger::Instance()->debug('DB query: ' . str_replace("\r\n", '', $params['query']));
+}
+
 final class KFCSlowTest extends KFCTestBase {
 
   protected function setUp(): void {
-    Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::WARNING);
+    DB::$success_handler = 'logDbQueryInSetUp';
     DB::query('SET FOREIGN_KEY_CHECKS = 0');
     $rows = DB::query(
         'SELECT table_name FROM information_schema.tables WHERE table_schema = %s', DB::$dbName);
@@ -24,7 +28,6 @@ final class KFCSlowTest extends KFCTestBase {
       DB::query('DROP TABLE `' . $row['table_name'] . '`');
     }
     DB::query('SET FOREIGN_KEY_CHECKS = 1');
-    Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
   }
 
   public function testCreateTablesWorksAndIsIdempotent(): void {

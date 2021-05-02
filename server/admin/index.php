@@ -59,8 +59,9 @@ if (isset($_POST['setUserConfig'])) {
   $key = trim($_POST['configKey']);
   $kfc->clearGlobalConfig($key);
 } else if (isset($_POST['addBudget'])) {
+  $user = $_POST['user'];
   $budgetName = trim($_POST['budgetNameOrId']);
-  $kfc->addBudget($budgetName);
+  $kfc->addBudget($user, $budgetName);
   echo "Budget added: " . $budgetName;
 } else if (isset($_POST['removeBudget'])) {
   $budgetId = trim($_POST['budgetNameOrId']);

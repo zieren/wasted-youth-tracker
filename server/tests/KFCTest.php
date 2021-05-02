@@ -121,8 +121,8 @@ final class KFCTest extends KFCTestBase {
   }
 
   public function testSetUpBudgets(): void {
-    $budgetId1 = $this->kfc->addBudget('b1');
-    $budgetId2 = $this->kfc->addBudget('b2');
+    $budgetId1 = $this->kfc->addBudget('user_1', 'b1');
+    $budgetId2 = $this->kfc->addBudget('user_1', 'b2');
     $this->assertEquals($budgetId2 - $budgetId1, 1);
 
     $classId1 = $this->kfc->addClass('c1');
@@ -133,7 +133,7 @@ final class KFCTest extends KFCTestBase {
     $classificationId2 = $this->kfc->addClassification($classId2, 10, '2$');
     $this->assertEquals($classificationId2 - $classificationId1, 1);
 
-    $this->kfc->addMapping('user_1', $classId1, $budgetId1);
+    $this->kfc->addMapping($classId1, $budgetId1);
 
     // Class 1 mapped to budget 1, other classes are not assigned to any budget.
     $classification = $this->kfc->classify('user_1', ['window 0', 'window 1', 'window 2']);
@@ -144,7 +144,7 @@ final class KFCTest extends KFCTestBase {
     ]);
 
     // Add a second mapping for the same class.
-    $this->kfc->addMapping('user_1', $classId1, $budgetId2);
+    $this->kfc->addMapping($classId1, $budgetId2);
 
     // Class 1 is now mapped to budgets 1 and 2.
     $classification = $this->kfc->classify('user_1', ['window 0', 'window 1', 'window 2']);
@@ -155,7 +155,7 @@ final class KFCTest extends KFCTestBase {
     ]);
 
     // Add a mapping for the default class.
-    $this->kfc->addMapping('user_1', DEFAULT_CLASS_ID, $budgetId2);
+    $this->kfc->addMapping(DEFAULT_CLASS_ID, $budgetId2);
 
     // Default class is now mapped to budget 2.
     $classification = $this->kfc->classify('user_1', ['window 0', 'window 1', 'window 2']);
@@ -168,17 +168,17 @@ final class KFCTest extends KFCTestBase {
 
   public function testTotalTime_SingleWindow_WithBudgets(): void {
     // Set up test budgets.
-    $budgetId1 = $this->kfc->addBudget('b1');
-    $budgetId2 = $this->kfc->addBudget('b2');
+    $budgetId1 = $this->kfc->addBudget('user_1', 'b1');
+    $budgetId2 = $this->kfc->addBudget('user_1', 'b2');
     $classId1 = $this->kfc->addClass('c1');
     $classId2 = $this->kfc->addClass('c2');
     $this->kfc->addClassification($classId1, 0, '1$');
     $this->kfc->addClassification($classId2, 10, '2$');
     // b1 <= default, c1
     // b2 <= c2
-    $this->kfc->addMapping('user_1', DEFAULT_CLASS_ID, $budgetId1);
-    $this->kfc->addMapping('user_1', $classId1, $budgetId1);
-    $this->kfc->addMapping('user_1', $classId2, $budgetId2);
+    $this->kfc->addMapping(DEFAULT_CLASS_ID, $budgetId1);
+    $this->kfc->addMapping($classId1, $budgetId1);
+    $this->kfc->addMapping($classId2, $budgetId2);
 
     $fromTime = $this->newDateTime();
 
@@ -219,9 +219,9 @@ final class KFCTest extends KFCTestBase {
 
   public function testTotalTime_TwoWindows_WithBudgets(): void {
     // Set up test budgets.
-    $budgetId1 = $this->kfc->addBudget('b1');
-    $budgetId2 = $this->kfc->addBudget('b2');
-    $budgetId3 = $this->kfc->addBudget('b3');
+    $budgetId1 = $this->kfc->addBudget('user_1', 'b1');
+    $budgetId2 = $this->kfc->addBudget('user_1', 'b2');
+    $budgetId3 = $this->kfc->addBudget('user_1', 'b3');
     $classId1 = $this->kfc->addClass('c1');
     $classId2 = $this->kfc->addClass('c2');
     $classId3 = $this->kfc->addClass('c3');
@@ -231,11 +231,11 @@ final class KFCTest extends KFCTestBase {
     // b1 <= default, c1
     // b2 <= c2
     // b3 <= c2, c3
-    $this->kfc->addMapping('user_1', DEFAULT_CLASS_ID, $budgetId1);
-    $this->kfc->addMapping('user_1', $classId1, $budgetId1);
-    $this->kfc->addMapping('user_1', $classId2, $budgetId2);
-    $this->kfc->addMapping('user_1', $classId2, $budgetId3);
-    $this->kfc->addMapping('user_1', $classId3, $budgetId3);
+    $this->kfc->addMapping(DEFAULT_CLASS_ID, $budgetId1);
+    $this->kfc->addMapping($classId1, $budgetId1);
+    $this->kfc->addMapping($classId2, $budgetId2);
+    $this->kfc->addMapping($classId2, $budgetId3);
+    $this->kfc->addMapping($classId3, $budgetId3);
 
     $fromTime = $this->newDateTime();
 
@@ -484,8 +484,8 @@ final class KFCTest extends KFCTestBase {
   }
 
   public function testWeeklyLimit(): void {
-    $budgetId = $this->kfc->addBudget('b');
-    $this->kfc->addMapping('u', DEFAULT_CLASS_ID, $budgetId);
+    $budgetId = $this->kfc->addBudget('u', 'b');
+    $this->kfc->addMapping(DEFAULT_CLASS_ID, $budgetId);
 
     // Budgets default to zero.
     $this->assertEquals(
@@ -529,13 +529,15 @@ final class KFCTest extends KFCTestBase {
         $this->kfc->getAllBudgetConfigs('u'),
         []);
 
-    $budgetId = $this->kfc->addBudget('b');
+    $budgetId = $this->kfc->addBudget('u', 'b');
 
-    // A mapping is required for the budget to be returned for the user.
+    // A mapping is not required for the budget to be returned for the user.
     $this->assertEquals(
         $this->kfc->getAllBudgetConfigs('u'),
-        []);
-    $this->kfc->addMapping('u', DEFAULT_CLASS_ID, $budgetId);
+        [$budgetId => ['name' => 'b']]);
+
+    // Add mapping, doesn't change result.
+    $this->kfc->addMapping(DEFAULT_CLASS_ID, $budgetId);
     $this->assertEqualsIgnoreOrder(
         $this->kfc->getAllBudgetConfigs('u'),
         [$budgetId => ['name' => 'b']]);
@@ -550,50 +552,42 @@ final class KFCTest extends KFCTestBase {
   public function testManageBudgets(): void {
     // No budgets set up.
     $this->assertEquals(
-        $this->kfc->getAllBudgetConfigs(),
-        []);
-    $this->assertEquals(
         $this->kfc->getAllBudgetConfigs('u1'),
         []);
     // Add a budget but no maping yet.
-    $budgetId1 = $this->kfc->addBudget('b1');
-    // Returned when user restriction is absent.
+    $budgetId1 = $this->kfc->addBudget('u1', 'b1');
+    // Not returned when user does not match.
     $this->assertEquals(
-        $this->kfc->getAllBudgetConfigs(),
-        [$budgetId1 => ['name' => 'b1']]);
-    // Not returned when user restriction is present.
+        $this->kfc->getAllBudgetConfigs('nobody'),
+        []);
+    // Returned when user matches.
     $this->assertEquals(
         $this->kfc->getAllBudgetConfigs('u1'),
-        []);
+        [$budgetId1 => ['name' => 'b1']]);
 
     // Add a mapping.
     $this->assertEquals(
         $this->kfc->classify('u1', ['foo']), [
             $this->classification(DEFAULT_CLASS_ID, [0])
             ]);
-    $this->kfc->addMapping('u1', DEFAULT_CLASS_ID, $budgetId1);
+    $this->kfc->addMapping(DEFAULT_CLASS_ID, $budgetId1);
     $this->assertEquals(
         $this->kfc->classify('u1', ['foo']), [
             $this->classification(DEFAULT_CLASS_ID, [$budgetId1])
             ]);
-    // Returned when user restriction is absent.
+
+    // Same behavior:
+    // Not returned when user does not match.
     $this->assertEquals(
-        $this->kfc->getAllBudgetConfigs(),
-        [$budgetId1 => ['name' => 'b1']]);
-    // Now also returned when user restriction is present.
+        $this->kfc->getAllBudgetConfigs('nobody'),
+        []);
+    // Returned when user matches.
     $this->assertEquals(
         $this->kfc->getAllBudgetConfigs('u1'),
         [$budgetId1 => ['name' => 'b1']]);
-    // But not for another user.
-    $this->assertEquals(
-        $this->kfc->getAllBudgetConfigs('u2'),
-        []);
 
     // Add budget config.
     $this->kfc->setBudgetConfig($budgetId1, 'foo', 'bar');
-    $this->assertEqualsIgnoreOrder(
-        $this->kfc->getAllBudgetConfigs(),
-        [$budgetId1 => ['name' => 'b1', 'foo' => 'bar']]);
     $this->assertEqualsIgnoreOrder(
         $this->kfc->getAllBudgetConfigs('u1'),
         [$budgetId1 => ['name' => 'b1', 'foo' => 'bar']]);
@@ -601,7 +595,7 @@ final class KFCTest extends KFCTestBase {
     // Remove budget, this cascades to mappings and config.
     $this->kfc->removeBudget($budgetId1);
     $this->assertEquals(
-        $this->kfc->getAllBudgetConfigs(),
+        $this->kfc->getAllBudgetConfigs('u1'),
         []);
     $this->assertEquals(
         $this->kfc->classify('u1', ['foo']), [
@@ -628,8 +622,8 @@ final class KFCTest extends KFCTestBase {
 
     $classId = $this->kfc->addClass('c1');
     $this->kfc->addClassification($classId, 42, '1$');
-    $budgetId = $this->kfc->addBudget('b1');
-    $this->kfc->addMapping('u2', $classId, $budgetId);
+    $budgetId = $this->kfc->addBudget('u2', 'b1');
+    $this->kfc->addMapping($classId, $budgetId);
 
     // No budget is mapped for user u1. The window is classified, but no budget is associated.
 
@@ -641,15 +635,15 @@ final class KFCTest extends KFCTestBase {
   public function testTimeLeftTodayAllBudgets_consumeTimeAndClassify(): void {
     $classId = $this->kfc->addClass('c1');
     $this->kfc->addClassification($classId, 42, '1$');
-    $budgetId1 = $this->kfc->addBudget('b1');
+    $budgetId1 = $this->kfc->addBudget('u1', 'b1');
 
-    // No mapping yet to this budget for this user.
+    // Budget is listed even when no mapping is present.
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
-        []);
+        [$budgetId1 => 0]);
 
-    // Once the budget has at least one mapping it is listed.
-    $this->kfc->addMapping('u1', $classId, $budgetId1);
+    // Add mapping.
+    $this->kfc->addMapping($classId, $budgetId1);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
         [$budgetId1 => 0]);
@@ -696,8 +690,8 @@ final class KFCTest extends KFCTestBase {
         [null => -15, $budgetId1 => 75]);
 
     // Add a second budget for title 1 with only 1 minute.
-    $budgetId2 = $this->kfc->addBudget('b2');
-    $this->kfc->addMapping('u1', $classId, $budgetId2);
+    $budgetId2 = $this->kfc->addBudget('u1', 'b2');
+    $this->kfc->addMapping($classId, $budgetId2);
     $this->kfc->setBudgetConfig($budgetId2, 'daily_limit_minutes_default', 1);
     $this->mockTime += 1;
     $classification1['budgets'][] = $budgetId2;
@@ -754,8 +748,8 @@ final class KFCTest extends KFCTestBase {
     $fromTime = $this->newDateTime();
     $classId = $this->kfc->addClass('c1');
     $this->kfc->addClassification($classId, 42, '1$');
-    $budgetId = $this->kfc->addBudget('b1');
-    $this->kfc->addMapping('u1', $classId, $budgetId);
+    $budgetId = $this->kfc->addBudget('u1', 'b1');
+    $this->kfc->addMapping($classId, $budgetId);
 
     $this->assertEquals(
         $this->kfc->insertWindowTitles('u1', ['window 1'], 0), [
@@ -872,8 +866,8 @@ final class KFCTest extends KFCTestBase {
   public function testHandleRequest_withBudgets(): void {
     $classId1 = $this->kfc->addClass('c1');
     $this->kfc->addClassification($classId1, 0, '1$');
-    $budgetId1 = $this->kfc->addBudget('b1');
-    $this->kfc->addMapping('u1', $classId1, $budgetId1);
+    $budgetId1 = $this->kfc->addBudget('u1', 'b1');
+    $this->kfc->addMapping($classId1, $budgetId1);
     $this->kfc->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 5);
 
     $this->assertEquals(
@@ -905,9 +899,9 @@ final class KFCTest extends KFCTestBase {
     // Add second budget.
     $classId2 = $this->kfc->addClass('c2');
     $this->kfc->addClassification($classId2, 10, '2$');
-    $budgetId2 = $this->kfc->addBudget('b2');
-    $this->kfc->addMapping('u1', $classId1, $budgetId2);
-    $this->kfc->addMapping('u1', $classId2, $budgetId2);
+    $budgetId2 = $this->kfc->addBudget('u1', 'b2');
+    $this->kfc->addMapping($classId1, $budgetId2);
+    $this->kfc->addMapping($classId2, $budgetId2);
     $this->kfc->setBudgetConfig($budgetId2, 'daily_limit_minutes_default', 2);
 
     $this->mockTime++;
@@ -936,9 +930,9 @@ final class KFCTest extends KFCTestBase {
   public function testHandleRequest_mappedForOtherUser(): void {
     $classId = $this->kfc->addClass('c1');
     $this->kfc->addClassification($classId, 0, '1$');
-    $budgetId = $this->kfc->addBudget('b1');
-    $this->kfc->addMapping('u1', $classId, $budgetId);
-    $this->kfc->setBudgetConfig($budgetId, 'daily_limit_minutes_default', 1);
+    $budgetId1 = $this->kfc->addBudget('u1', 'b1');
+    $this->kfc->addMapping($classId, $budgetId1);
+    $this->kfc->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 1);
 
     $this->assertEquals(RX::handleRequest("u2\n-1", $this->kfc), '');
     $this->mockTime++;
@@ -950,19 +944,21 @@ final class KFCTest extends KFCTestBase {
         RX::handleRequest("u2\n0\ntitle 1", $this->kfc),
         "0:-1:no_budget\n\n0");
 
-    // Now map for user u2.
-    $this->kfc->addMapping('u2', $classId, $budgetId);
+    // Now map same class for user u2.
+    $budgetId2 = $this->kfc->addBudget('u2', 'b2');
+    $this->kfc->setBudgetConfig($budgetId2, 'daily_limit_minutes_default', 1);
+    $this->kfc->addMapping($classId, $budgetId2);
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest("u2\n0\ntitle 1", $this->kfc),
-        "$budgetId:58:b1\n\n$budgetId");
+        "$budgetId2:58:b2\n\n$budgetId2");
   }
 
   public function testHandleRequest_utf8Conversion(): void {
     $classId = $this->kfc->addClass('c1');
     $this->kfc->addClassification($classId, 0, '^...$');
-    $budgetId = $this->kfc->addBudget('b1');
-    $this->kfc->addMapping('u1', $classId, $budgetId);
+    $budgetId = $this->kfc->addBudget('u1', 'b1');
+    $this->kfc->addMapping($classId, $budgetId);
 
     // This file uses utf8 encoding. The word 'süß' would not match the above RE in utf8 because
     // MySQL's RE library does not support utf8 and would see 5 bytes.
@@ -971,8 +967,8 @@ final class KFCTest extends KFCTestBase {
   }
 
   public function testSetOverrideMinutesAndUnlock(): void {
-    $budgetId = $this->kfc->addBudget('b1');
-    $this->kfc->addMapping('u1', DEFAULT_CLASS_ID, $budgetId);
+    $budgetId = $this->kfc->addBudget('u1', 'b1');
+    $this->kfc->addMapping(DEFAULT_CLASS_ID, $budgetId);
     $this->kfc->setBudgetConfig($budgetId, 'daily_limit_minutes_default', 42);
     $this->kfc->setBudgetConfig($budgetId, 'require_unlock', 1);
 
@@ -1013,8 +1009,8 @@ final class KFCTest extends KFCTestBase {
 
     $classId1 = $this->kfc->addClass('c1');
     $this->kfc->addClassification($classId1, 0, '1$');
-    $budgetId1 = $this->kfc->addBudget('b1');
-    $this->kfc->addMapping('u1', $classId1, $budgetId1);
+    $budgetId1 = $this->kfc->addBudget('u1', 'b1');
+    $this->kfc->addMapping($classId1, $budgetId1);
 
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 2'], 0),
@@ -1062,8 +1058,8 @@ final class KFCTest extends KFCTestBase {
     // record that differs only in class_id (which is part of the PK).
     $classId2 = $this->kfc->addClass('c2');
     $this->kfc->addClassification($classId2, 10 /* higher priority */, '1$');
-    $budgetId2 = $this->kfc->addBudget('b2');
-    $this->kfc->addMapping('u1', $classId2, $budgetId2);
+    $budgetId2 = $this->kfc->addBudget('u1', 'b2');
+    $this->kfc->addMapping($classId2, $budgetId2);
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
@@ -1120,6 +1116,24 @@ final class KFCTest extends KFCTestBase {
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['x s' . chr(252) . chr(223) . ' x'], 0),
         [$this->classification($classId, [0])]);
+  }
+
+  function testGetUsers(): void {
+    $this->assertEquals($this->kfc->getUsers(), []);
+    $this->kfc->addBudget('u1', 'b1');
+    $this->assertEquals($this->kfc->getUsers(), ['u1']);
+    $this->kfc->addBudget('u2', 'b2');
+    $this->assertEquals($this->kfc->getUsers(), ['u1', 'u2']);
+  }
+
+  function testSameBudgetName(): void {
+    $budgetId1 = $this->kfc->addBudget('u1', 'b1');
+    $budgetId2 = $this->kfc->addBudget('u2', 'b1');
+    $this->assertEquals($this->kfc->getAllBudgetConfigs('u1'),
+        [$budgetId1 => ['name' => 'b1']]);
+    $this->assertEquals($this->kfc->getAllBudgetConfigs('u2'),
+        [$budgetId2 => ['name' => 'b1']]);
+    $this->assertEquals($this->kfc->getAllBudgetConfigs('nobody'), []);
   }
 }
 

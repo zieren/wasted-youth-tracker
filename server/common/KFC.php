@@ -114,6 +114,7 @@ class KFC {
     DB::query(
         'CREATE TABLE IF NOT EXISTS budgets ('
         . 'id INT NOT NULL AUTO_INCREMENT, '
+        . 'user VARCHAR(32) NOT NULL, '
         . 'name VARCHAR(256) NOT NULL, '
         . 'PRIMARY KEY (id) '
         . ') '
@@ -121,10 +122,9 @@ class KFC {
     DB::query(
         'CREATE TABLE IF NOT EXISTS mappings ('
         // TODO: id auto increment?
-        . 'user VARCHAR(32) NOT NULL, '
         . 'class_id INT NOT NULL, '
         . 'budget_id INT NOT NULL, '
-        . 'PRIMARY KEY (user, class_id, budget_id), '
+        . 'PRIMARY KEY (class_id, budget_id), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE, '
         . 'FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE '
         . ') '
@@ -172,7 +172,7 @@ class KFC {
         'id' => 1,
         'class_id' => DEFAULT_CLASS_ID,
         'priority' => -2147483648,
-        're' => '()']); // RE can't be ""
+        're' => '()']); // RE can't be ''
   }
 
   public function dropAllTablesExceptConfig() {
@@ -190,8 +190,8 @@ class KFC {
 
   // ---------- BUDGET/CLASS QUERIES ----------
 
-  public function addBudget($budgetName) {
-    DB::insert('budgets', ['name' => $budgetName]);
+  public function addBudget($user, $budgetName) {
+    DB::insert('budgets', ['user' => $user, 'name' => $budgetName]);
     return intval(DB::insertId());
   }
 
@@ -213,9 +213,8 @@ class KFC {
     return DB::insertId();
   }
 
-  public function addMapping($user, $classId, $budgetId) {
+  public function addMapping($classId, $budgetId) {
     DB::insert('mappings', [
-        'user' => $user,
         'class_id' => $classId,
         'budget_id' => $budgetId,
         ]);
@@ -224,6 +223,7 @@ class KFC {
 
   // TODO: Maybe it would be easier to automatically maintain a budget that matches all classes,
   // by means of SQL triggers or simply explicit update hooks?
+  // TODO: Test this.
   public function mapAllToBudget($user, $budgetId) {
     DB::query(
         'INSERT IGNORE INTO MAPPINGS (budget_id, class_id, user)
@@ -249,17 +249,21 @@ class KFC {
     $classifications = [];
     foreach ($titles as $title) {
       $rows = DB::query(
-          'SELECT id, budget_id FROM (
+          'SELECT classification.id, budget_id FROM (
             SELECT classes.id, classes.name
             FROM classification
             JOIN classes ON classes.id = classification.class_id
             WHERE |s1 REGEXP re
             ORDER BY priority DESC
-            LIMIT 1) AS t1
+            LIMIT 1) AS classification
           LEFT JOIN (
-            SELECT * FROM mappings WHERE user = |s0
-          ) user_mappings ON t1.id = user_mappings.class_id
-          ORDER BY budget_id', $user, $title);
+            SELECT class_id, budget_id
+            FROM mappings
+            JOIN budgets ON mappings.budget_id = budgets.id
+            WHERE user = |s0
+          ) user_mappings ON classification.id = user_mappings.class_id
+          ORDER BY budget_id',
+          $user, $title);
       if (!$rows) { // This should never happen, the default class catches all.
         $this->throwException('Failed to classify "' . $title . '"');
       }
@@ -280,39 +284,7 @@ class KFC {
     return $classifications;
   }
 
-  /**
-   * Returns an array containing ID and name of the matching budget with the highest priority.
-   * If no defined budget matches, returns the default budget id (zero) and name.
-   */
-  private function getBudget_unused($user, $windowTitle) {
-    $q = 'SELECT budget.id, budget.name'
-        . ' FROM budget_config'
-        . ' JOIN budget_definition ON budget_config.budget_id = budget_definition.budget_id'
-        . ' JOIN budget ON budget_config.budget_id = budget.id'
-        . ' WHERE user = "' . $this->esc($user) . '" AND k = "enabled" AND v = "1"'
-        . ' AND "' . $this->esc($windowTitle) . '" REGEXP budget_re'
-        . ' ORDER BY priority DESC'
-        . ' LIMIT 1';
-    $result = $this->query($q);
-    if ($row = $result->fetch_assoc()) {
-      return array($row['id'], $row['name']);
-    }
-    return array("0", DEFAULT_BUDGET_NAME); // synthetic catch-all budget
-  }
-
   // TODO: Decide how to treat disabled (non-enabled!?) budgets. Then check callers.
-
-  /** Returns budget config. */
-  public function getBudgetConfig($user, $budgetId) {
-    $rows =
-        DB::query('SELECT k, v FROM budget_config WHERE user = |s AND budget_id = |i ORDER BY k',
-            $user, $budgetId);
-    $config = [];
-    foreach ($rows as $row) {
-      $config[$row['k']] = $row['v'];
-    }
-    return $config;
-  }
 
   /** Sets the specified budget config. */
   public function setBudgetConfig($budgetId, $key, $value) {
@@ -325,20 +297,18 @@ class KFC {
   }
 
   /**
-   * Returns configs of all budgets, optionally restricted to those mapped for the specified user.
-   * The virtual key 'name' is populated with the budget's name. Returns a 2D array
-   * $configs[$budgetId][$key] = $value. The array is sorted by budget ID.
+   * Returns configs of all budgets of the specified user. The virtual key 'name' is populated with
+   * the budget's name. Returns a 2D array $configs[$budgetId][$key] = $value. The array is sorted
+   * by budget ID.
    */
-  public function getAllBudgetConfigs($user = null) {
-    $query = 'SELECT id, name, k, v'
-        . ' FROM budget_config'
-        . ' RIGHT JOIN budgets ON budget_config.budget_id = budgets.id';
-    if ($user) {
-      $query .= ' JOIN mappings ON mappings.budget_id = budgets.id'
-          . ' WHERE user = |s';
-    }
-    $query .= ' ORDER BY id, k';
-    $rows = $user ? DB::query($query, $user) : DB::query($query);
+  public function getAllBudgetConfigs($user) {
+    $query =
+        'SELECT id, name, k, v
+          FROM budget_config
+          RIGHT JOIN budgets ON budget_config.budget_id = budgets.id
+          WHERE user = |s
+          ORDER BY id, k';
+    $rows = DB::query($query, $user);
     $configs = [];
     foreach ($rows as $row) {
       $budgetId = $row['id'];
@@ -446,9 +416,9 @@ class KFC {
     return DB::query('SELECT k, v FROM global_config ORDER BY k');
   }
 
-  /** Returns all users, i.e. all distinct user keys for which at least one class is mapped. */
+  /** Returns all users, i.e. all distinct user keys for which at least one budget is present. */
   public function getUsers() {
-    $rows = DB::query('SELECT DISTINCT user FROM mappings ORDER BY user');
+    $rows = DB::query('SELECT DISTINCT user FROM budgets ORDER BY user');
     $users = [];
     foreach ($rows as $row) {
       $users[] = $row['user'];
@@ -489,7 +459,10 @@ class KFC {
                 AND title != ""
             ) classes
             LEFT JOIN (
-                SELECT * FROM mappings WHERE user = |s0
+                SELECT class_id, budget_id
+                FROM mappings
+                JOIN budgets ON mappings.budget_id = budgets.id
+                WHERE user = |s0
             ) user_mappings
             ON classes.class_id = user_mappings.class_id
             GROUP BY ts, budget_id
@@ -677,18 +650,6 @@ class KFC {
         $user, $fromDate->format('Y-m-d'));
   }
 
-  /** Returns overrides in an associative array, or an empty array if none are defined. */
-  private function queryOverrides($user, $budgetId, $dateTime) {
-    $result = $this->query('SELECT budget_id, minutes, unlocked FROM overrides'
-        . ' WHERE user="' . $user . '"'
-        . ' AND date="' . getDateString($dateTime) . '"'
-        . ' AND budget_id="' . $budgetId . '"');
-    if ($row = $result->fetch_assoc()) {
-      return array('minutes' => $row['minutes'], 'unlocked' => $row['unlocked']);
-    }
-    return array();
-  }
-
   /** Returns all overrides as a 2D array keyed first by budget ID, then by override. */
   private function queryOverridesByBudget($user, $now) {
     $rows = DB::query('SELECT budget_id, minutes, unlocked FROM overrides'
@@ -711,14 +672,14 @@ class KFC {
    */
   public function queryTitleSequence($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-    $q = 'SELECT ts, name, title FROM activity JOIN budget ON budget_id = id'
-        . ' WHERE user = "' . $this->esc($user) . '"'
-        . ' AND ts >= ' . $fromTime->getTimestamp()
-        . ' AND ts < ' . $toTime->getTimestamp()
-        . ' ORDER BY ts DESC';
-    $result = $this->query($q);
-    $windowTitles = array();
-    while ($row = $result->fetch_assoc()) {
+    $rows = DB::query(
+        'SELECT ts, name, title FROM activity JOIN classes ON class_id = id
+          WHERE user = |s
+          AND ts >= |i
+          AND ts < |i
+          ORDER BY ts DESC',
+        $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
+    foreach ($rows as $row) {
       // TODO: This should use the client's local time format.
       $windowTitles[] = array(
           date("Y-m-d H:i:s", $row['ts']),
@@ -726,37 +687,6 @@ class KFC {
           $row['title']);
     }
     return $windowTitles;
-  }
-
-  // ---------- MYSQL LOW LEVEL HELPERS ----------
-
-  /**
-   * Like query() above, but using mysqli::multi_query. Returns the first query result, throwing an
-   * exception on failure. Subsequent results are available via multiQueryGetNextResult() below.
-   */
-  private function multiQuery($multiQuery, $logLevel = 'debug') {
-    Logger::Instance()->log($logLevel, 'Multi query: ' . $multiQuery);
-    $this->multiQuery = $multiQuery;
-    if (!$this->mysqli->multi_query($multiQuery)) {
-      $this->throwMySqlErrorException($multiQuery);
-    }
-    return $this->mysqli->use_result();
-  }
-
-  /**
-   * Returns the second, third etc. result from calling multiQuery() above, throwing an exception on
-   * failure.
-   */
-  private function multiQueryGetNextResult() {
-    if (!$this->mysqli->next_result()) {
-      $this->throwMySqlErrorException($this->multiQuery);
-    }
-    return $this->mysqli->use_result();
-  }
-
-  private function throwMySqlErrorException($query) {
-    $message = 'MySQL error ' . $this->mysqli->errno . ': ' . $this->mysqli->error . ' -- Query: ' . $query;
-    $this->throwException($message);
   }
 
   private function throwException($message) {

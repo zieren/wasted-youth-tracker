@@ -18,7 +18,7 @@ list($year, $month, $day) = explode('-', $dateString);
 // TODO: Date needs to be pretty for the input (2-digit month/day etc.)
 $users = $kfc->getUsers();
 $user = getOrDefault($_GET, 'user', getOrDefault($users, 0, ''));
-$configs = $kfc->getAllBudgetConfigs();
+$configs = $kfc->getAllBudgetConfigs($user);
 
 echo '<h2>Links</h2>
   <a href="../admin/index.php?user=' . $user . '">Admin page</a>

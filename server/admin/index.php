@@ -94,6 +94,12 @@ if (action('setUserConfig')) {
   $budgetId = postInt('budgetId');
   $classId = post('classId');
   $kfc->removeMapping($classId, $budgetId);
+} else if (action('removeClassification')) {
+  $classificationId = post('classificationId');
+  $kfc->removeClassification($classificationId);
+} else if (action('addClassification')) {
+  $classId = post('classId');
+  $kfc->addClassification($classId, postInt('classificationPriority'), post('classificationRegEx'));
 
 // TODO: Implement.
 } else if (action('prune')) {
@@ -148,7 +154,7 @@ echo '
     <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
     <input type="submit" value="Set Minutes" name="setMinutes">
     <input type="submit" value="Unlock" name="unlock">
-    <input type="submit" value="Clear" name="clearOverride">
+    <input type="submit" value="Clear all overrides" name="clearOverride">
   </form>';
 
 echo '<h4>Current overrides</h4>';
@@ -159,6 +165,8 @@ $timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
 echoTable(array(
     budgetIdsToNames(array_keys($timeLeftByBudget), $configs),
     array_map("secondsToHHMMSS", array_values($timeLeftByBudget))));
+
+// TODO: This IGNORED the selected date. Add its own date selector?
 
 // --- BEGIN duplicate code. TODO: Extract.
 echo "<h3>Time spent on selected date</h3>";
@@ -176,17 +184,55 @@ echoTable(array(
     array_map("secondsToHHMMSS", array_values($timeSpentByBudget))));
 // --- END duplicate code
 
-echo '<h3>Budgets</h3>';
+echo '<h4>Budgets to classes</h4>';
+echoTable($kfc->getBudgetsToClassesTable($user));
 
-// TODO: Handle invalid budget ID below. Currently a silent error.
-// TODO: Show classes mapped to budget.
+echo '<h4>Classes to classification</h4>';
+echoTable($kfc->getClassesToClassificationTable());
+
+echo '<h4>Map class to budget</h4>
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">'
+  . classSelector($classes, true) . '==> ' . budgetSelector($budgetNames, 0) . '
+  <input type="submit" value="Add" name="addMapping">
+  <input type="submit" value="Remove" name="removeMapping">
+</form>
+
+<h4>New class</h4>
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">
+  <label for="idClassName">Class name: </label>
+  <input id="idClassName" name="className" type="text" value="">
+  <input type="submit" value="Add class" name="addClass">
+</form>
+';
+
+$classifications = $kfc->getAllClassifications(); // TODO: Move up?
+
+echo '<h4>Remove classification</h4>
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">'
+  . classificationSelector($classifications) . '
+  <input type="submit" value="Remove" name="removeClassification">
+</form>
+
+<h4>Add classification</h4>
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">'
+  . classSelector($classes, false) . '
+  <input type="text" name="classificationRegEx" value="" placeholder="Regular Expression">
+  <input type="number" name="classificationPriority" value="0">
+  <input type="submit" value="Add" name="addClassification">
+</form>
+';
+
+echo '<h3>Budgets</h3>';
 
 foreach ($budgetConfigs as $id => $config) {
   echo '<h4>' . html($budgetNames[$id]) . "</h4>\n";
-  $config['id'] = $id;
+  unset($config['name']);
   echoTableAssociative($config);
 }
-
 echo '
 <h4>Configuration</h4>
 <form method="post" action="index.php">
@@ -199,42 +245,13 @@ echo '
   <input type="submit" value="!! Remove budget and its config !!" name="removeBudget">
 </form>
 
-<h4>New budget</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">
   <label for="idBudgetName">Budget name: </label>
   <input id="idBudgetName" name="budgetName" type="text" value="">
   <input type="submit" value="Add budget" name="addBudget">
 </form>
-
-<h4>New class</h4>
-<form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '">
-  <label for="idClassName">Class name: </label>
-  <input id="idClassName" name="className" type="text" value="">
-  <input type="submit" value="Add class" name="addClass">
-</form>
 ';
-
-/* There is currently no user config. But there probably will be soon.
-echo '<h3>User config</h3>';
-echoTable($kfc->getAllUsersConfig());
-*/
-
-echo '<h4>Budgets to classes</h4>';
-echoTable($kfc->getBudgetsToClassesTable($user));
-
-echo '<h4>Map class to budget</h4>
-<form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '">'
-  . classSelector($classes, 0) . '==> ' . budgetSelector($budgetNames, 0) . '
-  <input type="submit" value="Add" name="addMapping">
-  <input type="submit" value="Remove" name="removeMapping">
-</form>
-';
-
-echo '<h4>Classes to classification</h4>';
-echoTable($kfc->getClassesToClassificationTable());
 
 echo '<h3>Global config</h3>';
 echoTable($kfc->getGlobalConfig());

@@ -83,14 +83,23 @@ function budgetSelector($budgetNames, $selectedBudgetId) {
   return $select;
 }
 
-function classSelector($classes, $selectedClassId) {
-  $select =
-      '<label for="idClass">Class: </label>
-      <select id="idClass" name="classId">';
+function classSelector($classes, $includeDefault = false) {
+  $select = '<label for="idClass">Class: </label><select id="idClass" name="classId">';
   foreach ($classes as $classId => $className) {
-    $selected = $selectedClassId == $classId ? 'selected="selected"' : '';
-    $select .=
-        '<option value="' . $classId . '" ' . $selected . '>' . html($className) . '</option>';
+    if ($includeDefault || $classId != DEFAULT_CLASS_ID) {
+      $select .= '<option value="' . $classId . '">' . html($className) . '</option>';
+    }
+  }
+  $select .= "</select>\n";
+  return $select;
+}
+
+function classificationSelector($classifications) {
+  $select =
+      '<label for="idClassification">Classification: </label>
+      <select id="idClassification" name="classificationId">';
+  foreach ($classifications as $id => $re) {
+    $select .= '<option value="' . $id . '">' . html($re) . '</option>';
   }
   $select .= "</select>\n";
   return $select;

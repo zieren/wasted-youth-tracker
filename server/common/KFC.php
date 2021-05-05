@@ -213,6 +213,10 @@ class KFC {
     return DB::insertId();
   }
 
+  public function removeClassification($classificationId) {
+    DB::delete('classification', 'id = |i', $classificationId);
+  }
+
   public function addMapping($classId, $budgetId) {
     DB::insert('mappings', ['class_id' => $classId, 'budget_id' => $budgetId]);
     return DB::insertId();
@@ -348,7 +352,9 @@ class KFC {
         'SELECT name, re, priority
           FROM classes
           LEFT JOIN classification ON classes.id = classification.class_id
-          ORDER BY name, priority DESC');
+          WHERE classes.id != |i
+          ORDER BY name, priority DESC',
+        DEFAULT_CLASS_ID);
     $table = [];
     foreach ($rows as $row) {
       $table[] = [$row['name'], $row['re'], $row['priority']];
@@ -362,6 +368,22 @@ class KFC {
     $table = [];
     foreach ($rows as $row) {
       $table[$row['id']] = $row['name'];
+    }
+    return $table;
+  }
+
+  /** Returns an array of classifications (REs) keyed by classification ID. */
+  public function getAllClassifications() {
+    $rows = DB::query(
+        'SELECT classification.id, name, re
+          FROM classification
+          JOIN classes on classification.class_id = classes.id
+          WHERE classes.id != |i
+          ORDER BY name',
+        DEFAULT_CLASS_ID);
+    $table = [];
+    foreach ($rows as $row) {
+      $table[$row['id']] = $row['name'] . ': ' . $row['re'];
     }
     return $table;
   }

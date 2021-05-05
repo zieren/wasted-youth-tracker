@@ -236,7 +236,7 @@ DoTheThing(reportStatus) {
   try {
     request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
     request.send(USER "`n" focusIndex windowList)
-    LAST_SUCCESSFUL_REQUEST = EpochSeconds()
+    LAST_SUCCESSFUL_REQUEST := EpochSeconds()
   } catch {
     return HandleOffline(windows)
   }

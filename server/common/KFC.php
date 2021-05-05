@@ -342,6 +342,20 @@ class KFC {
     return $table;
   }
 
+  /** Returns a table listing all classes and their classification rules. */
+  public function getClassesToClassificationTable() {
+    $rows = DB::query(
+        'SELECT name, re, priority
+          FROM classes
+          LEFT JOIN classification ON classes.id = classification.class_id
+          ORDER BY name, priority DESC');
+    $table = [];
+    foreach ($rows as $row) {
+      $table[] = [$row['name'], $row['re'], $row['priority']];
+    }
+    return $table;
+  }
+
   /** Returns an array of class names keyed by class ID. */
   public function getAllClasses() {
     $rows = DB::query('SELECT id, name FROM classes ORDER BY name');

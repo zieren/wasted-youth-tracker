@@ -221,7 +221,7 @@ echo '<h3>User config</h3>';
 echoTable($kfc->getAllUsersConfig());
 */
 
-echo '<h3>Budgets to classes</h3>';
+echo '<h4>Budgets to classes</h4>';
 echoTable($kfc->getBudgetsToClassesTable($user));
 
 echo '<h4>Map class to budget</h4>
@@ -232,6 +232,9 @@ echo '<h4>Map class to budget</h4>
   <input type="submit" value="Remove" name="removeMapping">
 </form>
 ';
+
+echo '<h4>Classes to classification</h4>';
+echoTable($kfc->getClassesToClassificationTable());
 
 echo '<h3>Global config</h3>';
 echoTable($kfc->getGlobalConfig());

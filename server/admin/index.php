@@ -21,8 +21,6 @@ function enableDestructiveButtons(toggleCheckbox) {
 require_once '../common/common.php';
 require_once '../common/html_util.php';
 
-echo dateSelectorJs();
-
 function checkRequirements() {
   $unmet = array();
   if (version_compare(PHP_VERSION, PHP_MIN_VERSION) < 0) {
@@ -43,74 +41,68 @@ checkRequirements();
 
 $kfc = KFC::create(true /* create missing tables */);
 
-// TODO: This should sanitize the user input.
-if (isset($_POST['setUserConfig'])) {
-  $user = trim($_POST['configUser']);
-  $key = trim($_POST['configKey']);
-  $kfc->setUserConfig($user, $key, $_POST['configValue']);
-} else if (isset($_POST['clearUserConfig'])) {
-  $user = trim($_POST['configUser']);
-  $key = trim($_POST['configKey']);
-  $kfc->clearUserConfig($user, $key);
-} else if (isset($_POST['setGlobalConfig'])) {
-  $key = trim($_POST['configKey']);
-  $kfc->setGlobalConfig($key, $_POST['configValue']);
-} else if (isset($_POST['clearGlobalConfig'])) {
-  $key = trim($_POST['configKey']);
-  $kfc->clearGlobalConfig($key);
-} else if (isset($_POST['addBudget'])) {
-  $user = $_POST['user'];
-  $budgetName = trim($_POST['budgetNameOrId']);
-  $kfc->addBudget($user, $budgetName);
-} else if (isset($_POST['removeBudget'])) {
-  $budgetId = trim($_POST['budgetNameOrId']);
+echo dateSelectorJs();
+
+if (action('setUserConfig')) {
+  $user = post('configUser');
+  $kfc->setUserConfig($user, post('configKey'), post('configValue'));
+} else if (action('clearUserConfig')) {
+  $user = post('configUser');
+  $kfc->clearUserConfig($user, post('configKey'));
+} else if (action('setGlobalConfig')) {
+  $kfc->setGlobalConfig(post('configKey'), post('configValue'));
+} else if (action('clearGlobalConfig')) {
+  $kfc->clearGlobalConfig(post('configKey'));
+} else if (action('addBudget')) {
+  $user = post('user');
+  // TODO: Handle budget exists.
+  $kfc->addBudget($user, post('budgetName'));
+} else if (action('removeBudget')) {
+  $budgetId = postInt('budgetId');
   $kfc->removeBudget($budgetId);
-} else if (isset($_POST['setBudgetConfig'])) {
-  $budgetId = $_POST['budget'];
-  $key = trim($_POST['budgetConfigKey']);
-  $value = trim($_POST['budgetConfigValue']);
-  $kfc->setBudgetConfig($budgetId, $key, $value);
-} else if (isset($_POST['clearBudgetConfig'])) {
-  $budgetId = $_POST['budget'];
-  $key = trim($_POST['budgetConfigKey']);
-  $kfc->clearBudgetConfig($budgetId, $key);
-} else if (isset($_POST['setMinutes'])) {
-  $user = $_POST['user'];
-  $dateString = $_POST['date'];
-  $budgetId = $_POST['budget'];
-  $minutes = getOrDefault($_POST, 'overrideMinutes', 0);
-  $kfc->setOverrideMinutes($user, $dateString, $budgetId, $minutes);
-} else if (isset($_POST['unlock'])) {
-  $user = $_POST['user'];
-  $dateString = $_POST['date'];
-  $budgetId = $_POST['budget'];
+} else if (action('setBudgetConfig')) {
+  $budgetId = postInt('budgetId');
+  $kfc->setBudgetConfig($budgetId, post('budgetConfigKey'), post('budgetConfigValue'));
+} else if (action('clearBudgetConfig')) {
+  $budgetId = postInt('budgetId');
+  $kfc->clearBudgetConfig($budgetId, post('budgetConfigKey'));
+} else if (action('setMinutes')) {
+  $user = post('user');
+  $dateString = post('date');
+  $budgetId = postInt('budgetId');
+  $kfc->setOverrideMinutes($user, $dateString, $budgetId, postInt('overrideMinutes', 0));
+} else if (action('unlock')) {
+  $user = post('user');
+  $dateString = post('date');
+  $budgetId = postInt('budgetId');
   $kfc->setOverrideUnlock($user, $dateString, $budgetId);
-} else if (isset($_POST['clearOverride'])) {
-  $user = $_POST['user'];
-  $dateString = $_POST['date'];
-  $budgetId = $_POST['budget'];
+} else if (action('clearOverride')) {
+  $user = post('user');
+  $dateString = post('date');
+  $budgetId = postInt('budgetId');
   $kfc->clearOverride($user, $dateString, $budgetId);
-} else if (isset($_POST['prune'])) {
-  $dateString = $_POST['datePrune'];
+
+// TODO: Implement.
+} else if (action('prune')) {
+  $dateString = post('datePrune');
   $dateTime = DateTime::createFromFormat("Y-m-d", $dateString);
   $kfc->pruneTables($dateTime);
   echo '<b>Tables pruned before ' . getDateString($dateTime) . '</b></hr>';
-} else if (isset($_POST['clearAll'])) {
+} else if (action('clearAll')) {
   $kfc->dropAllTablesExceptConfig();
   echo '<b>Tables dropped</b></hr>';
 }
 
 $users = $kfc->getUsers();
+
 if (!isset($user)) {
-  $user = getOrDefault($_GET, 'user',
-      getOrDefault($_POST, 'user',
-      getOrDefault($users, 0, '')));
+  $user = get('user') ?? post('user') ?? getOrDefault($users, 0, '');
 }
 if (!isset($dateString)) {
-  $dateString = getOrDefault($_GET, 'date', date('Y-m-d'));
+  $dateString = get('date') ?? date('Y-m-d');
 }
 if (!isset($budgetId)) {
-  $budgetId = 0;
+  $budgetId = 0; // never exists, MySQL index is 1-based
 }
 
 $budgetConfigs = $kfc->getAllBudgetConfigs($user);
@@ -189,15 +181,15 @@ echo '
   <input type="text" name="budgetConfigValue" value="" placeholder="value">
   <input type="submit" value="Set config" name="setBudgetConfig">
   <input type="submit" value="Clear config" name="clearBudgetConfig">
+  <input type="submit" value="!! Remove budget and its config !!" name="removeBudget">
 </form>
 
-<h4>Special operations</h4>
+<h4>New budget</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">
-  <label for="idBudgetNameOrId">Budget (name for add, ID otherwise): </label>
-  <input id="idBudgetNameOrId" name="budgetNameOrId" type="text" value="">
+  <label for="idBudgetName">Budget name: </label>
+  <input id="idBudgetName" name="budgetName" type="text" value="">
   <input type="submit" value="Add budget" name="addBudget">
-  <input type="submit" value="Remove budget and its config" name="removeBudget">
 </form>
 ';
 

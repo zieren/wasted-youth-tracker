@@ -21,6 +21,25 @@ function html($text) {
   return htmlentities($text, ENT_COMPAT | ENT_HTML401, 'ISO-8859-1');
 }
 
+function action($name) {
+  return array_key_exists($name, $_POST);
+}
+
+function post($key) {
+  $s = filter_input(INPUT_POST, $key, FILTER_SANITIZE_STRING);
+  return is_null($s) ? null : trim($s);
+}
+
+function postInt($key, $default = 0) {
+  $i = filter_input(INPUT_POST, $key, FILTER_SANITIZE_NUMBER_INT);
+  return is_null($i) ? $default : $i;
+}
+
+function get($key) {
+  $s = filter_input(INPUT_GET, $key, FILTER_SANITIZE_STRING);
+  return is_null($s) ? null : trim($s);
+}
+
 function userSelector($users, $selectedUser) {
   $select =
       '<label for="idUsers">User:</label>
@@ -54,7 +73,7 @@ function dateSelectorJs() {
 function budgetSelector($budgetNames, $selectedBudgetId) {
   $select =
       '<label for="idBudget">Budget: </label>
-      <select id="idBudget" name="budget">';
+      <select id="idBudget" name="budgetId">';
   foreach ($budgetNames as $budgetId => $budgetName) {
     $selected = $selectedBudgetId == $budgetId ? 'selected="selected"' : '';
     $select .=

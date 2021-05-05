@@ -416,7 +416,7 @@ DebugShowStatus() {
   }
   msgs.Push("", "Last successful request: " LAST_SUCCESSFUL_REQUEST)
 
-  ShowMessages(msgs)
+  ShowMessages(msgs, false)
 }
 
 ; --- GUI ---

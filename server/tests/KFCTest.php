@@ -164,6 +164,15 @@ final class KFCTest extends KFCTestBase {
         $this->classification($classId1, [$budgetId1, $budgetId2]),
         $this->classification($classId2, [0]),
     ]);
+
+    // Remove mapping.
+    $this->assertEquals($this->kfc->classify('user_1', ['window 1']), [
+        $this->classification($classId1, [$budgetId1, $budgetId2]),
+    ]);
+    $this->kfc->removeMapping($classId1, $budgetId1);
+    $this->assertEquals($this->kfc->classify('user_1', ['window 1']), [
+        $this->classification($classId1, [$budgetId2]),
+    ]);
   }
 
   public function testTotalTime_SingleWindow_WithBudgets(): void {

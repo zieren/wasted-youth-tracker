@@ -57,6 +57,9 @@ if (action('setUserConfig')) {
   $user = post('user');
   // TODO: Handle budget exists.
   $kfc->addBudget($user, post('budgetName'));
+} else if (action('addClass')) {
+  // TODO: Handle class exists.
+  $kfc->addClass(post('className'));
 } else if (action('removeBudget')) {
   $budgetId = postInt('budgetId');
   $kfc->removeBudget($budgetId);
@@ -81,6 +84,16 @@ if (action('setUserConfig')) {
   $dateString = post('date');
   $budgetId = postInt('budgetId');
   $kfc->clearOverride($user, $dateString, $budgetId);
+} else if (action('addMapping')) {
+  $user = post('user');
+  $budgetId = postInt('budgetId');
+  $classId = post('classId');
+  $kfc->addMapping($classId, $budgetId);
+} else if (action('removeMapping')) {
+  $user = post('user');
+  $budgetId = postInt('budgetId');
+  $classId = post('classId');
+  $kfc->removeMapping($classId, $budgetId);
 
 // TODO: Implement.
 } else if (action('prune')) {
@@ -107,6 +120,7 @@ if (!isset($budgetId)) {
 
 $budgetConfigs = $kfc->getAllBudgetConfigs($user);
 $budgetNames = budgetIdsToNames(array_keys($budgetConfigs), $budgetConfigs);
+$classes = $kfc->getAllClasses();
 $configs = $kfc->getAllBudgetConfigs($user);
 
 echo '<h1>'.KFC_SERVER_HEADING.'</h1>
@@ -192,12 +206,32 @@ echo '
   <input id="idBudgetName" name="budgetName" type="text" value="">
   <input type="submit" value="Add budget" name="addBudget">
 </form>
+
+<h4>New class</h4>
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">
+  <label for="idClassName">Class name: </label>
+  <input id="idClassName" name="className" type="text" value="">
+  <input type="submit" value="Add class" name="addClass">
+</form>
 ';
 
 /* There is currently no user config. But there probably will be soon.
 echo '<h3>User config</h3>';
 echoTable($kfc->getAllUsersConfig());
 */
+
+echo '<h3>Budgets to classes</h3>';
+echoTable($kfc->getBudgetsToClassesTable($user));
+
+echo '<h4>Map class to budget</h4>
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">'
+  . classSelector($classes, 0) . '==> ' . budgetSelector($budgetNames, 0) . '
+  <input type="submit" value="Add" name="addMapping">
+  <input type="submit" value="Remove" name="removeMapping">
+</form>
+';
 
 echo '<h3>Global config</h3>';
 echoTable($kfc->getGlobalConfig());

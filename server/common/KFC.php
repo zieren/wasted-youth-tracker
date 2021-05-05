@@ -214,11 +214,12 @@ class KFC {
   }
 
   public function addMapping($classId, $budgetId) {
-    DB::insert('mappings', [
-        'class_id' => $classId,
-        'budget_id' => $budgetId,
-        ]);
+    DB::insert('mappings', ['class_id' => $classId, 'budget_id' => $budgetId]);
     return DB::insertId();
+  }
+
+  public function removeMapping($classId, $budgetId) {
+    DB::delete('mappings', 'class_id=|i AND budget_id=|i', $classId, $budgetId);
   }
 
   // TODO: Maybe it would be easier to automatically maintain a budget that matches all classes,
@@ -302,13 +303,13 @@ class KFC {
    * by budget ID.
    */
   public function getAllBudgetConfigs($user) {
-    $query =
+    $rows = DB::query(
         'SELECT id, name, k, v
           FROM budget_config
           RIGHT JOIN budgets ON budget_config.budget_id = budgets.id
           WHERE user = |s
-          ORDER BY id, k';
-    $rows = DB::query($query, $user);
+          ORDER BY id, k',
+        $user);
     $configs = [];
     foreach ($rows as $row) {
       $budgetId = $row['id'];
@@ -322,6 +323,33 @@ class KFC {
     }
     ksort($configs);
     return $configs;
+  }
+
+  /** Returns a table listing all budgets and their classes. */
+  public function getBudgetsToClassesTable($user) {
+    $rows = DB::query(
+        'SELECT budgets.name AS budget, classes.name AS class
+          FROM budgets
+          JOIN mappings ON budgets.id = mappings.budget_id
+          JOIN classes ON mappings.class_id = classes.id
+          WHERE user = |s
+          ORDER BY budgets.name, classes.name',
+        $user);
+    $table = [];
+    foreach ($rows as $row) {
+      $table[] = [$row['budget'], $row['class']];
+    }
+    return $table;
+  }
+
+  /** Returns an array of class names keyed by class ID. */
+  public function getAllClasses() {
+    $rows = DB::query('SELECT id, name FROM classes ORDER BY name');
+    $table = [];
+    foreach ($rows as $row) {
+      $table[$row['id']] = $row['name'];
+    }
+    return $table;
   }
 
   // ---------- WRITE ACTIVITY QUERIES ----------

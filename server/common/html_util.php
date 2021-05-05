@@ -82,3 +82,16 @@ function budgetSelector($budgetNames, $selectedBudgetId) {
   $select .= "</select>\n";
   return $select;
 }
+
+function classSelector($classes, $selectedClassId) {
+  $select =
+      '<label for="idClass">Class: </label>
+      <select id="idClass" name="classId">';
+  foreach ($classes as $classId => $className) {
+    $selected = $selectedClassId == $classId ? 'selected="selected"' : '';
+    $select .=
+        '<option value="' . $classId . '" ' . $selected . '>' . html($className) . '</option>';
+  }
+  $select .= "</select>\n";
+  return $select;
+}

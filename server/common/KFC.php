@@ -5,9 +5,11 @@ require_once 'db.class.php';
 
 define('DAILY_LIMIT_MINUTES_PREFIX', 'daily_limit_minutes_');
 
+define('CHARSET_AND_COLLATION', 'latin1 COLLATE latin1_german1_ci');
+
 // We use MySQL's RegExp library, which does not support utf8. So we have to fall back to latin1.
 // See here: https://github.com/zieren/kids-freedom-control/issues/33
-define('CREATE_TABLE_SUFFIX', 'CHARACTER SET latin1 COLLATE latin1_german1_ci ');
+define('CREATE_TABLE_SUFFIX', 'CHARACTER SET ' . CHARSET_AND_COLLATION . ' ');
 // Background for utf8 support (which we can't use):
 // - https://stackoverflow.com/questions/54885178
 // - https://dba.stackexchange.com/questions/76788
@@ -65,6 +67,7 @@ class KFC {
     DB::$user = $dbUser;
     DB::$password = $dbPass;
     DB::$encoding = 'latin1'; // aka iso-8859-1
+    DB::query('SET NAMES ' . CHARSET_AND_COLLATION); // for 'SET @foo = "bar"'
     $this->timeFunction = $timeFunction;
     if ($createMissingTables) {
       $this->createMissingTables();
@@ -90,6 +93,10 @@ class KFC {
         . 'PRIMARY KEY (id) '
         . ') '
         . CREATE_TABLE_SUFFIX);
+    // activity.class_id is not part of the PK because:
+    // 1. The same activity at the same time can only be one class. It doesn't make sense to allow
+    //    different classes and thus reduce invariants that could make other code simpler.
+    // 2. It simplifies reclassification.
     DB::query(
         'CREATE TABLE IF NOT EXISTS activity ('
         . 'user VARCHAR(32) NOT NULL, '
@@ -97,7 +104,7 @@ class KFC {
         . 'class_id INT NOT NULL, '
         . 'focus BOOL NOT NULL, '
         . 'title VARCHAR(256) NOT NULL, '
-        . 'PRIMARY KEY (user, ts, class_id, focus, title), '
+        . 'PRIMARY KEY (user, ts, focus, title), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id) '
         . ') '
         . CREATE_TABLE_SUFFIX);
@@ -108,7 +115,7 @@ class KFC {
         . 'priority INT NOT NULL, '
         . 're VARCHAR(1024) NOT NULL, '
         . 'PRIMARY KEY (id), '
-        . 'FOREIGN KEY (class_id) REFERENCES classes(id) '
+        . 'FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE ' // TODO: Test this!
         . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
@@ -388,6 +395,34 @@ class KFC {
     return $table;
   }
 
+  /** Reclassify all activity for all users, starting at the specified time. */
+  public function reclassify($fromTime) {
+    DB::query('SET @prev_title = ""');
+    DB::query(
+        'REPLACE INTO activity (user, ts, class_id, focus, title)
+          SELECT user, ts, reclassification.class_id, focus, activity.title FROM (
+            SELECT
+              title,
+              class_id,
+              IF (@prev_title = title, 0, 1) AS first,
+              @prev_title := title
+              FROM (
+                SELECT title, classification.class_id, priority
+                FROM (
+                  SELECT DISTINCT title FROM activity
+                  WHERE title != ""
+                  AND ts >= |i0
+                ) distinct_titles
+                JOIN classification ON title REGEXP re
+                ORDER BY title, priority DESC
+              ) reclassification_all_prios
+              HAVING first = 1
+            ) reclassification
+          JOIN activity ON reclassification.title = activity.title
+          WHERE ts >= |i0',
+        $fromTime->getTimestamp());
+  }
+
   // ---------- WRITE ACTIVITY QUERIES ----------
 
   /**
@@ -424,6 +459,8 @@ class KFC {
           'focus' => $i == $focusIndex ? 1 : 0,
           ];
     }
+    // Ignore duplicates. This is a rather theoretical case of racing requests while classification
+    // rules are updated.
     DB::insertIgnore('activity', $rows);
     return $classifications;
   }

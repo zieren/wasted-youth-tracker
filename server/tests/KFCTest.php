@@ -1063,27 +1063,28 @@ final class KFCTest extends KFCTestBase {
         $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
         $timeSpent2and1);
 
-    // Changing the classification rules between concurrent reqeusts creates a second activity
-    // record that differs only in class_id (which is part of the PK).
+    // Changing the classification rules between concurrent requests causes the second activity
+    // record to collide with the first (because class_id is not part of the PK) and be ignored.
     $classId2 = $this->kfc->addClass('c2');
     $this->kfc->addClassification($classId2, 10 /* higher priority */, '1$');
     $budgetId2 = $this->kfc->addBudget('u1', 'b2');
     $this->kfc->addMapping($classId2, $budgetId2);
+    // Request does return the updated classification...
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
         $this->classification($classId2, [$budgetId2])]); // changed to c2, which maps to b2
-
+    // ... but records retain the old one.
     $this->assertEqualsIgnoreOrder(
         $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
         '' => ['1970-01-01' => 1],
-        $budgetId1 => ['1970-01-01' => 0],
-        $budgetId2 => ['1970-01-01' => 0]]);
+        $budgetId1 => ['1970-01-01' => 0]]);
 
     // Accumulate time.
     $this->mockTime++;
     // Only now; previous requests had the same timestamp.
     $lastC1DateTimeString = $this->dateTimeString();
+    // From now on we accumulate time with the new classification.
     $this->assertEqualsIgnoreOrder(
         $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
@@ -1093,16 +1094,19 @@ final class KFCTest extends KFCTestBase {
         $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
         $this->classification($classId2, [$budgetId2])]);
+    // One more second to ensure order in the assertion below.
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0);
 
     // Check results.
     $this->assertEquals(
         $this->kfc->queryTimeSpentByTitle('u1', $fromTime), [
-            [$this->dateTimeString(), 3, DEFAULT_CLASS_NAME, 'title 2'],
+            [$this->dateTimeString(), 4, DEFAULT_CLASS_NAME, 'title 2'],
             [$this->dateTimeString(), 2, 'c2', 'title 1'],
             [$lastC1DateTimeString, 1, 'c1', 'title 1']]);
     $this->assertEqualsIgnoreOrder(
         $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
-        '' => ['1970-01-01' => 3],
+        '' => ['1970-01-01' => 4],
         $budgetId1 => ['1970-01-01' => 1],
         $budgetId2 => ['1970-01-01' => 2]]);
   }
@@ -1150,6 +1154,89 @@ final class KFCTest extends KFCTestBase {
     $budgetId = $this->kfc->addBudget('u1', $budgetName);
     $this->assertEquals($this->kfc->getAllBudgetConfigs('u1'),
         [$budgetId => ['name' => $budgetName]]);
+  }
+
+  function testReclassify(): void {
+    $fromTime = $this->newDateTime();
+    $date = $this->dateString();
+    $this->kfc->insertWindowTitles('u1', ['w1', 'w2'], 0);
+    $this->kfc->insertWindowTitles('u2', ['w1', 'w2'], 0);
+    $this->mockTime++;
+    $fromTime2 = $this->newDateTime();
+    $this->kfc->insertWindowTitles('u1', ['w1', 'w2'], 0);
+    $this->kfc->insertWindowTitles('u2', ['w1', 'w2'], 0);
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', ['w1', 'w2'], 0);
+    $this->kfc->insertWindowTitles('u2', ['w1', 'w2'], 0);
+
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
+        ['' => [$date => 2]]);
+
+    $this->kfc->reclassify($fromTime);
+
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
+        ['' => [$date => 2]]);
+
+    // Add classification for w1.
+    $classId1 = $this->kfc->addClass('c1');
+    $this->kfc->addClassification($classId1, 0, '1$');
+    $budgetId1 = $this->kfc->addBudget('u1', 'b1');
+    $this->kfc->addMapping($classId1, $budgetId1);
+
+    $this->kfc->reclassify($fromTime);
+
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
+            '' => [$date => 2],
+            $budgetId1 => [$date => 2]]);
+
+    // Add classification for w2.
+    $classId2 = $this->kfc->addClass('c2');
+    $this->kfc->addClassification($classId2, 0, '2$');
+    $budgetId2 = $this->kfc->addBudget('u1', 'b2');
+    $this->kfc->addMapping($classId2, $budgetId2);
+
+    $this->kfc->reclassify($fromTime);
+
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
+            $budgetId1 => [$date => 2],
+            $budgetId2 => [$date => 2]]);
+
+    // Check u2 to ensure reclassification works across users.
+    $budgetId1_2 = $this->kfc->addBudget('u2', 'b1');
+    $budgetId2_2 = $this->kfc->addBudget('u2', 'b2');
+    $this->kfc->addMapping($classId1, $budgetId1_2);
+    $this->kfc->addMapping($classId2, $budgetId2_2);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u2', $fromTime), [
+            $budgetId1_2 => [$date => 2],
+            $budgetId2_2 => [$date => 2]]);
+
+    // Attempt to mess with the "" placeholder title.
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', [], 0);
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', [], 0);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
+            $budgetId1 => [$date => 3],
+            $budgetId2 => [$date => 3]]);
+    $this->kfc->addClassification($classId1, 666, '()');
+    $this->kfc->reclassify($fromTime);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
+            $budgetId1 => [$date => 3]]);
+
+    // Reclassify only a subset.
+    $this->kfc->addClassification($classId2, 667, '()');
+    $this->kfc->reclassify($fromTime2);
+    $this->assertEqualsIgnoreOrder(
+        $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
+            $budgetId1 => [$date => 1],
+            $budgetId2 => [$date => 2]]);
   }
 }
 

@@ -94,6 +94,13 @@ if (action('setUserConfig')) {
   $budgetId = postInt('budgetId');
   $classId = post('classId');
   $kfc->removeMapping($classId, $budgetId);
+} else if (action('setTotalBudget')) {
+  $user = post('user');
+  $budgetId = postInt('budgetId');
+  $kfc->setTotalBudget($user, $budgetId);
+} else if (action('unsetTotalBudget')) {
+  $user = post('user');
+  $kfc->unsetTotalBudget($user);
 } else if (action('removeClassification')) {
   $classificationId = post('classificationId');
   $kfc->removeClassification($classificationId);
@@ -201,9 +208,11 @@ echoTable($kfc->getClassesToClassificationTable());
 echo '<h4>Map class to budget</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
-  . classSelector($classes, true) . '==> ' . budgetSelector($budgetNames, 0) . '
+  . classSelector($classes, true) . '==> ' . budgetSelector($budgetNames, $budgetId) . '
   <input type="submit" value="Add" name="addMapping">
   <input type="submit" value="Remove" name="removeMapping">
+  <input type="submit" value="Set total budget" name="setTotalBudget">
+  <input type="submit" value="Unset total budget" name="unsetTotalBudget">
 </form>
 
 <h4>Classification</h4>

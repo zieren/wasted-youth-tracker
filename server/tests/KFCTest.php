@@ -39,6 +39,14 @@ final class KFCTest extends KFCTestBase {
     return $c;
   }
 
+  private function mapping($budgetId, $classId) {
+    return ['budget_id' => strval($budgetId), 'class_id' => strval($classId)];
+  }
+
+  private function queryMappings() {
+    return DB::query('SELECT budget_id, class_id FROM mappings ORDER BY budget_id, class_id');
+  }
+
   public function testSmokeTest(): void {
     $this->kfc->getGlobalConfig();
   }
@@ -1266,6 +1274,132 @@ final class KFCTest extends KFCTestBase {
     $this->assertEquals(
         count(DB::query('SELECT * FROM mappings')),
         0);
+  }
+
+  public function testTotalBudget(): void {
+    $classId1 = $this->kfc->addClass('c1');
+    $classId2 = $this->kfc->addClass('c2');
+    $budgetId1 = $this->kfc->addBudget('u1', 'b1');
+    $budgetId2 = $this->kfc->addBudget('u1', 'b2');
+    $this->kfc->addMapping($classId1, $budgetId1);
+    $this->assertEquals(
+        $this->queryMappings(),
+        [$this->mapping($budgetId1, $classId1)]);
+    $classId3 = $this->kfc->addClass('c3');
+    $classId4 = $this->kfc->addClass('c4');
+    $this->kfc->setTotalBudget('u1', $budgetId1);
+    $this->assertEquals(
+        $this->queryMappings(), [
+            $this->mapping($budgetId1, DEFAULT_CLASS_ID),
+            $this->mapping($budgetId1, $classId1),
+            $this->mapping($budgetId1, $classId2),
+            $this->mapping($budgetId1, $classId3),
+            $this->mapping($budgetId1, $classId4),
+            ]);
+    $classId5 = $this->kfc->addClass('c5');
+    $this->assertEquals(
+        $this->queryMappings(), [
+            $this->mapping($budgetId1, DEFAULT_CLASS_ID),
+            $this->mapping($budgetId1, $classId1),
+            $this->mapping($budgetId1, $classId2),
+            $this->mapping($budgetId1, $classId3),
+            $this->mapping($budgetId1, $classId4),
+            $this->mapping($budgetId1, $classId5),
+            ]);
+
+    DB::query('TRUNCATE TABLE mappings');
+    $this->assertEquals(
+        $this->queryMappings(),
+        []);
+    $this->kfc->setTotalBudget('u1', $budgetId2);
+    $this->assertEquals(
+        $this->queryMappings(), [
+            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
+            $this->mapping($budgetId2, $classId1),
+            $this->mapping($budgetId2, $classId2),
+            $this->mapping($budgetId2, $classId3),
+            $this->mapping($budgetId2, $classId4),
+            $this->mapping($budgetId2, $classId5),
+            ]);
+    $classId6 = $this->kfc->addClass('c6');
+    $this->assertEquals(
+        $this->queryMappings(), [
+            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
+            $this->mapping($budgetId2, $classId1),
+            $this->mapping($budgetId2, $classId2),
+            $this->mapping($budgetId2, $classId3),
+            $this->mapping($budgetId2, $classId4),
+            $this->mapping($budgetId2, $classId5),
+            $this->mapping($budgetId2, $classId6),
+            ]);
+
+    $this->kfc->removeClass($classId2);
+    $this->kfc->removeClass($classId3);
+    $this->kfc->removeClass($classId4);
+    $this->kfc->removeClass($classId5);
+    $this->kfc->removeClass($classId6);
+    // Configure b1 for u2.
+    $this->kfc->setTotalbudget('u2', $budgetId1);
+
+    $this->assertEquals(
+        $this->queryMappings(), [
+            $this->mapping($budgetId1, DEFAULT_CLASS_ID),
+            $this->mapping($budgetId1, $classId1),
+            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
+            $this->mapping($budgetId2, $classId1),
+            ]);
+
+    $classId7 = $this->kfc->addClass('c7');
+    $this->assertEquals(
+        $this->queryMappings(), [
+            $this->mapping($budgetId1, DEFAULT_CLASS_ID),
+            $this->mapping($budgetId1, $classId1),
+            $this->mapping($budgetId1, $classId7),
+            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
+            $this->mapping($budgetId2, $classId1),
+            $this->mapping($budgetId2, $classId7),
+            ]);
+
+    // Removing a total budget will make the trigger fail from now on. But if a trigger fails alone
+    // in the forest and nobody is there to hear it, does it make a sound? No!
+    $this->kfc->removeBudget($budgetId1);
+    $classId8 = $this->kfc->addClass('c8');
+    $this->assertEquals(
+        $this->queryMappings(), [
+            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
+            $this->mapping($budgetId2, $classId1),
+            $this->mapping($budgetId2, $classId7),
+            $this->mapping($budgetId2, $classId8),
+            ]);
+
+    // Remove the total budget setting.
+    $this->kfc->unsetTotalBudget('u1');
+    $this->kfc->addClass('c9');
+    $this->assertEquals(
+        $this->queryMappings(), [
+            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
+            $this->mapping($budgetId2, $classId1),
+            $this->mapping($budgetId2, $classId7),
+            $this->mapping($budgetId2, $classId8),
+            ]);
+  }
+
+  public function testRemoveDefaultClass(): void {
+    try {
+      $this->kfc->removeClass(DEFAULT_CLASS_ID);
+      throw new AssertionError('Should not be able to delete the default class');
+    } catch (Exception $e) {
+      // expected
+    }
+  }
+
+  public function testRemoveTriggersForTest(): void {
+    $budgetId = $this->kfc->addBudget('u1', 'b1');
+    $this->kfc->setTotalBudget('u1', $budgetId);
+    $this->kfc->clearAllForTest();
+
+    $this->assertEquals(count(DB::query('SELECT * FROM budgets')), 0);
+    $this->assertEquals(count(DB::query('SHOW TRIGGERS')), 0);
   }
 }
 

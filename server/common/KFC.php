@@ -49,6 +49,9 @@ class KFC {
   }
 
   public function clearAllForTest(): void {
+    foreach (DB::query('SHOW TRIGGERS') as $row) {
+      DB::query('DROP TRIGGER IF EXISTS ' . $row['Trigger']);
+    }
     DB::query('SET FOREIGN_KEY_CHECKS = 0');
     $rows = DB::query(
         'SELECT table_name FROM information_schema.tables WHERE table_schema = |s', DB::$dbName);
@@ -211,6 +214,9 @@ class KFC {
   }
 
   public function removeClass($classId) {
+    if ($classId == DEFAULT_CLASS_ID) {
+      $this->throwException('Cannot delete default class "' . DEFAULT_CLASS_NAME . '"');
+    }
     DB::delete('classes', 'id = |i', $classId);
   }
 
@@ -236,14 +242,34 @@ class KFC {
     DB::delete('mappings', 'class_id=|i AND budget_id=|i', $classId, $budgetId);
   }
 
-  // TODO: Maybe it would be easier to automatically maintain a budget that matches all classes,
-  // by means of SQL triggers or simply explicit update hooks?
-  // TODO: Test this.
-  public function mapAllToBudget($user, $budgetId) {
+  private function getTotalBudgetTriggerName($user) {
+    return 'total_budget_' . hash('crc32', $user);
+  }
+
+  /**
+   * Maps all existing classes to the specified budget and installs a trigger that adds each newly
+   * added class to this budget.
+   */
+  public function setTotalBudget($user, $budgetId) {
+    $triggerName = $this->getTotalBudgetTriggerName($user);
     DB::query(
-        'INSERT IGNORE INTO MAPPINGS (budget_id, class_id, user)
-          SELECT |i, classes.id, |s FROM classes',
-        $budgetId, $user);
+        'INSERT IGNORE INTO mappings (budget_id, class_id)
+          SELECT |i AS budget_id, classes.id AS class_id
+          FROM classes',
+        $budgetId);
+    DB::query('DROP TRIGGER IF EXISTS ' . $triggerName);
+    DB::query(
+        'CREATE TRIGGER ' . $triggerName . ' AFTER INSERT ON classes
+          FOR EACH ROW
+          INSERT IGNORE INTO mappings
+          SET budget_id = |i, class_id = NEW.id',
+        $budgetId);
+  }
+
+  /** Removes the total budget (if any) for the user. */
+  public function unsetTotalBudget($user) {
+    $triggerName = $this->getTotalBudgetTriggerName($user);
+    DB::query('DROP TRIGGER IF EXISTS ' . $triggerName);
   }
 
   /**

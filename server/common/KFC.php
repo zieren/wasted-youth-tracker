@@ -115,7 +115,7 @@ class KFC {
         . 'priority INT NOT NULL, '
         . 're VARCHAR(1024) NOT NULL, '
         . 'PRIMARY KEY (id), '
-        . 'FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE ' // TODO: Test this!
+        . 'FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE '
         . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
@@ -128,7 +128,6 @@ class KFC {
         . CREATE_TABLE_SUFFIX);
     DB::query(
         'CREATE TABLE IF NOT EXISTS mappings ('
-        // TODO: id auto increment?
         . 'class_id INT NOT NULL, '
         . 'budget_id INT NOT NULL, '
         . 'PRIMARY KEY (class_id, budget_id), '
@@ -211,6 +210,10 @@ class KFC {
     return DB::insertId();
   }
 
+  public function removeClass($classId) {
+    DB::delete('classes', 'id = |i', $classId);
+  }
+
   public function addClassification($classId, $priority, $regEx) {
     DB::insert('classification', [
         'class_id' => $classId,
@@ -244,8 +247,8 @@ class KFC {
   }
 
   /**
-   * Returns an array the size of $titles array that contains, at the corresponding position, an
-   * array with keys 'class_id' and 'budgets'. The latter is again an array and contains the list of
+   * Returns an array the size of $titles that contains, at the corresponding position, an array
+   * with keys 'class_id' and 'budgets'. The latter is again an array and contains the list of
    * budget IDs to which the class_id maps, where 0 indicates "no budget".
    */
   public function classify($user, $titles) {
@@ -379,7 +382,10 @@ class KFC {
     return $table;
   }
 
-  /** Returns an array of classifications (REs) keyed by classification ID. */
+  /**
+   * Returns an array keyed by classification ID containing textual representations of
+   * classifications, which are "CLASS_NAME ':' REG_EXP".
+   */
   public function getAllClassifications() {
     $rows = DB::query(
         'SELECT classification.id, name, re

@@ -1238,6 +1238,35 @@ final class KFCTest extends KFCTestBase {
             $budgetId1 => [$date => 1],
             $budgetId2 => [$date => 2]]);
   }
+
+  public function testRemoveClass(): void {
+    $classId = $this->kfc->addClass('c1');
+    $budgetId = $this->kfc->addBudget('u1', 'b1');
+    $this->kfc->addMapping($classId, $budgetId);
+    $classificationId = $this->kfc->addClassification($classId, 0, '()');
+
+    $this->assertEquals(
+        $this->kfc->classify('u1', ['foo']),
+        [['class_id' => $classId, 'budgets' => [$budgetId]]]);
+    $this->assertEquals(
+        $this->kfc->getAllClassifications(),
+        [$classificationId => 'c1: ()']);
+    $this->assertEquals(
+        count(DB::query('SELECT * FROM mappings')),
+        1);
+
+    $this->kfc->removeClass($classId);
+
+    $this->assertEquals(
+        $this->kfc->classify('u1', ['foo']),
+        [['class_id' => DEFAULT_CLASS_ID, 'budgets' => [0]]]);
+    $this->assertEquals(
+        $this->kfc->getAllClassifications(),
+        []);
+    $this->assertEquals(
+        count(DB::query('SELECT * FROM mappings')),
+        0);
+  }
 }
 
 (new KFCTest())->run();

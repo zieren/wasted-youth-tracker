@@ -100,6 +100,13 @@ if (action('setUserConfig')) {
 } else if (action('addClassification')) {
   $classId = post('classId');
   $kfc->addClassification($classId, postInt('classificationPriority'), post('classificationRegEx'));
+} else if (action('removeClass')) {
+  $classId = post('classId');
+  $kfc->removeClass($classId);
+} else if (action('doReclassify')) {
+  $days = post('reclassificationDays');
+  $fromTime = (new DateTime())->sub(new DateInterval('P' . $days . 'D'));
+  $kfc->reclassify($fromTime);
 
 // TODO: Implement.
 } else if (action('prune')) {
@@ -128,6 +135,7 @@ $budgetConfigs = $kfc->getAllBudgetConfigs($user);
 $budgetNames = budgetIdsToNames(array_keys($budgetConfigs), $budgetConfigs);
 $classes = $kfc->getAllClasses();
 $configs = $kfc->getAllBudgetConfigs($user);
+$classifications = $kfc->getAllClassifications();
 
 echo '<h1>'.KFC_SERVER_HEADING.'</h1>
 <p>(c) 2021 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
@@ -198,31 +206,35 @@ echo '<h4>Map class to budget</h4>
   <input type="submit" value="Remove" name="removeMapping">
 </form>
 
-<h4>New class</h4>
+<h4>Classification</h4>
+
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">
   <label for="idClassName">Class name: </label>
   <input id="idClassName" name="className" type="text" value="">
   <input type="submit" value="Add class" name="addClass">
 </form>
-';
 
-$classifications = $kfc->getAllClassifications(); // TODO: Move up?
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">'
+  . classSelector($classes, false) . '
+  <input type="text" name="classificationRegEx" value="" placeholder="Regular Expression">
+  <input type="number" name="classificationPriority" value="0">
+  <input type="submit" value="Add classification" name="addClassification">
+  <input type="submit" value="Remove class" name="removeClass">
+</form>
 
-echo '<h4>Remove classification</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
   . classificationSelector($classifications) . '
   <input type="submit" value="Remove" name="removeClassification">
 </form>
 
-<h4>Add classification</h4>
 <form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '">'
-  . classSelector($classes, false) . '
-  <input type="text" name="classificationRegEx" value="" placeholder="Regular Expression">
-  <input type="number" name="classificationPriority" value="0">
-  <input type="submit" value="Add" name="addClassification">
+  <input type="hidden" name="user" value="' . $user . '">
+  <label for="idReclassificationDays">Previous days: </label>
+  <input id="idReclassificationDays" type="number" name="reclassificationDays" value="7">
+  <input type="submit" value="Reclassify" name="doReclassify">
 </form>
 ';
 

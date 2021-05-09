@@ -211,8 +211,6 @@ echo '<h4>Map class to budget</h4>
   . classSelector($classes, true) . '==> ' . budgetSelector($budgetNames, $budgetId) . '
   <input type="submit" value="Add" name="addMapping">
   <input type="submit" value="Remove" name="removeMapping">
-  <input type="submit" value="Set total budget" name="setTotalBudget">
-  <input type="submit" value="Unset total budget" name="unsetTotalBudget">
 </form>
 
 <h4>Classification</h4>
@@ -263,6 +261,8 @@ echo '
   <input type="text" name="budgetConfigValue" value="" placeholder="value">
   <input type="submit" value="Set config" name="setBudgetConfig">
   <input type="submit" value="Clear config" name="clearBudgetConfig">
+  <input type="submit" value="Set total budget" name="setTotalBudget">
+  <input type="submit" value="Unset total budget" name="unsetTotalBudget">
   <input type="submit" value="!! Remove budget and its config !!" name="removeBudget">
 </form>
 

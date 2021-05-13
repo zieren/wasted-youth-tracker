@@ -127,9 +127,6 @@ if (action('setUserConfig')) {
   $dateTime = DateTime::createFromFormat("Y-m-d", $dateString);
   $kfc->pruneTables($dateTime);
   echo '<b>Tables pruned before ' . getDateString($dateTime) . '</b></hr>';
-} else if (action('clearAll')) {
-  $kfc->dropAllTablesExceptConfig();
-  echo '<b>Tables dropped</b></hr>';
 }
 
 $users = $kfc->getUsers();

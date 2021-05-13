@@ -184,12 +184,6 @@ class KFC {
         're' => '()']); // RE can't be ''
   }
 
-  public function dropAllTablesExceptConfig() {
-    $this->throwException("dropAllTablesExceptConfig() not implemented");
-    // TODO: Update for new tables.
-    Logger::Instance()->notice('tables dropped');
-  }
-
   /** Delete all records prior to DateTime $date. */
   public function pruneTables($date) {
     $this->throwException("pruneTables() not implemented");

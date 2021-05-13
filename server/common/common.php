@@ -5,6 +5,7 @@ define('PHP_MIN_VERSION', '7.3');
 define('KFC_SERVER_HEADING', 'Wasted Youth Tracker 0.0.0');
 define('DEFAULT_CLASS_NAME', 'default_class');
 define('DEFAULT_CLASS_ID', 1);
+define('DEFAULT_CLASSIFICATION_ID', 1);
 
 require_once 'base.php';
 require_once 'config.php';

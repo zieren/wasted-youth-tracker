@@ -1393,6 +1393,24 @@ final class KFCTest extends KFCTestBase {
     }
   }
 
+  public function testRemoveDefaultClassification(): void {
+    try {
+      $this->kfc->removeClassification(DEFAULT_CLASSIFICATION_ID);
+      throw new AssertionError('Should not be able to delete the default classification');
+    } catch (Exception $e) {
+      // expected
+    }
+  }
+
+  public function testChangeDefaultClassification(): void {
+    try {
+      $this->kfc->changeClassification(DEFAULT_CLASSIFICATION_ID, 'foo');
+      throw new AssertionError('Should not be able to change the default classification');
+    } catch (Exception $e) {
+      // expected
+    }
+  }
+
   public function testRemoveTriggersForTest(): void {
     $budgetId = $this->kfc->addBudget('u1', 'b1');
     $this->kfc->setTotalBudget('u1', $budgetId);
@@ -1400,6 +1418,41 @@ final class KFCTest extends KFCTestBase {
 
     $this->assertEquals(count(DB::query('SELECT * FROM budgets')), 0);
     $this->assertEquals(count(DB::query('SHOW TRIGGERS')), 0);
+  }
+
+  public function testRenameBudget(): void {
+    $budgetId = $this->kfc->addBudget('u1', 'b1');
+    $this->kfc->renameBudget($budgetId, 'b2');
+    $this->assertEquals(
+        $this->kfc->getAllBudgetConfigs('u1'),
+        [$budgetId => ['name' => 'b2']]);
+
+  }
+
+  public function testRenameClass(): void {
+    $fromTime = $this->newDateTime();
+    $classId = $this->kfc->addClass('c1');
+    $this->kfc->addClassification($classId, 0, '()');
+    $this->kfc->renameClass($classId, 'c2');
+    $this->kfc->insertWindowTitles('u1', ['t'], 0);
+    $this->assertEquals(
+        $this->kfc->queryTimeSpentByTitle('u1', $fromTime),
+        [[$this->dateTimeString(), 0, 'c2', 't']]);
+  }
+
+  public function testChangeClassification(): void {
+    $fromTime = $this->newDateTime();
+    $classId = $this->kfc->addClass('c1');
+    $classificationId = $this->kfc->addClassification($classId, 0, 'nope');
+    $this->kfc->insertWindowTitles('u1', ['t'], 0);
+    $this->assertEquals(
+        $this->kfc->queryTimeSpentByTitle('u1', $fromTime),
+        [[$this->dateTimeString(), 0, DEFAULT_CLASS_NAME, 't']]);
+    $this->kfc->changeClassification($classificationId, '()');
+    $this->kfc->reclassify($fromTime);
+    $this->assertEquals(
+        $this->kfc->queryTimeSpentByTitle('u1', $fromTime),
+        [[$this->dateTimeString(), 0, 'c1', 't']]);
   }
 }
 

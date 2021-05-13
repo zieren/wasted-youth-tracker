@@ -178,7 +178,7 @@ class KFC {
   private function insertDefaultRows() {
     DB::insertIgnore('classes', ['id' => DEFAULT_CLASS_ID, 'name' => DEFAULT_CLASS_NAME]);
     DB::insertIgnore('classification', [
-        'id' => 1,
+        'id' => DEFAULT_CLASSIFICATION_ID,
         'class_id' => DEFAULT_CLASS_ID,
         'priority' => -2147483648,
         're' => '()']); // RE can't be ''
@@ -225,6 +225,7 @@ class KFC {
   }
 
   public function renameClass($classId, $newName) {
+    // There should be no harm in renaming the default class.
     DB::update('classes', ['name' => $newName], 'id = |s', $classId);
   }
 
@@ -238,10 +239,16 @@ class KFC {
   }
 
   public function removeClassification($classificationId) {
+    if ($classificationId == DEFAULT_CLASSIFICATION_ID) {
+      $this->throwException('Cannot delete default classification');
+    }
     DB::delete('classification', 'id = |i', $classificationId);
   }
 
   public function changeClassification($classificationId, $newRegEx) {
+    if ($classificationId == DEFAULT_CLASSIFICATION_ID) {
+      $this->throwException('Cannot change default classification');
+    }
     DB::update('classification', ['re' => $newRegEx], 'id = |s', $classificationId);
   }
 

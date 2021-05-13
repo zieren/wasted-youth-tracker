@@ -224,6 +224,10 @@ class KFC {
     DB::delete('classes', 'id = |i', $classId);
   }
 
+  public function renameClass($classId, $newName) {
+    DB::update('classes', ['name' => $newName], 'id = |s', $classId);
+  }
+
   public function addClassification($classId, $priority, $regEx) {
     DB::insert('classification', [
         'class_id' => $classId,

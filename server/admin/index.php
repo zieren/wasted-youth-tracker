@@ -111,6 +111,9 @@ if (action('setUserConfig')) {
 } else if (action('removeClass')) {
   $classId = post('classId');
   $kfc->removeClass($classId);
+} else if (action('renameClass')) {
+  $classId = post('classId');
+  $kfc->renameClass($classId, post('className'));
 } else if (action('doReclassify')) {
   $days = post('reclassificationDays');
   $fromTime = (new DateTime())->sub(new DateInterval('P' . $days . 'D'));
@@ -217,10 +220,13 @@ echo '<h4>Map class to budget</h4>
 <h4>Classification</h4>
 
 <form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '">
-  <label for="idClassName">Class name: </label>
+  <input type="hidden" name="user" value="' . $user . '"> '
+  . classSelector($classes, false) .
+  '<input type="submit" value="Remove (incl. classification!)" name="removeClass">
+  <label for="idClassName">Name: </label>
   <input id="idClassName" name="className" type="text" value="">
-  <input type="submit" value="Add class" name="addClass">
+  <input type="submit" value="Rename" name="renameClass">
+  <input type="submit" value="Add" name="addClass">
 </form>
 
 <form method="post" action="index.php">
@@ -229,7 +235,6 @@ echo '<h4>Map class to budget</h4>
   <input type="text" name="classificationRegEx" value="" placeholder="Regular Expression">
   <input type="number" name="classificationPriority" value="0">
   <input type="submit" value="Add classification" name="addClassification">
-  <input type="submit" value="Remove class" name="removeClass">
 </form>
 
 <form method="post" action="index.php">
@@ -264,16 +269,16 @@ echo '
   <input type="submit" value="Clear config" name="clearBudgetConfig">
   <input type="submit" value="Set total budget" name="setTotalBudget">
   <input type="submit" value="Unset total budget" name="unsetTotalBudget">
-  <input type="submit" value="!! Remove budget and its config !!" name="removeBudget">
 </form>
 
 <form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '">
-  <label for="idBudgetName">Budget name: </label>
-  <input id="idBudgetName" name="budgetName" type="text" value="">
-  <input type="submit" value="Add" name="addBudget"> '
+  <input type="hidden" name="user" value="' . $user . '"> '
   . budgetSelector($budgetNames, $budgetId) .
-  '<input type="submit" value="Rename" name="renameBudget">
+  '<input type="submit" value="Remove (incl. config!)" name="removeBudget">
+  <label for="idBudgetName">Name: </label>
+  <input id="idBudgetName" name="budgetName" type="text" value="">
+  <input type="submit" value="Rename" name="renameBudget">
+  <input type="submit" value="Add" name="addBudget">
 </form>
 ';
 

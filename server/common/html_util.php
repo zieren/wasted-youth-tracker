@@ -94,14 +94,23 @@ function classSelector($classes, $includeDefault = false) {
   return $select;
 }
 
-function classificationSelectorJs() {
+
+function _arrayUtf8Encode(&$v, &$k) {
+  $v = utf8_encode($v);
+}
+
+function classificationSelectorJs($classificationsLatin1) {
+  $classificationsUtf8 = $classificationsLatin1;
+  array_walk_recursive($classificationsUtf8, '_arrayUtf8Encode');
   return '<script>
+            var classifications = ' . json_encode($classificationsUtf8) . ';
             function copyRegEx() {
               var selectClassification = document.querySelector("#idClassification");
               var inputTextRegEx = document.querySelector("#idClassificationRegEx");
               var selectedIndex = selectClassification.selectedIndex;
               if (selectedIndex >= 0) {
-                inputTextRegEx.value = selectClassification.options[selectedIndex].text;
+                var id = selectClassification.options[selectedIndex].value;
+                inputTextRegEx.value = classifications[id]["re"];
               }
             }
             window.addEventListener("load", copyRegEx);
@@ -113,8 +122,8 @@ function classificationSelector($classifications) {
       '<label for="idClassification">Classification: </label>
       <select onchange="copyRegEx()" id="idClassification" name="classificationId"
          style="width: 20em">';
-  foreach ($classifications as $id => $re) {
-    $select .= '<option value="' . $id . '">' . html($re) . '</option>';
+  foreach ($classifications as $id => $c) {
+    $select .= '<option value="' . $id . '">' . html($c['name'] . ': ' . $c['re']) . '</option>';
   }
   $select .= "</select>\n";
   return $select;

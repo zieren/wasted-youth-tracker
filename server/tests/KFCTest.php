@@ -1258,7 +1258,7 @@ final class KFCTest extends KFCTestBase {
         [['class_id' => $classId, 'budgets' => [$budgetId]]]);
     $this->assertEquals(
         $this->kfc->getAllClassifications(),
-        [$classificationId => 'c1: ()']);
+        [$classificationId => ['name' => 'c1', 're' => '()']]);
     $this->assertEquals(
         count(DB::query('SELECT * FROM mappings')),
         1);

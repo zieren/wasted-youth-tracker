@@ -41,9 +41,6 @@ checkRequirements();
 
 $kfc = KFC::create(true /* create missing tables */);
 
-echo dateSelectorJs();
-echo classificationSelectorJs();
-
 if (action('setUserConfig')) {
   $user = post('configUser');
   $kfc->setUserConfig($user, post('configKey'), post('configValue'));
@@ -151,6 +148,9 @@ $budgetNames = budgetIdsToNames(array_keys($budgetConfigs), $budgetConfigs);
 $classes = $kfc->getAllClasses();
 $configs = $kfc->getAllBudgetConfigs($user);
 $classifications = $kfc->getAllClassifications();
+
+echo dateSelectorJs();
+echo classificationSelectorJs($classifications);
 
 echo '<h1>'.KFC_SERVER_HEADING.'</h1>
 <p>(c) 2021 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.

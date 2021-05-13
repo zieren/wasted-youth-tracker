@@ -421,8 +421,8 @@ class KFC {
   }
 
   /**
-   * Returns an array keyed by classification ID containing textual representations of
-   * classifications, which are "CLASS_NAME ':' REG_EXP". The default classification is not
+   * Returns an array keyed by classification ID containing arrays with the classification rules'
+   * name (key 'name') and regular expression (key 're'). The default classification is not
    * returned.
    */
   public function getAllClassifications() {
@@ -435,7 +435,7 @@ class KFC {
         DEFAULT_CLASS_ID);
     $table = [];
     foreach ($rows as $row) {
-      $table[$row['id']] = $row['name'] . ': ' . $row['re'];
+      $table[$row['id']] = ['name' => $row['name'], 're' => $row['re']];
     }
     return $table;
   }

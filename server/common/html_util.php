@@ -94,10 +94,25 @@ function classSelector($classes, $includeDefault = false) {
   return $select;
 }
 
+function classificationSelectorJs() {
+  return '<script>
+            function copyRegEx() {
+              var selectClassification = document.querySelector("#idClassification");
+              var inputTextRegEx = document.querySelector("#idClassificationRegEx");
+              var selectedIndex = selectClassification.selectedIndex;
+              if (selectedIndex >= 0) {
+                inputTextRegEx.value = selectClassification.options[selectedIndex].text;
+              }
+            }
+            window.addEventListener("load", copyRegEx);
+          </script>';
+}
+
 function classificationSelector($classifications) {
   $select =
       '<label for="idClassification">Classification: </label>
-      <select id="idClassification" name="classificationId">';
+      <select onchange="copyRegEx()" id="idClassification" name="classificationId"
+         style="width: 20em">';
   foreach ($classifications as $id => $re) {
     $select .= '<option value="' . $id . '">' . html($re) . '</option>';
   }

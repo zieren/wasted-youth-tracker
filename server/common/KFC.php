@@ -241,6 +241,10 @@ class KFC {
     DB::delete('classification', 'id = |i', $classificationId);
   }
 
+  public function changeClassification($classificationId, $newRegEx) {
+    DB::update('classification', ['re' => $newRegEx], 'id = |s', $classificationId);
+  }
+
   public function addMapping($classId, $budgetId) {
     DB::insert('mappings', ['class_id' => $classId, 'budget_id' => $budgetId]);
     return DB::insertId();
@@ -418,7 +422,8 @@ class KFC {
 
   /**
    * Returns an array keyed by classification ID containing textual representations of
-   * classifications, which are "CLASS_NAME ':' REG_EXP".
+   * classifications, which are "CLASS_NAME ':' REG_EXP". The default classification is not
+   * returned.
    */
   public function getAllClassifications() {
     $rows = DB::query(

@@ -42,6 +42,7 @@ checkRequirements();
 $kfc = KFC::create(true /* create missing tables */);
 
 echo dateSelectorJs();
+echo classificationSelectorJs();
 
 if (action('setUserConfig')) {
   $user = post('configUser');
@@ -108,6 +109,9 @@ if (action('setUserConfig')) {
 } else if (action('addClassification')) {
   $classId = post('classId');
   $kfc->addClassification($classId, postInt('classificationPriority'), post('classificationRegEx'));
+} else if (action('changeClassification')) {
+  $classificationId = post('classificationId');
+  $kfc->changeClassification($classificationId, post('classificationRegEx'));
 } else if (action('removeClass')) {
   $classId = post('classId');
   $kfc->removeClass($classId);
@@ -251,8 +255,10 @@ echo '<h4>Map class to budget</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
   . classificationSelector($classifications) . '
-  <input type="submit" value="Remove" name="removeClassification"
-    class="kfcDestructive" disabled>
+  <input type="submit" value="Remove" name="removeClassification" class="kfcDestructive" disabled>
+  <input type="text" id="idClassificationRegEx" name="classificationRegEx" value=""
+      style="width: 40em">
+  <input type="submit" value="Change" name="changeClassification">
 </form>
 
 <form method="post" action="index.php">

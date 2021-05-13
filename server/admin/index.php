@@ -55,10 +55,11 @@ if (action('setUserConfig')) {
   $kfc->clearGlobalConfig(post('configKey'));
 } else if (action('addBudget')) {
   $user = post('user');
-  // TODO: Handle budget exists.
   $kfc->addBudget($user, post('budgetName'));
+} else if (action('renameBudget')) {
+  $budgetId = postInt('budgetId');
+  $kfc->renameBudget($budgetId, post('budgetName'));
 } else if (action('addClass')) {
-  // TODO: Handle class exists.
   $kfc->addClass(post('className'));
 } else if (action('removeBudget')) {
   $budgetId = postInt('budgetId');
@@ -270,7 +271,9 @@ echo '
   <input type="hidden" name="user" value="' . $user . '">
   <label for="idBudgetName">Budget name: </label>
   <input id="idBudgetName" name="budgetName" type="text" value="">
-  <input type="submit" value="Add budget" name="addBudget">
+  <input type="submit" value="Add" name="addBudget"> '
+  . budgetSelector($budgetNames, $budgetId) .
+  '<input type="submit" value="Rename" name="renameBudget">
 </form>
 ';
 

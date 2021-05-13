@@ -208,6 +208,10 @@ class KFC {
     DB::delete('budgets', 'id = |i', $budgetId);
   }
 
+  public function renameBudget($budgetId, $newName) {
+    DB::update('budgets', ['name' => $newName], 'id = |s', $budgetId);
+  }
+
   public function addClass($className) {
     DB::insert('classes', ['name' => $className]);
     return DB::insertId();

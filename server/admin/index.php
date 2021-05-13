@@ -40,6 +40,7 @@ function checkRequirements() {
 checkRequirements();
 
 $kfc = KFC::create(true /* create missing tables */);
+$now = new DateTime();
 
 if (action('setUserConfig')) {
   $user = post('configUser');
@@ -117,7 +118,7 @@ if (action('setUserConfig')) {
   $kfc->renameClass($classId, post('className'));
 } else if (action('doReclassify')) {
   $days = post('reclassificationDays');
-  $fromTime = (new DateTime())->sub(new DateInterval('P' . $days . 'D'));
+  $fromTime = (clone $now)->sub(new DateInterval('P' . $days . 'D'));
   $kfc->reclassify($fromTime);
 
 // TODO: Implement.
@@ -223,6 +224,14 @@ echoTable($kfc->getBudgetsToClassesTable($user));
 echo '<h4>Classes to classification</h4>';
 echoTable($kfc->getClassesToClassificationTable());
 
+echo '<h4>Top 10 unclassified last seven days</h4>';
+$fromTime = (clone $now)->sub(new DateInterval('P7D'));
+$topUnclassified = $kfc->queryTopUnclassified($user, $fromTime, 10);
+foreach ($topUnclassified as &$i) {
+  $i[0] = secondsToHHMMSS($i[0]);
+}
+echoTable($topUnclassified);
+
 echo '<h4>Map class to budget</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
@@ -304,7 +313,7 @@ echo '
 echo '<h3>Global config</h3>';
 echoTable($kfc->getGlobalConfig());
 
-echo '<h2>Update config</h2>
+echo '<h3>Update config</h3>
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="configUser" value="' . $user . '">
   <input type="text" name="configKey" value="" placeholder="key">

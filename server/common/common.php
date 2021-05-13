@@ -6,6 +6,8 @@ define('KFC_SERVER_HEADING', 'Wasted Youth Tracker 0.0.0');
 define('DEFAULT_CLASS_NAME', 'default_class');
 define('DEFAULT_CLASS_ID', 1);
 define('DEFAULT_CLASSIFICATION_ID', 1);
+define('MYSQL_SIGNED_BIGINT_MAX', '9223372036854775807'); // 2^63-1; text to support PHP 32 bit
+define('MYSQL_SIGNED_INT_MIN', -2147483648);
 
 require_once 'base.php';
 require_once 'config.php';

@@ -1454,6 +1454,36 @@ final class KFCTest extends KFCTestBase {
         $this->kfc->queryTimeSpentByTitle('u1', $fromTime),
         [[$this->dateTimeString(), 0, 'c1', 't']]);
   }
+
+  public function testTopUnclassified(): void {
+    $fromTime = $this->newDateTime();
+    $classId = $this->kfc->addClass('c1');
+    $this->kfc->addClassification($classId, 0, '1$');
+    $this->kfc->insertWindowTitles('u1', ['t1'], 0);
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', ['t1'], 0);
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', ['t1', 't2'], 0);
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', ['t1', 't2'], 0);
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', ['t2', 't3'], 0);
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', ['t2', 't3'], 0);
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', ['t3', 't4'], 0);
+
+    $this->assertEquals(
+        $this->kfc->queryTopUnclassified('u1', $fromTime, 2), [
+        [4, 't2'],
+        [2, 't3']]);
+
+    $this->assertEquals(
+        $this->kfc->queryTopUnclassified('u1', $fromTime, 3), [
+        [4, 't2'],
+        [2, 't3'],
+        [0, 't4']]);
+  }
 }
 
 (new KFCTest())->run();

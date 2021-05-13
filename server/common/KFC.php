@@ -180,7 +180,7 @@ class KFC {
     DB::insertIgnore('classification', [
         'id' => DEFAULT_CLASSIFICATION_ID,
         'class_id' => DEFAULT_CLASS_ID,
-        'priority' => -2147483648,
+        'priority' => MYSQL_SIGNED_INT_MIN,
         're' => '()']); // RE can't be ''
   }
 
@@ -475,6 +475,17 @@ class KFC {
         $fromTime->getTimestamp());
   }
 
+  /** Returns the top $num titles since $fromTime that were classified as default. */
+  public function queryTopUnclassified($user, $fromTime, $num) {
+    $rows = $this->queryTimeSpentByTitleInternal(
+        $user, $fromTime->getTimestamp(), MYSQL_SIGNED_BIGINT_MAX, $num);
+    $table = [];
+    foreach ($rows as $r) {
+      $table[] = [intval($r['sum_s']), $r['title']];
+    }
+    return $table;
+  }
+
   // ---------- WRITE ACTIVITY QUERIES ----------
 
   /**
@@ -635,19 +646,18 @@ class KFC {
     return $timeByBudgetAndDate;
   }
 
-  /**
-   * Returns the time spent by window title and budget name, ordered by the amount of time, starting
-   * at $fromTime and ending 1d (i.e. usually 24h) later. $date should therefore usually have a time
-   * of 0:00.
-   *
-   * TODO: Semantics, parameter names. How should we handle focus 0/1?
-   */
-  public function queryTimeSpentByTitle($user, $fromTime) {
-    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+  // TODO: 15 (sample interval) + 10 (latency compensation) magic
+  private function queryTimeSpentByTitleInternal(
+      $user, $fromTimestamp, $toTimestamp, $topN = 0) {
     DB::query('SET @prev_ts = 0');
-    // TODO: 15 (sample interval) + 10 (latency compensation) magic
-    $rows = DB::query('
-        SELECT title, name, sum_s, ts_last_seen FROM (
+    $outerSelect = $topN
+        ? 'SELECT title, sum_s '
+        : 'SELECT title, name, sum_s, ts_last_seen ';
+    $filter = $topN ? 'WHERE class_id = ' . DEFAULT_CLASS_ID . ' ' : ' ';
+    $limit = $topN ? 'LIMIT |i3 ' : ' ';
+    $query =
+        $outerSelect .
+        'FROM (
             SELECT title, class_id, SUM(s) AS sum_s, ts_last_seen FROM (
                 SELECT DISTINCT title, class_id, s, ts + s as ts_last_seen FROM (
                     SELECT
@@ -669,8 +679,25 @@ class KFC {
             ) with_ts_last_seen_desc
             GROUP BY title, class_id
         ) grouped
-        JOIN classes ON class_id = id
-        ORDER BY sum_s DESC, title',
+        JOIN classes ON class_id = id '
+        . $filter .
+        'ORDER BY sum_s DESC, title '
+        . $limit;
+    return $topN
+        ? DB::query($query, $user, $fromTimestamp, $toTimestamp, $topN)
+        : DB::query($query, $user, $fromTimestamp, $toTimestamp);
+  }
+
+  /**
+   * Returns the time spent by window title and budget name, ordered by the amount of time, starting
+   * at $fromTime and ending 1d (i.e. usually 24h) later. $date should therefore usually have a time
+   * of 0:00.
+   *
+   * TODO: Semantics, parameter names. How should we handle focus 0/1?
+   */
+  public function queryTimeSpentByTitle($user, $fromTime) {
+    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+    $rows = $this->queryTimeSpentByTitleInternal(
         $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
     $timeByTitle = [];
     foreach ($rows as $row) {

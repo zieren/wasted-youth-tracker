@@ -155,13 +155,18 @@ Components:
 <a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, LGPL;
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license
 
-<p><a href="../view/index.php?user=' . $user . '">View activity</a>
-<form>
-  <input type="checkbox" name="confirm" id="idKfcEnableDestructive"
-      onclick="enableDestructiveButtons(false)"/>
-  <span onclick="enableDestructiveButtons(true)">Enable destructive actions
-  (e.g. delete class/budget, prune activity)</span>
-</form>
+<p>
+<span style="float: left; margin-right: 20px;">
+  <a href="../view/index.php?user=' . $user . '">View activity</a>
+</span>
+<span style="float: right">
+  <form>
+    <input type="checkbox" name="confirm" id="idKfcEnableDestructive"
+        onclick="enableDestructiveButtons(false)"/>
+    <span onclick="enableDestructiveButtons(true)">Enable destructive actions
+    (e.g. delete class/budget, prune activity)</span>
+  </form>
+</span>
 </p>
 
 <h2>Configuration</h2>
@@ -178,7 +183,7 @@ Components:
     <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
     <input type="submit" value="Set Minutes" name="setMinutes">
     <input type="submit" value="Unlock" name="unlock">
-    <input type="submit" value="Clear all overrides" name="clearOverride">
+    <input type="submit" value="Clear overrides" name="clearOverride">
   </form>';
 
 echo '<h4>Current overrides</h4>';
@@ -227,7 +232,8 @@ echo '<h4>Map class to budget</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '"> '
   . classSelector($classes, false) .
-  '<input type="submit" value="Remove (incl. classification!)" name="removeClass">
+  '<input type="submit" value="Remove (incl. classification!)" name="removeClass"
+    class="kfcDestructive" disabled>
   <label for="idClassName">Name: </label>
   <input id="idClassName" name="className" type="text" value="">
   <input type="submit" value="Rename" name="renameClass">
@@ -245,7 +251,8 @@ echo '<h4>Map class to budget</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
   . classificationSelector($classifications) . '
-  <input type="submit" value="Remove" name="removeClassification">
+  <input type="submit" value="Remove" name="removeClassification"
+    class="kfcDestructive" disabled>
 </form>
 
 <form method="post" action="index.php">
@@ -279,7 +286,8 @@ echo '
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '"> '
   . budgetSelector($budgetNames, $budgetId) .
-  '<input type="submit" value="Remove (incl. config!)" name="removeBudget">
+  '<input type="submit" value="Remove (incl. config!)" name="removeBudget"
+    class="kfcDestructive" disabled>
   <label for="idBudgetName">Name: </label>
   <input id="idBudgetName" name="budgetName" type="text" value="">
   <input type="submit" value="Rename" name="renameBudget">
@@ -308,12 +316,6 @@ PRUNE data and logs before
 <form method="post">
   <input type="date" name="datePrune" value="' . date('Y-m-d') . '">
   <input class="kfcDestructive" type="submit" value="PRUNE" name="prune" disabled />
-</form>
-<form method="post">
-  <p>
-    CLEAR ALL DATA except config
-    <input class="kfcDestructive" type="submit" name="clearAll" value="CLEAR" disabled />
-  </p>
 </form>
 ';
 ?>

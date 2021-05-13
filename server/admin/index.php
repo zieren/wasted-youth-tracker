@@ -154,16 +154,21 @@ Components:
 <a href="https://www.autohotkey.com/">AutoHotkey</a> by The AutoHotkey Foundation;
 <a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, LGPL;
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license
-';
 
-echo '<p><a href="../view/index.php?user=' . $user . '">View activity</a></p>';
+<p><a href="../view/index.php?user=' . $user . '">View activity</a>
+<form>
+  <input type="checkbox" name="confirm" id="idKfcEnableDestructive"
+      onclick="enableDestructiveButtons(false)"/>
+  <span onclick="enableDestructiveButtons(true)">Enable destructive actions
+  (e.g. delete class/budget, prune activity)</span>
+</form>
+</p>
 
-echo '<h2>Configuration</h2>
-    <form action="index.php" method="get">'
-    . userSelector($users, $user)
-    . '</form>';
+<h2>Configuration</h2>
+<form action="index.php" method="get">'
+. userSelector($users, $user) .
+'</form>
 
-echo '
 <h3>Overrides</h3>
   <form method="post" action="index.php">
     <input type="hidden" name="user" value="' . $user . '">'
@@ -309,11 +314,6 @@ PRUNE data and logs before
     CLEAR ALL DATA except config
     <input class="kfcDestructive" type="submit" name="clearAll" value="CLEAR" disabled />
   </p>
-</form>
-<form>
-  <input type="checkbox" name="confirm" id="idKfcEnableDestructive"
-      onclick="enableDestructiveButtons(false)"/>
-  <span onclick="enableDestructiveButtons(true)">Yes, I really really want to!</span>
 </form>
 ';
 ?>

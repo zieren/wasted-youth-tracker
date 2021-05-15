@@ -59,7 +59,7 @@ echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
 
 if (getOrDefault($_GET, 'debug')) {
   echo "<h2>Window title sequence</h2>";
-  echoTable($kfc->queryTitleSequence($user, $fromTime));
+  echoTable(['Date & Time', 'Class', 'Title'], $kfc->queryTitleSequence($user, $fromTime));
 }
 
 ?>

@@ -32,9 +32,9 @@ echo
 
 echo "<h3>Time left today</h3>";
 $timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
-echoTable(array(
+echoTable(
     budgetIdsToNames(array_keys($timeLeftByBudget), $configs),
-    array_map("secondsToHHMMSS", array_values($timeLeftByBudget))));
+    [array_map("secondsToHHMMSS", array_values($timeLeftByBudget))]);
 
 echo "<h3>Time spent on selected date</h3>";
 $fromTime = new DateTime($dateString);
@@ -46,16 +46,16 @@ foreach ($timeSpentByBudgetAndDate as $budgetId=>$timeSpentByDate) {
 }
 // TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
 // budget at all.
-echoTable(array(
+echoTable(
     budgetIdsToNames(array_keys($timeSpentByBudget), $configs),
-    array_map("secondsToHHMMSS", array_values($timeSpentByBudget))));
+    [array_map("secondsToHHMMSS", array_values($timeSpentByBudget))]);
 
 echo "<h3>Time per window title</h3>";
 $timeSpentPerTitle = $kfc->queryTimeSpentByTitle($user, $fromTime);
 for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
   $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);
 }
-echoTable($timeSpentPerTitle);
+echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
 
 if (getOrDefault($_GET, 'debug')) {
   echo "<h2>Window title sequence</h2>";

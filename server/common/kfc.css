@@ -2,3 +2,6 @@ table, th, td {
   border: 1px solid black;
 }
 
+table.titled tr:first-child td {
+  background: #cccccc;
+}

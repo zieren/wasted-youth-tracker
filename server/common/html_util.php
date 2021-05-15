@@ -1,8 +1,9 @@
 <?php
 
-function echoTable($data) {
-  echo "<table>\n";
-  foreach($data as $row) {
+function echoTable($header, $data) {
+  array_unshift($data, $header);
+  echo "<table class=\"titled\">\n";
+  foreach ($data as $row) {
     $row = array_map("html", $row);
     echo "<tr><td>" . implode("</td><td>", $row) . "</td></tr>\n";
   }
@@ -11,7 +12,7 @@ function echoTable($data) {
 
 function echoTableAssociative($data) {
   echo "<table>\n";
-  foreach($data as $k => $v) {
+  foreach ($data as $k => $v) {
     echo "<tr><td>" . html($k) . "</td><td>" . html($v) . "</td></tr>\n";
   }
   echo "</table>\n";

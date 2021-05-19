@@ -225,7 +225,7 @@ $topUnclassified = $kfc->queryTopUnclassified($user, $fromTime, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
-echoTable(['Time', 'Title', 'Last Seen'], $topUnclassified);
+echoTable(['Time', 'Title', 'Last Used'], $topUnclassified);
 
 echo '<h4>Map class to budget</h4>
 <form method="post" action="index.php">

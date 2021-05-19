@@ -189,14 +189,6 @@ echoTable(
     ['Date', 'Budget', 'Minutes', 'Lock'],
     $kfc->queryRecentOverrides($user));
 
-echo '<h3>Time left today</h3>';
-$timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
-echoTable(
-    budgetIdsToNames(array_keys($timeLeftByBudget), $configs),
-    [array_map("secondsToHHMMSS", array_values($timeLeftByBudget))]);
-
-// TODO: This IGNORED the selected date. Add its own date selector?
-
 // --- BEGIN duplicate code. TODO: Extract.
 echo "<h3>Time spent on selected date</h3>";
 $fromTime = new DateTime($dateString);
@@ -212,6 +204,14 @@ echoTable(
     budgetIdsToNames(array_keys($timeSpentByBudget), $configs),
     [array_map("secondsToHHMMSS", array_values($timeSpentByBudget))]);
 // --- END duplicate code
+
+echo '<h3>Time left today</h3>';
+$timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
+echoTable(
+    budgetIdsToNames(array_keys($timeLeftByBudget), $configs),
+    [array_map("secondsToHHMMSS", array_values($timeLeftByBudget))]);
+
+// TODO: This IGNORED the selected date. Add its own date selector?
 
 echo '<hr><h4>Classes and Budgets</h4>';
 echoTable(['Class', 'Budget'], $kfc->getBudgetsToClassesTable($user));

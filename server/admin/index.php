@@ -158,23 +158,19 @@ Components:
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license
 
 <p>
-<span style="float: left; margin-right: 20px;">
-  <a href="../view/index.php?user=' . $user . '">View activity</a>
-</span>
-<span style="float: right">
-  <form>
-    <input type="checkbox" name="confirm" id="idKfcEnableDestructive"
-        onclick="enableDestructiveButtons(false)"/>
-    <span onclick="enableDestructiveButtons(true)">Enable destructive actions
-    (e.g. delete class/budget, prune activity)</span>
-  </form>
-</span>
-</p>
-
-<h2>Configuration</h2>
-<form action="index.php" method="get">'
+<form action="index.php" method="get" style="display: inline; margin-right: 1em;">'
 . userSelector($users, $user) .
 '</form>
+<span style="display: inline; margin-right: 1em;">
+  <a href="../view/index.php?user=' . $user . '">View activity</a>
+</span>
+<form style="display: inline; margin-right: 1em;">
+  <input type="checkbox" name="confirm" id="idKfcEnableDestructive"
+      onclick="enableDestructiveButtons(false)"/>
+  <span onclick="enableDestructiveButtons(true)">Enable destructive actions
+  (e.g. delete class/budget, prune activity)</span>
+</form>
+</p>
 
 <h3>Overrides</h3>
   <form method="post" action="index.php">

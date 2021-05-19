@@ -4,10 +4,17 @@ function echoTable($header, $data) {
   array_unshift($data, $header);
   echo "<table class=\"titled\">\n";
   foreach ($data as $row) {
-    $row = array_map("html", $row);
+    $row = array_map('html', $row);
+    $row = array_map('addDiv', $row);
     echo "<tr><td>" . implode("</td><td>", $row) . "</td></tr>\n";
   }
   echo "</table>\n";
+}
+
+// TODO: Add a dedicated method that turns column N into a tooltip on column N-1.
+
+function addDiv($td) {
+  return '<div style="height: 1em; overflow: auto">' . $td . '</div>';
 }
 
 function echoTableAssociative($data) {
@@ -19,7 +26,7 @@ function echoTableAssociative($data) {
 }
 
 function html($text) {
-  return htmlentities($text, ENT_COMPAT | ENT_HTML401, 'ISO-8859-1');
+  return nl2br(htmlentities($text, ENT_COMPAT | ENT_HTML401, 'ISO-8859-1'));
 }
 
 function action($name) {

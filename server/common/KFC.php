@@ -410,17 +410,28 @@ class KFC {
   }
 
   /** Returns a table listing all classes and their classification rules. */
-  public function getClassesToClassificationTable() {
+  public function getClassesToClassificationTable() { // TODO: test
     $rows = DB::query(
-        'SELECT name, re, priority
+        'SELECT name, re, priority, samples
           FROM classes
           LEFT JOIN classification ON classes.id = classification.class_id
-          WHERE classes.id != |i
+          LEFT JOIN (
+            SELECT id, GROUP_CONCAT(title SEPARATOR "\n") AS samples
+            FROM classification
+            LEFT JOIN(
+                SELECT DISTINCT title FROM activity
+            ) t1
+            ON t1.title REGEXP classification.re
+            WHERE classification.id != |i0
+            GROUP BY id
+          ) t2
+          ON classification.id = t2.id
+          WHERE classes.id != |i0
           ORDER BY name, priority DESC',
         DEFAULT_CLASS_ID);
     $table = [];
-    foreach ($rows as $row) {
-      $table[] = [$row['name'], $row['re'], $row['priority']];
+    foreach ($rows as $r) {
+      $table[] = [$r['name'], $r['re'], $r['priority'], $r['samples']];
     }
     return $table;
   }

@@ -217,11 +217,19 @@ echo '<hr><h4>Classes and Budgets</h4>';
 echoTable(['Class', 'Budget'], $kfc->getBudgetsToClassesTable($user));
 
 echo '<h4>Classification</h4>';
-echoTable(['Class', 'Classification', 'Prio'], $kfc->getClassesToClassificationTable());
+echoTable(['Class', 'Classification', 'Prio', 'Samples'], $kfc->getClassesToClassificationTable());
 
-echo '<h4>Top 10 unclassified last seven days</h4>';
+echo '<h4>Top 10 unclassified last seven days, by total time</h4>';
 $fromTime = (clone $now)->sub(new DateInterval('P7D'));
 $topUnclassified = $kfc->queryTopUnclassified($user, $fromTime, true, 10);
+foreach ($topUnclassified as &$i) {
+  $i[0] = secondsToHHMMSS($i[0]);
+}
+echoTable(['Time', 'Title', 'Last Used'], $topUnclassified);
+
+echo '<h4>Top 10 unclassified last seven days, by recency</h4>';
+$fromTime = (clone $now)->sub(new DateInterval('P7D'));
+$topUnclassified = $kfc->queryTopUnclassified($user, $fromTime, false, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }

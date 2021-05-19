@@ -1276,6 +1276,50 @@ final class KFCTest extends KFCTestBase {
         0);
   }
 
+  public function testRemoveClassReclassifies(): void {
+    $classId1 = $this->kfc->addClass('c1');
+    $classId2 = $this->kfc->addClass('c2');
+    $classificationId1 = $this->kfc->addClassification($classId1, 0, '1$');
+    $classificationId2 = $this->kfc->addClassification($classId2, 0, '2$');
+    $this->kfc->insertWindowTitles('u1', ['t1'], 0);
+
+    $fromTime = $this->newDateTime();
+    $this->mockTime++;
+    $fromTime1String = $this->dateTimeString();
+    $this->kfc->insertWindowTitles('u1', ['t2'], 0);
+    $this->mockTime++;
+    $fromTime2String = $this->dateTimeString();
+    $this->kfc->insertWindowTitles('u1', ['t3'], 0);
+
+    $this->assertEquals(
+        $this->kfc->queryTimeSpentByTitle('u1', $fromTime),  [
+            [$fromTime1String, 1, 'c1', 't1'],
+            [$fromTime2String, 1, 'c2', 't2'],
+            [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3']
+        ]);
+    $this->assertEquals(
+        $this->kfc->getAllClassifications(), [
+            $classificationId1 => ['name' => 'c1', 're' => '1$'],
+            $classificationId2 => ['name' => 'c2', 're' => '2$']
+        ]);
+
+    $classId3 = $this->kfc->addClass('c3');
+    $classificationId3 = $this->kfc->addClassification($classId3, -42, '2$');
+    $this->kfc->removeClass($classId2);
+
+    $this->assertEquals(
+        $this->kfc->queryTimeSpentByTitle('u1', $fromTime),  [
+            [$fromTime1String, 1, 'c1', 't1'],
+            [$fromTime2String, 1, 'c3', 't2'],
+            [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3']
+        ]);
+    $this->assertEquals(
+        $this->kfc->getAllClassifications(), [
+            $classificationId1 => ['name' => 'c1', 're' => '1$'],
+            $classificationId3 => ['name' => 'c3', 're' => '2$']
+        ]);
+  }
+
   public function testTotalBudget(): void {
     $classId1 = $this->kfc->addClass('c1');
     $classId2 = $this->kfc->addClass('c2');

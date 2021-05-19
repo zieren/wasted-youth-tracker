@@ -215,6 +215,11 @@ class KFC {
     if ($classId == DEFAULT_CLASS_ID) {
       $this->throwException('Cannot delete default class "' . DEFAULT_CLASS_NAME . '"');
     }
+    // Delete classifications first to avoid new titles (and their classification) racing for
+    // insertion against the class deletion.
+    DB::delete('classification', 'class_id = |i', $classId);
+
+    $this->reclassifyForRemoval($classId);
     DB::delete('classes', 'id = |i', $classId);
   }
 
@@ -476,6 +481,35 @@ class KFC {
           JOIN activity ON reclassification.title = activity.title
           WHERE ts >= |i0',
         $fromTime->getTimestamp());
+  }
+
+  /** Reclassify all activity for all users to prepare removal of the specified class. */
+  public function reclassifyForRemoval($classToRemove) {
+    DB::query('SET @prev_title = ""');
+    DB::query(
+        'REPLACE INTO activity (user, ts, class_id, focus, title)
+          SELECT user, ts, reclassification.class_id, focus, activity.title FROM (
+            SELECT
+              title,
+              class_id,
+              IF (@prev_title = title, 0, 1) AS first,
+              @prev_title := title
+              FROM (
+                SELECT title, classification.class_id, priority
+                FROM (
+                  SELECT DISTINCT title FROM activity
+                  WHERE title != ""
+                  AND class_id = |i0
+                ) distinct_titles
+                JOIN classification ON title REGEXP re
+                WHERE classification.class_id != |i0
+                ORDER BY title, priority DESC
+              ) reclassification_all_prios
+              HAVING first = 1
+            ) reclassification
+          JOIN activity ON reclassification.title = activity.title
+          WHERE activity.class_id = |i0',
+        $classToRemove);
   }
 
   /**

@@ -50,7 +50,7 @@ echoTable(
     budgetIdsToNames(array_keys($timeSpentByBudget), $configs),
     [array_map("secondsToHHMMSS", array_values($timeSpentByBudget))]);
 
-echo "<h3>Time per window title</h3>";
+echo "<h3>Most Time Spent<h3>";
 $timeSpentPerTitle = $kfc->queryTimeSpentByTitle($user, $fromTime);
 for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
   $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);

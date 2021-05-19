@@ -1471,18 +1471,28 @@ final class KFCTest extends KFCTestBase {
     $this->mockTime++;
     $this->kfc->insertWindowTitles('u1', ['t2', 't3'], 0);
     $this->mockTime++;
+    $lastSeenT2 = $this->dateTimeString();
+    $this->kfc->insertWindowTitles('u1', ['t3', 't4'], 0);
+    $this->mockTime++;
+    $lastSeenT3T4 = $this->dateTimeString();
     $this->kfc->insertWindowTitles('u1', ['t3', 't4'], 0);
 
     $this->assertEquals(
-        $this->kfc->queryTopUnclassified('u1', $fromTime, 2), [
-        [4, 't2'],
-        [2, 't3']]);
+        $this->kfc->queryTopUnclassified('u1', $fromTime, true, 2), [
+        [4, 't2', $lastSeenT2],
+        [3, 't3', $lastSeenT3T4]]);
 
     $this->assertEquals(
-        $this->kfc->queryTopUnclassified('u1', $fromTime, 3), [
-        [4, 't2'],
-        [2, 't3'],
-        [0, 't4']]);
+        $this->kfc->queryTopUnclassified('u1', $fromTime, true, 3), [
+        [4, 't2', $lastSeenT2],
+        [3, 't3', $lastSeenT3T4],
+        [1, 't4', $lastSeenT3T4]]);
+
+    $this->assertEquals(
+        $this->kfc->queryTopUnclassified('u1', $fromTime, false, 3), [
+        [3, 't3', $lastSeenT3T4],
+        [1, 't4', $lastSeenT3T4],
+        [4, 't2', $lastSeenT2]]);
   }
 
   public function testBudgetsToClassesTable(): void {

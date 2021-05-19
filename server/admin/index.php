@@ -217,8 +217,8 @@ echoTable(
     [array_map("secondsToHHMMSS", array_values($timeSpentByBudget))]);
 // --- END duplicate code
 
-echo '<h4>Budgets to classes</h4>';
-echoTable(['Budget', 'Class'], $kfc->getBudgetsToClassesTable($user));
+echo '<hr><h4>Budgets to classes</h4>';
+echoTable(['Class', 'Budget'], $kfc->getBudgetsToClassesTable($user));
 
 echo '<h4>Classes to classification</h4>';
 echoTable(['Class', 'Classification', 'Prio'], $kfc->getClassesToClassificationTable());

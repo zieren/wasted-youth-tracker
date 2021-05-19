@@ -213,10 +213,10 @@ echoTable(
     [array_map("secondsToHHMMSS", array_values($timeSpentByBudget))]);
 // --- END duplicate code
 
-echo '<hr><h4>Budgets to classes</h4>';
+echo '<hr><h4>Classes and Budgets</h4>';
 echoTable(['Class', 'Budget'], $kfc->getBudgetsToClassesTable($user));
 
-echo '<h4>Classes to classification</h4>';
+echo '<h4>Classification</h4>';
 echoTable(['Class', 'Classification', 'Prio'], $kfc->getClassesToClassificationTable());
 
 echo '<h4>Top 10 unclassified last seven days</h4>';
@@ -225,7 +225,7 @@ $topUnclassified = $kfc->queryTopUnclassified($user, $fromTime, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
-echoTable(['Time', 'Title'], $topUnclassified);
+echoTable(['Time', 'Title', 'Last Seen'], $topUnclassified);
 
 echo '<h4>Map class to budget</h4>
 <form method="post" action="index.php">

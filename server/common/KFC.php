@@ -484,7 +484,7 @@ class KFC {
         $user, $fromTime->getTimestamp(), MYSQL_SIGNED_BIGINT_MAX, $num);
     $table = [];
     foreach ($rows as $r) {
-      $table[] = [intval($r['sum_s']), $r['title']];
+      $table[] = [intval($r['sum_s']), $r['title'], date("Y-m-d H:i:s", $r['ts_last_seen'])];
     }
     return $table;
   }
@@ -654,7 +654,7 @@ class KFC {
       $user, $fromTimestamp, $toTimestamp, $topN = 0) {
     DB::query('SET @prev_ts = 0');
     $outerSelect = $topN
-        ? 'SELECT title, sum_s '
+        ? 'SELECT title, sum_s, ts_last_seen '
         : 'SELECT title, name, sum_s, ts_last_seen ';
     $filter = $topN ? 'WHERE class_id = ' . DEFAULT_CLASS_ID . ' ' : ' ';
     $limit = $topN ? 'LIMIT |i3 ' : ' ';
@@ -820,7 +820,7 @@ class KFC {
   // TODO: Allow setting the date range.
   public function queryRecentOverrides($user) {
     $fromDate = getWeekStart($this->newDateTime());
-    $fromDate->sub(new DateInterval('P1W'));
+    $fromDate->sub(new DateInterval('P3D')); // TODO: Make this configurable.
     return DB::query(
         'SELECT date, name,'
         . ' CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,'

@@ -221,7 +221,7 @@ echoTable(['Class', 'Classification', 'Prio'], $kfc->getClassesToClassificationT
 
 echo '<h4>Top 10 unclassified last seven days</h4>';
 $fromTime = (clone $now)->sub(new DateInterval('P7D'));
-$topUnclassified = $kfc->queryTopUnclassified($user, $fromTime, 10);
+$topUnclassified = $kfc->queryTopUnclassified($user, $fromTime, true, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }

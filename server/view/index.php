@@ -30,12 +30,6 @@ echo
     . dateSelector($dateString, true)
     . '</form>';
 
-echo "<h3>Time left today</h3>";
-$timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
-echoTable(
-    budgetIdsToNames(array_keys($timeLeftByBudget), $configs),
-    [array_map("secondsToHHMMSS", array_values($timeLeftByBudget))]);
-
 echo "<h3>Time spent on selected date</h3>";
 $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
@@ -49,6 +43,19 @@ foreach ($timeSpentByBudgetAndDate as $budgetId=>$timeSpentByDate) {
 echoTable(
     budgetIdsToNames(array_keys($timeSpentByBudget), $configs),
     [array_map("secondsToHHMMSS", array_values($timeSpentByBudget))]);
+
+echo "<h3>Time left today</h3>";
+$timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
+echoTable(
+    budgetIdsToNames(array_keys($timeLeftByBudget), $configs),
+    [array_map("secondsToHHMMSS", array_values($timeLeftByBudget))]);
+
+echo "<h3>Most Recently Used<h3>";
+$timeSpentPerTitle = $kfc->queryTimeSpentByTitle($user, $fromTime, false);
+for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
+  $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);
+}
+echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
 
 echo "<h3>Most Time Spent<h3>";
 $timeSpentPerTitle = $kfc->queryTimeSpentByTitle($user, $fromTime);

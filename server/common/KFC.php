@@ -820,20 +820,20 @@ class KFC {
     DB::delete('overrides', 'user=|s AND date=|s AND budget_id=|i', $user, $date, $budgetId);
   }
 
-  /** Returns all overrides for the specified user, starting the week before the current week. */
+  /** Returns recent overrides for the specified user. */
   // TODO: Allow setting the date range.
   public function queryRecentOverrides($user) {
-    $fromDate = getWeekStart($this->newDateTime());
-    $fromDate->sub(new DateInterval('P3D')); // TODO: Make this configurable.
+    $fromDate = $this->newDateTime();
+    $fromDate->sub(new DateInterval('P3D'));
     return DB::query(
         'SELECT date, name,'
         . ' CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,'
         . ' CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END'
         . ' FROM overrides'
         . ' JOIN budgets ON budget_id = id'
-        . ' WHERE overrides.user=|s0'
+        . ' WHERE overrides.user = |s0'
         . ' AND date >= |s1'
-        . ' ORDER BY date ASC',
+        . ' ORDER BY date DESC, name',
         $user, $fromDate->format('Y-m-d'));
   }
 

@@ -824,7 +824,7 @@ class KFC {
   // TODO: Allow setting the date range.
   public function queryRecentOverrides($user) {
     $fromDate = $this->newDateTime();
-    $fromDate->sub(new DateInterval('P3D'));
+    $fromDate->sub(new DateInterval('P0D'));
     return DB::query(
         'SELECT date, name,'
         . ' CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,'

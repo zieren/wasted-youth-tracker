@@ -17,3 +17,13 @@ table.collapsible tr:first-child td:last-child {
 table.collapsible tr.expanded td:last-child {
   font-size: 100%;
 }
+
+.inlineBlockWithMargin {
+  display: inline-block;
+  margin-right: 1em;
+}
+
+.inlineBlock {
+  display: inline-block;
+}
+

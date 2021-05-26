@@ -204,7 +204,6 @@ echoTable(
     $kfc->queryRecentOverrides($user));
 
 // --- BEGIN duplicate code. TODO: Extract.
-echo "<h3>Time spent on selected date</h3>";
 $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
 $timeSpentByBudgetAndDate = $kfc->queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime);
@@ -214,34 +213,39 @@ foreach ($timeSpentByBudgetAndDate as $id=>$timeSpentByDate) {
 }
 // TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
 // budget at all.
+echo '<span class="inlineBlockWithMargin"><h3>Time spent on selected date</h3>';
 echoTable(
     budgetIdsToNames(array_keys($timeSpentByBudget), $configs),
     [array_map("secondsToHHMMSS", array_values($timeSpentByBudget))]);
+echo '</span>';
 // --- END duplicate code
 
-echo '<h3>Time left today</h3>';
 $timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
+echo '<span class="inlineBlock"><h3>Time left today</h3>';
 echoTable(
     budgetIdsToNames(array_keys($timeLeftByBudget), $configs),
     [array_map("secondsToHHMMSS", array_values($timeLeftByBudget))]);
+echo '</span>';
 
 // TODO: This IGNORED the selected date. Add its own date selector?
 
-echo '<h4>Top 10 unclassified last seven days, by recency</h4>';
 $fromTime = (clone $now)->sub(new DateInterval('P7D'));
 $topUnclassified = $kfc->queryTopUnclassified($user, $fromTime, false, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
-echoTable(['Time', 'Title', 'Last Used'], $topUnclassified);
+echo '<br><span class="inlineBlockWithMargin"><h4>Top 10 unclassified last seven days, by recency</h4>';
+echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled XXX_inlineTableWithMargin');
+echo '</span>';
 
-echo '<h4>Top 10 unclassified last seven days, by total time</h4>';
 $fromTime = (clone $now)->sub(new DateInterval('P7D'));
 $topUnclassified = $kfc->queryTopUnclassified($user, $fromTime, true, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
-echoTable(['Time', 'Title', 'Last Used'], $topUnclassified);
+echo '<span class="inlineBlock"><h4>Top 10 unclassified last seven days, by total time</h4>';
+echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled XXX_inlineTable');
+echo '</span>';
 
 echo '<h4>Classification (for all users)</h4>';
 echoTable(

@@ -1,8 +1,8 @@
 <?php
 
-function echoTable($header, $data, $classes = ['titled']) {
+function echoTable($header, $data, $classes = 'titled') {
   array_unshift($data, $header);
-  echo '<table class="' . implode(' ', $classes) . '">';
+  echo '<table class="' . $classes . '">';
   foreach ($data as $row) {
     $row = array_map('html', $row);
     echo '<tr><td>' . implode('</td><td>', $row) . "</td></tr>\n";

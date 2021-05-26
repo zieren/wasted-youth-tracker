@@ -232,7 +232,7 @@ echoTable(['Class', 'Budget'], $kfc->getBudgetsToClassesTable($user));
 
 echo '<h4>Classification (for all users)</h4>';
 echoTable(
-    ['Class', 'Classification', 'Prio', 'Matches', 'Samples'],
+    ['Class', 'Classification', 'Prio', 'Matches', 'Samples (click to expand)'],
     $kfc->getClassesToClassificationTable(),
     ['titled', 'collapsible']);
 

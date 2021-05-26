@@ -414,7 +414,7 @@ class KFC {
    *
    * TODO: Add time limit.
    */
-  public function getClassesToClassificationTable() { // TODO: test
+  public function getClassesToClassificationTable() {
     $rows = DB::query(
         'SELECT name, re, priority, n, samples
           FROM classes

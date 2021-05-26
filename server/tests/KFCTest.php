@@ -1559,6 +1559,10 @@ final class KFCTest extends KFCTestBase {
             ['', 'b3']
         ]);
   }
+
+  public function testClassesToClassificationTable(): void {
+    // TODO
+  }
 }
 
 (new KFCTest())->run();

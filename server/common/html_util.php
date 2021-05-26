@@ -5,17 +5,12 @@ function echoTable($header, $data) {
   echo "<table class=\"titled\">\n";
   foreach ($data as $row) {
     $row = array_map('html', $row);
-    $row = array_map('addDiv', $row);
     echo "<tr><td>" . implode("</td><td>", $row) . "</td></tr>\n";
   }
   echo "</table>\n";
 }
 
 // TODO: Add a dedicated method that turns column N into a tooltip on column N-1.
-
-function addDiv($td) {
-  return '<div style="height: 1em; overflow: auto">' . $td . '</div>';
-}
 
 function echoTableAssociative($data) {
   echo "<table>\n";
@@ -33,8 +28,13 @@ function action($name) {
   return array_key_exists($name, $_POST);
 }
 
-function post($key) {
+function postSanitized($key) {
   $s = filter_input(INPUT_POST, $key, FILTER_SANITIZE_STRING);
+  return is_null($s) ? null : trim($s);
+}
+
+function postRaw($key) {
+  $s = filter_input(INPUT_POST, $key, FILTER_UNSAFE_RAW);
   return is_null($s) ? null : trim($s);
 }
 

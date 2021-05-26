@@ -43,87 +43,88 @@ $kfc = KFC::create(true /* create missing tables */);
 $now = new DateTime();
 
 if (action('setUserConfig')) {
-  $user = post('configUser');
-  $kfc->setUserConfig($user, post('configKey'), post('configValue'));
+  $user = postSanitized('configUser');
+  $kfc->setUserConfig($user, postSanitized('configKey'), postSanitized('configValue'));
 } else if (action('clearUserConfig')) {
-  $user = post('configUser');
-  $kfc->clearUserConfig($user, post('configKey'));
+  $user = postSanitized('configUser');
+  $kfc->clearUserConfig($user, postSanitized('configKey'));
 } else if (action('setGlobalConfig')) {
-  $kfc->setGlobalConfig(post('configKey'), post('configValue'));
+  $kfc->setGlobalConfig(postSanitized('configKey'), postSanitized('configValue'));
 } else if (action('clearGlobalConfig')) {
-  $kfc->clearGlobalConfig(post('configKey'));
+  $kfc->clearGlobalConfig(postSanitized('configKey'));
 } else if (action('addBudget')) {
-  $user = post('user');
-  $kfc->addBudget($user, post('budgetName'));
+  $user = postSanitized('user');
+  $kfc->addBudget($user, postSanitized('budgetName'));
 } else if (action('renameBudget')) {
   $budgetId = postInt('budgetId');
-  $kfc->renameBudget($budgetId, post('budgetName'));
+  $kfc->renameBudget($budgetId, postSanitized('budgetName'));
 } else if (action('addClass')) {
-  $kfc->addClass(post('className'));
+  $kfc->addClass(postSanitized('className'));
 } else if (action('removeBudget')) {
   $budgetId = postInt('budgetId');
   $kfc->removeBudget($budgetId);
 } else if (action('setBudgetConfig')) {
   $budgetId = postInt('budgetId');
-  $kfc->setBudgetConfig($budgetId, post('budgetConfigKey'), post('budgetConfigValue'));
+  $kfc->setBudgetConfig($budgetId, postSanitized('budgetConfigKey'), postSanitized('budgetConfigValue'));
 } else if (action('clearBudgetConfig')) {
   $budgetId = postInt('budgetId');
-  $kfc->clearBudgetConfig($budgetId, post('budgetConfigKey'));
+  $kfc->clearBudgetConfig($budgetId, postSanitized('budgetConfigKey'));
 } else if (action('setMinutes')) {
-  $user = post('user');
-  $dateString = post('date');
+  $user = postSanitized('user');
+  $dateString = postSanitized('date');
   $budgetId = postInt('budgetId');
   $kfc->setOverrideMinutes($user, $dateString, $budgetId, postInt('overrideMinutes', 0));
 } else if (action('unlock')) {
-  $user = post('user');
-  $dateString = post('date');
+  $user = postSanitized('user');
+  $dateString = postSanitized('date');
   $budgetId = postInt('budgetId');
   $kfc->setOverrideUnlock($user, $dateString, $budgetId);
 } else if (action('clearOverride')) {
-  $user = post('user');
-  $dateString = post('date');
+  $user = postSanitized('user');
+  $dateString = postSanitized('date');
   $budgetId = postInt('budgetId');
   $kfc->clearOverride($user, $dateString, $budgetId);
 } else if (action('addMapping')) {
-  $user = post('user');
+  $user = postSanitized('user');
   $budgetId = postInt('budgetId');
-  $classId = post('classId');
+  $classId = postInt('classId');
   $kfc->addMapping($classId, $budgetId);
 } else if (action('removeMapping')) {
-  $user = post('user');
+  $user = postSanitized('user');
   $budgetId = postInt('budgetId');
-  $classId = post('classId');
+  $classId = postInt('classId');
   $kfc->removeMapping($classId, $budgetId);
 } else if (action('setTotalBudget')) {
-  $user = post('user');
+  $user = postSanitized('user');
   $budgetId = postInt('budgetId');
   $kfc->setTotalBudget($user, $budgetId);
 } else if (action('unsetTotalBudget')) {
-  $user = post('user');
+  $user = postSanitized('user');
   $kfc->unsetTotalBudget($user);
 } else if (action('removeClassification')) {
-  $classificationId = post('classificationId');
+  $classificationId = postInt('classificationId');
   $kfc->removeClassification($classificationId);
 } else if (action('addClassification')) {
-  $classId = post('classId');
-  $kfc->addClassification($classId, postInt('classificationPriority'), post('classificationRegEx'));
+  $classId = postInt('classId');
+  $kfc->addClassification(
+      $classId, postInt('classificationPriority'), postRaw('classificationRegEx'));
 } else if (action('changeClassification')) {
-  $classificationId = post('classificationId');
-  $kfc->changeClassification($classificationId, post('classificationRegEx'));
+  $classificationId = postInt('classificationId');
+  $kfc->changeClassification($classificationId, postRaw('classificationRegEx'));
 } else if (action('removeClass')) {
-  $classId = post('classId');
+  $classId = postInt('classId');
   $kfc->removeClass($classId);
 } else if (action('renameClass')) {
-  $classId = post('classId');
-  $kfc->renameClass($classId, post('className'));
+  $classId = postInt('classId');
+  $kfc->renameClass($classId, postSanitized('className'));
 } else if (action('doReclassify')) {
-  $days = post('reclassificationDays');
+  $days = postInt('reclassificationDays');
   $fromTime = (clone $now)->sub(new DateInterval('P' . $days . 'D'));
   $kfc->reclassify($fromTime);
 
 // TODO: Implement.
 } else if (action('prune')) {
-  $dateString = post('datePrune');
+  $dateString = postSanitized('datePrune');
   $dateTime = DateTime::createFromFormat("Y-m-d", $dateString);
   $kfc->pruneTables($dateTime);
   echo '<b>Tables pruned before ' . getDateString($dateTime) . '</b></hr>';
@@ -132,7 +133,7 @@ if (action('setUserConfig')) {
 $users = $kfc->getUsers();
 
 if (!isset($user)) {
-  $user = get('user') ?? post('user') ?? getOrDefault($users, 0, '');
+  $user = get('user') ?? postSanitized('user') ?? getOrDefault($users, 0, '');
 }
 if (!isset($dateString)) {
   $dateString = get('date') ?? date('Y-m-d');

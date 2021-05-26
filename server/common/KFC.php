@@ -416,7 +416,7 @@ class KFC {
           FROM classes
           LEFT JOIN classification ON classes.id = classification.class_id
           LEFT JOIN (
-            SELECT id, GROUP_CONCAT(title SEPARATOR "\n") AS samples
+            SELECT id, GROUP_CONCAT(title ORDER BY title SEPARATOR "\n") AS samples
             FROM classification
             LEFT JOIN(
                 SELECT DISTINCT title FROM activity

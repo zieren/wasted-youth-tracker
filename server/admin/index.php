@@ -4,7 +4,7 @@
   <meta charset="iso-8859-1"/>
   <link rel="stylesheet" href="../common/kfc.css">
 </head>
-<body>
+<body onload="setup()">
 <script>
 function enableDestructiveButtons(toggleCheckbox) {
   var checkbox = document.getElementById('idKfcEnableDestructive');
@@ -15,6 +15,19 @@ function enableDestructiveButtons(toggleCheckbox) {
   for (var i = 0; i < buttons.length; i++) {
     buttons[i].disabled = !checkbox.checked;
   }
+}
+function toggleCollapsed(tr) {
+  if (tr.classList.contains("expanded")) {
+    tr.classList.remove("expanded");
+  } else {
+    tr.classList.add("expanded");
+  }
+};
+function setup() {
+  var trs = document.querySelectorAll("table.collapsible tr");
+  trs.forEach(function(tr, index) {
+    tr.addEventListener("click", function() { toggleCollapsed(tr); });
+  });
 }
 </script>
 <?php
@@ -217,8 +230,11 @@ echoTable(
 echo '<hr><h4>Classes and Budgets</h4>';
 echoTable(['Class', 'Budget'], $kfc->getBudgetsToClassesTable($user));
 
-echo '<h4>Classification</h4>';
-echoTable(['Class', 'Classification', 'Prio', 'Samples'], $kfc->getClassesToClassificationTable());
+echo '<h4>Classification (for all users)</h4>';
+echoTable(
+    ['Class', 'Classification', 'Prio', 'Matches', 'Samples'],
+    $kfc->getClassesToClassificationTable(),
+    ['titled', 'collapsible']);
 
 echo '<h4>Top 10 unclassified last seven days, by total time</h4>';
 $fromTime = (clone $now)->sub(new DateInterval('P7D'));

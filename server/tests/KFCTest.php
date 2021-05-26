@@ -1561,7 +1561,22 @@ final class KFCTest extends KFCTestBase {
   }
 
   public function testClassesToClassificationTable(): void {
-    // TODO
+    $classId1 = $this->kfc->addClass('c1');
+    $classId2 = $this->kfc->addClass('c2');
+    $this->kfc->addClassification($classId1, 42, "1$");
+    $this->kfc->addClassification($classId2, 43, "2$");
+    $this->kfc->insertWindowTitles('u1', ['t1', 't2', 't3'], 0);
+    $this->mockTime += 2;
+    $this->kfc->insertWindowTitles('u1', ['t1', 't2', 't3'], 0);
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', ['t22', 't3', 't4'], 0);
+    $this->mockTime++;
+    $this->kfc->insertWindowTitles('u1', ['t22', 't3', 't4'], 0);
+    $this->assertEquals(
+        $this->kfc->getClassesToClassificationTable(), [
+            ['c1', '1$', 42, 1, 't1'],
+            ['c2', '2$', 43, 2, "t2\nt22"]
+        ]);
   }
 }
 

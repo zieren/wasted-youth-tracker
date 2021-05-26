@@ -409,14 +409,21 @@ class KFC {
     return $table;
   }
 
-  /** Returns a table listing all classes and their classification rules. */
+  /**
+   * Returns a table listing all classes and their classification rules.
+   *
+   * TODO: Add time limit.
+   */
   public function getClassesToClassificationTable() { // TODO: test
     $rows = DB::query(
-        'SELECT name, re, priority, samples
+        'SELECT name, re, priority, n, samples
           FROM classes
           LEFT JOIN classification ON classes.id = classification.class_id
           LEFT JOIN (
-            SELECT id, GROUP_CONCAT(title ORDER BY title SEPARATOR "\n") AS samples
+            SELECT
+              id,
+              COUNT(title) AS n,
+              GROUP_CONCAT(title ORDER BY title SEPARATOR "\n") AS samples
             FROM classification
             LEFT JOIN(
                 SELECT DISTINCT title FROM activity
@@ -431,7 +438,7 @@ class KFC {
         DEFAULT_CLASS_ID);
     $table = [];
     foreach ($rows as $r) {
-      $table[] = [$r['name'], $r['re'], $r['priority'], $r['samples']];
+      $table[] = [$r['name'], $r['re'], intval($r['priority']), intval($r['n']), $r['samples']];
     }
     return $table;
   }

@@ -5,3 +5,15 @@ table, th, td {
 table.titled tr:first-child td {
   background: #cccccc;
 }
+
+table.collapsible tr td:last-child {
+  font-size: 0;
+}
+
+table.collapsible tr:first-child td:last-child {
+  font-size: 100%;
+}
+
+table.collapsible tr.expanded td:last-child {
+  font-size: 100%;
+}

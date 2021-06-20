@@ -334,8 +334,11 @@ echo '
 </form>
 ';
 
+echo '<h3>User config</h3>';
+echoTableAssociative($kfc->getUserConfig($user));
+
 echo '<h3>Global config</h3>';
-echoTable(['key', 'value'], $kfc->getGlobalConfig());
+echoTableAssociative($kfc->getGlobalConfig());
 
 echo '<h3>Update config</h3>
 <form method="post" enctype="multipart/form-data">

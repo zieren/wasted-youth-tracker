@@ -10,8 +10,6 @@ function echoTable($header, $data, $classes = 'titled') {
   echo "</table>\n";
 }
 
-// TODO: Add a dedicated method that turns column N into a tooltip on column N-1.
-
 function echoTableAssociative($data) {
   echo "<table>\n";
   foreach ($data as $k => $v) {

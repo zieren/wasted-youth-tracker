@@ -591,37 +591,31 @@ class KFC {
 
   /** Updates the specified user config value. */
   public function setUserConfig($user, $key, $value) {
-    $q = 'REPLACE INTO user_config (user, k, v) VALUES ("'
-        . $user . '", "' . $key . '", "' . $value . '")';
-    $this->query($q);
+    DB::replace('user_config', ['user' => $user, 'k' => $key, 'v' => $value]);
   }
 
   /** Updates the specified global config value. */
   public function setGlobalConfig($key, $value) {
-    $q = 'REPLACE INTO global_config (k, v) VALUES ("' . $key . '", "' . $value . '")';
-    $this->query($q);
+    DB::replace('global_config', ['k' => $key, 'v' => $value]);
   }
 
   /** Deletes the specified user config value. */
   public function clearUserConfig($user, $key) {
-    $q = 'DELETE FROM user_config WHERE user="' . $user . '" AND k="' . $key . '"';
-    $this->query($q);
+    DB::delete('user_config', 'user = |s AND k = |s', $user, $key);
   }
 
   /** Deletes the specified global config value. */
   public function clearGlobalConfig($key) {
-    $q = 'DELETE FROM global_config WHERE k="' . $key . '"';
-    $this->query($q);
+    DB::delete('global_config', 'k = |s', $key);
   }
 
   // TODO: Consider caching the config(s).
 
   /** Returns user config. */
   public function getUserConfig($user) {
-    $result = $this->query('SELECT k, v FROM user_config WHERE user="'
-        . $user . '" ORDER BY k');
-    $config = array();
-    while ($row = $result->fetch_assoc()) {
+    $rows = DB::query('SELECT k, v FROM user_config WHERE user = |s ORDER BY k', $user);
+    $config = [];
+    foreach ($rows as $row) {
       $config[$row['k']] = $row['v'];
     }
     return $config;
@@ -635,7 +629,13 @@ class KFC {
 
   /** Returns the global config. */
   public function getGlobalConfig() {
-    return DB::query('SELECT k, v FROM global_config ORDER BY k');
+    $rows = DB::query('SELECT k, v FROM global_config ORDER BY k');
+    $config = [];
+    foreach ($rows as $row) {
+      $config[$row['k']] = $row['v'];
+    }
+    return $config;
+
   }
 
   /** Returns all users, i.e. all distinct user keys for which at least one budget is present. */

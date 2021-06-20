@@ -9,6 +9,7 @@ require_once '../common/common.php'; // ... Logger is used here.
 require_once 'config_tests.php';
 require_once '../common/db.class.php';
 require_once '../rx/RX.php';
+require_once '../cfg/Config.php';
 
 final class KFCTest extends KFCTestBase {
 
@@ -865,18 +866,18 @@ final class KFCTest extends KFCTestBase {
     foreach (['', "u1\nfoo", "\n123"] as $content) {
       $this->onFailMessage("content: $content");
       $this->assertEquals(
-          explode("\n", RX::handleRequest($content, $this->kfc), 1)[0],
+          explode("\n", RX::handleRequest($this->kfc, $content), 1)[0],
           "error\nInvalid request");
     }
   }
 
   public function testHandleRequest_smokeTest(): void {
     $this->assertEquals(
-        RX::handleRequest("u1\n-1", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n-1"),
         '');
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u1\n0\ntitle 1", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n0\ntitle 1"),
         "0:0:no_budget\n\n0");
   }
 
@@ -888,29 +889,29 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 5);
 
     $this->assertEquals(
-        RX::handleRequest("u1\n-1", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n-1"),
         $budgetId1 . ":300:b1\n");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u1\n0\ntitle 1", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n0\ntitle 1"),
         $budgetId1 . ":300:b1\n\n$budgetId1");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u1\n0\ntitle 1", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n0\ntitle 1"),
         $budgetId1 . ":299:b1\n\n$budgetId1");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u1\n0\ntitle 1\nfoo", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n0\ntitle 1\nfoo"),
         "0:0:no_budget\n$budgetId1:298:b1\n\n$budgetId1\n0");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u1\n0\ntitle 1\nfoo", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n0\ntitle 1\nfoo"),
         "0:-1:no_budget\n$budgetId1:297:b1\n\n$budgetId1\n0");
 
     // Flip order.
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u1\n0\nfoo\ntitle 1", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n0\nfoo\ntitle 1"),
         "0:-2:no_budget\n$budgetId1:296:b1\n\n0\n" . $budgetId1);
 
     // Add second budget.
@@ -923,24 +924,24 @@ final class KFCTest extends KFCTestBase {
 
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u1\n0\ntitle 1\nfoo", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n0\ntitle 1\nfoo"),
         "0:-3:no_budget\n$budgetId1:295:b1\n$budgetId2:115:b2\n\n$budgetId1,$budgetId2\n0");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u1\n0\ntitle 1\ntitle 2", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n0\ntitle 1\ntitle 2"),
         "0:-4:no_budget\n$budgetId1:294:b1\n$budgetId2:114:b2\n\n"
         . "$budgetId1,$budgetId2\n$budgetId2");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u1\n0\ntitle 2", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n0\ntitle 2"),
         "0:-4:no_budget\n$budgetId1:293:b1\n$budgetId2:113:b2\n\n$budgetId2");
     $this->mockTime++; // This still counts towards b2.
     $this->assertEquals(
-        RX::handleRequest("u1\n-1", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n-1"),
         "0:-4:no_budget\n$budgetId1:293:b1\n$budgetId2:112:b2\n");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u1\n0\ntitle 2", $this->kfc),
+        RX::handleRequest($this->kfc, "u1\n0\ntitle 2"),
         "0:-4:no_budget\n$budgetId1:293:b1\n$budgetId2:112:b2\n\n$budgetId2");
   }
 
@@ -951,14 +952,14 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addMapping($classId, $budgetId1);
     $this->kfc->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 1);
 
-    $this->assertEquals(RX::handleRequest("u2\n-1", $this->kfc), '');
+    $this->assertEquals(RX::handleRequest($this->kfc, "u2\n-1"), '');
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u2\n0\ntitle 1", $this->kfc),
+        RX::handleRequest($this->kfc, "u2\n0\ntitle 1"),
         "0:0:no_budget\n\n0");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u2\n0\ntitle 1", $this->kfc),
+        RX::handleRequest($this->kfc, "u2\n0\ntitle 1"),
         "0:-1:no_budget\n\n0");
 
     // Now map same class for user u2.
@@ -967,7 +968,7 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addMapping($classId, $budgetId2);
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest("u2\n0\ntitle 1", $this->kfc),
+        RX::handleRequest($this->kfc, "u2\n0\ntitle 1"),
         "$budgetId2:58:b2\n\n$budgetId2");
   }
 
@@ -979,7 +980,7 @@ final class KFCTest extends KFCTestBase {
 
     // This file uses utf8 encoding. The word 'süß' would not match the above RE in utf8 because
     // MySQL's RE library does not support utf8 and would see 5 bytes.
-    $this->assertEquals(RX::handleRequest("u1\n0\nsüß", $this->kfc),
+    $this->assertEquals(RX::handleRequest($this->kfc, "u1\n0\nsüß"),
         $budgetId . ":0:b1\n\n" . $budgetId);
   }
 
@@ -1577,6 +1578,39 @@ final class KFCTest extends KFCTestBase {
             ['c1', '1$', 42, 1, 't1'],
             ['c2', '2$', 43, 2, "t2\nt22"]
         ]);
+  }
+
+  public function testUserConfig(): void {
+    $this->assertEquals([], $this->kfc->getUserConfig('u1'));
+    $this->kfc->setUserConfig('u1', 'some key', 'some value');
+    $this->assertEquals(['some key' => 'some value'], $this->kfc->getUserConfig('u1'));
+    $this->kfc->setUserConfig('u1', 'foo', 'bar');
+    $this->assertEqualsIgnoreOrder(
+        ['some key' => 'some value', 'foo' => 'bar'], $this->kfc->getUserConfig('u1'));
+    $this->kfc->clearUserConfig('u1', 'some key');
+    $this->assertEquals(['foo' => 'bar'], $this->kfc->getUserConfig('u1'));
+    $this->assertEquals([], $this->kfc->getUserConfig('u2'));
+  }
+
+  public function testGlobalConfig(): void {
+    $this->assertEquals([], $this->kfc->getGlobalConfig());
+    $this->kfc->setGlobalConfig('some key', 'some value');
+    $this->assertEquals(['some key' => 'some value'], $this->kfc->getGlobalConfig());
+    $this->kfc->setGlobalConfig('foo', 'bar');
+    $this->assertEqualsIgnoreOrder(
+        ['some key' => 'some value', 'foo' => 'bar'], $this->kfc->getGlobalConfig());
+    $this->kfc->clearGlobalConfig('some key');
+    $this->assertEquals(['foo' => 'bar'], $this->kfc->getGlobalConfig());
+  }
+
+  public function testGetUserConfig(): void {
+    $this->assertEquals('', Config::handleRequest($this->kfc, 'u1'));
+    $this->kfc->setUserConfig('u1', 'foo', 'bar');
+    $this->assertEquals("foo\nbar", Config::handleRequest($this->kfc, 'u1'));
+    // Sort alphabetically.
+    $this->kfc->setUserConfig('u1', 'a', 'b');
+    $this->kfc->setUserConfig('u1', 'y', 'z');
+    $this->assertEquals("a\nb\nfoo\nbar\ny\nz", Config::handleRequest($this->kfc, 'u1'));
   }
 }
 

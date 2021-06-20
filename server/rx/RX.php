@@ -51,7 +51,7 @@ class RX {
    * 10,11
    * 12
    */
-  public static function handleRequest($content, $kfc): string {
+  public static function handleRequest($kfc, $content): string {
     $lines = $array = preg_split("/\r\n|\n|\r/", $content);
     Logger::Instance()->debug('Received data: ' . implode($lines, '\n'));
     $user = $lines[0];

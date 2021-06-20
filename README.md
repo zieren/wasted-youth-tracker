@@ -9,8 +9,9 @@ insight into what they are doing at the level of the window title.
 
 ### user_config
 
-| Key | Values |
-| --- | ------ |
+| Key | Values | Comment |
+| --- | ------ | ------- |
+| disable_enforcement | 0, 1 | Don't close windows/kill processes, just notify. |
 
 ## global_config
 

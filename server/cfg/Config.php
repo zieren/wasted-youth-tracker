@@ -14,13 +14,11 @@ class Config {
    * ...
    */
   public static function handleRequest(KFC $kfc, string $user): string {
-    $config = $kfc->getUserConfig($user);
-    $response = '';
+    $config = $kfc->getClientConfig($user);
+    // Prefix response with a marker to simplify error (e.g. 404) detection on the client.
+    $response = '-*- cfg -*-';
     foreach ($config as $k => $v) {
-      if ($response) {
-        $response .= "\n";
-      }
-      $response .= $k . "\n" . $v;
+      $response .= "\n" . $k . "\n" . $v;
     }
     return $response;
   }

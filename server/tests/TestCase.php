@@ -63,9 +63,9 @@ abstract class TestCase {
 
     ob_start();
     echo 'Line ' . $line . ': Equality assertion failed:'
-        . '<table><tr><td style="background-color: yellow; vertical-align: top;"><pre>';
+        . '<table><tr><td style="background-color: lightgreen; vertical-align: top;"><pre>';
     var_dump($actual);
-    echo '</pre></td><td style="background-color: lightgreen; vertical-align: top;"><pre>';
+    echo '</pre></td><td style="background-color: yellow; vertical-align: top;"><pre>';
     var_dump($expected);
     echo '</pre></td></tr></table>';
     throw new AssertionError(ob_get_clean());

@@ -613,29 +613,35 @@ class KFC {
 
   /** Returns user config. */
   public function getUserConfig($user) {
-    $rows = DB::query('SELECT k, v FROM user_config WHERE user = |s ORDER BY k', $user);
-    $config = [];
-    foreach ($rows as $row) {
-      $config[$row['k']] = $row['v'];
-    }
-    return $config;
-  }
-
-  /** Returns the config for all users. */
-  public function getAllUsersConfig() {
-    $result = $this->query('SELECT user, k, v FROM user_config ORDER BY user, k');
-    return $result->fetch_all();
+    return KFC::parseKvRows(DB::query('SELECT k, v FROM user_config WHERE user = |s', $user));
   }
 
   /** Returns the global config. */
   public function getGlobalConfig() {
-    $rows = DB::query('SELECT k, v FROM global_config ORDER BY k');
+    return KFC::parseKvRows(DB::query('SELECT k, v FROM global_config'));
+  }
+
+  /**
+   * Returns the config for the client of the specified user. This is the global config merged with
+   * the user specific config.
+   */
+  public function getClientConfig($user) {
+    return KFC::parseKvRows(DB::query(
+        'SELECT k, v FROM ('
+        . '  SELECT k, v FROM global_config'
+        . '  WHERE k NOT IN (SELECT k FROM user_config WHERE user = |s0)'
+        . '  UNION ALL'
+        . '  SELECT k, v FROM user_config WHERE user = |s0'
+        . ') AS t1 ORDER BY k',
+        $user));
+  }
+
+  private static function parseKvRows($rows) {
     $config = [];
     foreach ($rows as $row) {
       $config[$row['k']] = $row['v'];
     }
     return $config;
-
   }
 
   /** Returns all users, i.e. all distinct user keys for which at least one budget is present. */

@@ -1603,14 +1603,36 @@ final class KFCTest extends KFCTestBase {
     $this->assertEquals(['foo' => 'bar'], $this->kfc->getGlobalConfig());
   }
 
-  public function testGetUserConfig(): void {
-    $this->assertEquals('', Config::handleRequest($this->kfc, 'u1'));
+  public function testClientConfig(): void {
+    $this->assertEquals([], $this->kfc->getClientConfig('u1'));
+    $this->assertEquals('-*- cfg -*-', Config::handleRequest($this->kfc, 'u1'));
+
+    $this->kfc->setGlobalConfig('key', 'global');
+    $this->kfc->setUserConfig('u1', 'key2', 'user');
+    $this->kfc->setUserConfig('u2', 'ignored', 'ignored');
+    $this->assertEquals(['key' => 'global', 'key2' => 'user'], $this->kfc->getClientConfig('u1'));
+    $this->assertEquals(
+        "-*- cfg -*-\nkey\nglobal\nkey2\nuser",
+        Config::handleRequest($this->kfc, 'u1'));
+
+    $this->kfc->setUserConfig('u1', 'key', 'user override');
+    $this->assertEquals(
+        ['key' => 'user override', 'key2' => 'user'],
+        $this->kfc->getClientConfig('u1'));
+    $this->assertEquals(
+        "-*- cfg -*-\nkey\nuser override\nkey2\nuser",
+        Config::handleRequest($this->kfc, 'u1'));
+  }
+
+  public function testClientConfig_sortAlphabetically(): void {
+    $this->assertEquals('-*- cfg -*-', Config::handleRequest($this->kfc, 'u1'));
     $this->kfc->setUserConfig('u1', 'foo', 'bar');
-    $this->assertEquals("foo\nbar", Config::handleRequest($this->kfc, 'u1'));
-    // Sort alphabetically.
+    $this->assertEquals("-*- cfg -*-\nfoo\nbar", Config::handleRequest($this->kfc, 'u1'));
+
     $this->kfc->setUserConfig('u1', 'a', 'b');
     $this->kfc->setUserConfig('u1', 'y', 'z');
-    $this->assertEquals("a\nb\nfoo\nbar\ny\nz", Config::handleRequest($this->kfc, 'u1'));
+    $this->assertEquals(
+        "-*- cfg -*-\na\nb\nfoo\nbar\ny\nz", Config::handleRequest($this->kfc, 'u1'));
   }
 }
 

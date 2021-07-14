@@ -1,76 +1,69 @@
-; Hard coded parameters that probably don't need to be configurable.
-
-; Time the user has to manually close a window for which time has expired.
-; After this time the script attempts to close the window.
-global GRACE_PERIOD_MILLIS := 30 * -1000 ; negative for SetTimer semantics
-
-; Time the script allows for closing the window. After this time the process
-; is killed.
-global KILL_AFTER_SECONDS := 30
-
-; Contact the server every x seconds.
-global SAMPLE_INTERVAL_SECONDS := 15
-
-; Special processes that should never be closed.
-global IGNORE_PROCESSES := {}
-IGNORE_PROCESSES["explorer.exe"] := 1 ; also runs the task bar and the start menu
-IGNORE_PROCESSES["LogiOverlay.exe"] := 1 ; Logitech mouse/trackball driver
-IGNORE_PROCESSES["AutoHotkey.exe"] := 1 ; KFC itself (and other AHK scripts)
-
-; Track last successful request to server. If this exceeds a threshold, we
-; assume the network is down and will doom everything because we can no longer
-; enforce limits.
-global LAST_SUCCESSFUL_REQUEST := 0 ; epoch seconds
-global OFFLINE_WARN_SECONDS := 60
-global OFFLINE_CLOSE_SECONDS := 2 * 60
-
+; Get config for contacting server.
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
-
-INI_FILE := USERPROFILE "\kfc.ini"
-global URL, HTTP_USER, HTTP_PASS, USER, DEBUG_NO_ENFORCE
+INI_FILE := USERPROFILE "\wasted.ini"
+global URL, HTTP_USER, HTTP_PASS, USER
 IniRead, URL, %INI_FILE%, server, url
 IniRead, HTTP_USER, %INI_FILE%, server, username
 IniRead, HTTP_PASS, %INI_FILE%, server, password
 IniRead, USER, %INI_FILE%, account, user
-IniRead, DEBUG_NO_ENFORCE, %INI_FILE%, debug, disableEnforcement, 0
-
-global WATCH_PROCESSES := {}
-Loop, 99 {
-  IniRead, p, %INI_FILE%, processes, process_%A_Index%, %A_Space%
-  if (p) {
-    i := RegExMatch(p, "=[^=]+$")
-    if (i > 0) {
-      name := trim(SubStr(p, 1, i - 1))
-      WATCH_PROCESSES[name] := trim(SubStr(p, i + 1))
-    } else {
-      MsgBox, Ignoring invalid INI value in %INI_FILE%: `nprocess_%A_Index%=%p%
-    }
-  }
-}
-
-; TODO: Is this a loophole?
-DetectHiddenWindows, Off
-
-; The tray icon allows the user to exit the script, so don't show it.
-; Killing it with the task manager, removing it from autostart or disabling
-; enforcement in the .ini file require significantly more skill; for now this
-; is good enough.
-if (!DEBUG_NO_ENFORCE) {
-  Menu, Tray, NoIcon
-}
 
 ; Shared variables should be safe since AutoHotkey simulates concurrency
 ; using a single thread: https://www.autohotkey.com/docs/misc/Threads.htm
 
+; Track last successful request to server. If this exceeds the configured
+; threshold, we assume the network is down and will doom everything because
+; we can no longer enforce limits.
+global LAST_SUCCESSFUL_REQUEST := 0 ; epoch seconds
 ; Track windows for which a "please close" message was already shown.
 ; There's no set type, so use an associative array.
 global DOOMED_WINDOWS := {}
-
 ; Same for processes without windows.
 global DOOMED_PROCESSES := {}
-
 ; Remember budgets for which a "time is almost up" message has been shown.
 global WARNED_BUDGETS := {}
+
+; Populate config with defaults.
+global CFG := {}
+; Contact the server every x seconds.
+global SAMPLE_INTERVAL_SECONDS := "sample_interval_seconds"
+CFG[SAMPLE_INTERVAL_SECONDS] := 15
+; Time the user has to manually close a window for which time has expired.
+; After this time the script attempts to close the window.
+global GRACE_PERIOD_SECONDS := "grace_period_seconds"
+CFG[GRACE_PERIOD_SECONDS] := 30
+; Time the script allows for closing the window. After this time the process is killed.
+global KILL_AFTER_SECONDS := "kill_after_seconds"
+CFG[KILL_AFTER_SECONDS] := 30
+; Special processes that should never be closed.
+global IGNORE_PROCESSES := "ignore_processes"
+CFG[IGNORE_PROCESSES] := {}
+CFG[IGNORE_PROCESSES]["explorer.exe"] := 1 ; also runs the task bar and the start menu
+CFG[IGNORE_PROCESSES]["AutoHotkey.exe"] := 1 ; this script itself (and other AHK scripts)
+CFG[IGNORE_PROCESSES]["LogiOverlay.exe"] := 1 ; Logitech mouse/trackball driver
+; Processes that don't (always) have windows but should be included, e.g. audio players.
+global WATCH_PROCESSES := "watch_processes"
+CFG[WATCH_PROCESSES] := {}
+; Offline time after which we warn the user.
+global OFFLINE_WARN_SECONDS := "offline_warn_seconds"
+CFG[OFFLINE_WARN_SECONDS] := 60
+; Offline time after which we close everything.
+global OFFLINE_CLOSE_SECONDS := "offline_close_seconds"
+CFG[OFFLINE_CLOSE_SECONDS] := 2 * 60
+; For debugging: Don't actually close windows.
+global DISABLE_ENFORCEMENT := "disable_enforcement"
+CFG[DISABLE_ENFORCEMENT] := 0
+
+ReadConfig()
+
+; TODO: Is this a loophole?
+DetectHiddenWindows, Off
+
+; The tray icon allows the user to exit the script, so hide it.
+; Killing it with the task manager or removing it from autostart requires 
+; significantly more skill; for now this is good enough.
+if (!CFG[DISABLE_ENFORCEMENT]) {
+  Menu, Tray, NoIcon
+}
 
 Beep(t) {
   Loop, %t% {
@@ -83,7 +76,7 @@ ShowMessage(msg) {
   Gui, +AlwaysOnTop
   Gui, Add, Text,, %msg%
   Gui, Add, Button, default w80, OK ; this implicitly sets a handler of ButtonOK
-  Gui, Show, , KFC
+  Gui, Show, , Wasted Youth Tracker
 }
 
 ; Returns the specified seconds formatted as "hh:mm:ss".
@@ -101,16 +94,16 @@ FormatSeconds(seconds) {
 }
 
 ; Close the window with the specified ahk_id.
-; WinKill does not seem to work: E.g. EditPlus with an unsaved file will just prompt to save,
-; but not actually close. So maybe it sends a close request, and when the program acks that
-; request it considers that success.
 TerminateWindow(id) {
-  if (DEBUG_NO_ENFORCE) {
+  if (CFG[DISABLE_ENFORCEMENT]) {
     ShowMessage("enforcement disabled: close window " id)
   } else {
     if (WinExist("ahk_id" id)) {
       WinGet, pid, PID, ahk_id %id%
-      WinClose, ahk_id %id%, , %KILL_AFTER_SECONDS%
+      ; WinKill does not seem to work: E.g. EditPlus with an unsaved file will just prompt to save,
+      ; but not actually close. So maybe it sends a close request, and when the program acks that
+      ; request it considers that success.
+      WinClose % "ahk_id" id, , % CFG[KILL_AFTER_SECONDS]
       id2 := WinExist("ahk_id" id)
       if (id2) {
         ; The PID can be too high up in the hierarchy. E.g. calculator.exe has its own PID, but
@@ -130,7 +123,7 @@ TerminateWindow(id) {
 }
 
 TerminateProcess(pid) {
-  if (DEBUG_NO_ENFORCE) {
+  if (CFG[DISABLE_ENFORCEMENT]) {
     ShowMessage("enforcement disabled: kill process " pid)
   } else {
     Process, Close, %pid%
@@ -163,15 +156,23 @@ ShowMessages(messages, enableBeep = true) {
 }
 
 ; Returns an associative array describing all windows, keyed by title.
-; For processes without windows, or whose windows cannot be detected
-; (see https://github.com/zieren/kids-freedom-control/issues/18), process
-; names can be configured in the .ini file together with a "synthetic" title.
-; If these processes are detected, the synthetic title is injected into the
-; result, with an window ID of 0 and an activity status of false.
+;
 ; Elements are arrays with these keys:
 ; "ids": ahk_id-s of all windows with that title
 ; "active": 0 or 1 to indicate whether the window is active (has focus)
-; "name": The process name, for debugging.
+; "name": The name of the process owning the window, for debugging
+;
+; For processes without windows, or whose windows cannot be detected
+; (see https://github.com/zieren/kids-freedom-control/issues/18), process
+; names can be configured on the server together with a "synthetic" title.
+; If these processes are detected, the synthetic title is injected into the
+; result. In this case the keys are:
+; "ids": always empty, i.e. []
+; "active": always false (to avoid multiple active titles)
+; "name": The process name (which was already known and now detected)
+; "pid": The PID, for termination handling
+; If an entry with the synthetic title already exists, the "pid" field is
+; added to it and the other fields are preserved.
 GetAllWindows() {
   windows := {}
   WinGet, ids, List ; get all window IDs
@@ -183,7 +184,7 @@ GetAllWindows() {
     rootID := DllCall("GetAncestor", UInt, WinExist("ahk_id" id), UInt, 3)
     WinGetTitle, rootTitle, ahk_id %rootID%
   WinGet, processName, ProcessName, ahk_id %id%
-  if (rootTitle && !IGNORE_PROCESSES[processName]) {
+  if (rootTitle && !CFG[IGNORE_PROCESSES][processName]) {
       ; Store process name for debugging: This is needed when we close a window that should have
       ; been ignored.
       if (!windows[rootTitle]) {
@@ -195,16 +196,14 @@ GetAllWindows() {
     }
   }
   ; Inject synthetic titles for configured processes.
-  for name, title in WATCH_PROCESSES {
+  for name, title in CFG[WATCH_PROCESSES] {
     Process, Exist, %name%
     if (ErrorLevel) {
-      ; It is possible that this title already exists, e.g. if the user has deliberately
-      ; chosen such a title. Processes have no window IDs to close and are always considered
-      ; to be non-active (to avoid mulitple active titles).
       if (!windows[title]) {
         windows[title] := {"ids": [], "pid": ErrorLevel, "active": false, "name": name}
       } else {
-        ; Just add the PID for termination handling.
+        ; It is possible that this title already exists, e.g. if the user has deliberately
+        ; chosen such a title. Just add the PID for termination handling.
         windows[title]["pid"] := Errorlevel
       }
     }
@@ -232,10 +231,9 @@ DoTheThing(reportStatus) {
 
   ; Perform request.
   ; https://docs.microsoft.com/en-us/previous-versions/windows/desktop/ms759148(v=vs.85)
-  request := ComObjCreate("MSXML2.XMLHTTP.6.0")
+  request := CreateRequest()
   try {
-    request.open("POST", URL "/rx/", false, HTTP_USER, HTTP_PASS)
-    request.send(USER "`n" focusIndex windowList)
+    OpenRequest("POST", request, "rx/").send(USER "`n" focusIndex windowList)
     LAST_SUCCESSFUL_REQUEST := EpochSeconds()
   } catch {
     return HandleOffline(windows)
@@ -283,6 +281,15 @@ DoTheThing(reportStatus) {
   return messages
 }
 
+CreateRequest() {
+  return ComObjCreate("MSXML2.XMLHTTP.6.0")
+}
+
+OpenRequest(method, request, path) {
+  request.open(method, URL "/" path, false, HTTP_USER, HTTP_PASS)
+  return request
+}
+
 HandleOffline(windows) {
   offlineWarnSecondsLeft := OFFLINE_WARN_SECONDS - (EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
   offlineCloseSecondsLeft := OFFLINE_CLOSE_SECONDS - (EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
@@ -324,25 +331,26 @@ ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
   }
 }
 
-; Dooms the specified window/process, adding the appropriate message to messages.
+; Dooms the specified window/process, adding the appropriate message to "messages".
 DoomWindow(window, messages, closeMessage) {
   pushCloseMessage := false
+  ; Handle regular windows.
   for ignored, id in window["ids"] {
     if (!DOOMED_WINDOWS[id]) {
       DOOMED_WINDOWS[id] := 1
       terminateWindow := Func("TerminateWindow").Bind(id)
-      SetTimer, %terminateWindow%, %GRACE_PERIOD_MILLIS%
+      SetTimer % terminateWindow, % CFG[GRACE_PERIOD_SECONDS] * (-1000)
       pushCloseMessage = true
     }
   }
+  ; Handle process without window.
   if (window["pid"]) {
     pid := window["pid"]
     if (!DOOMED_PROCESSES[pid]) {
       DOOMED_PROCESSES[pid] := 1
       terminateProcess := Func("TerminateProcess").Bind(pid)
       ; The kill should happen after the same amount of time as for a window.
-      millis := GRACE_PERIOD_MILLIS + KILL_AFTER_SECONDS
-      SetTimer, %terminateProcess%, %millis%
+      SetTimer % terminateProcess, % (CFG[GRACE_PERIOD_SECONDS] + CFG[KILL_AFTER_SECONDS]) * (-1000)
       pushCloseMessage = true
     }
   }
@@ -351,7 +359,7 @@ DoomWindow(window, messages, closeMessage) {
 }
 
 AddStatusReport(budgets, titlesByBudget, messages) {
-  if (messages.length()) {
+  if (messages.Length()) {
     messages.Push("")
   }
   messages.Push("---------- * STATUS * ----------", "")
@@ -368,12 +376,49 @@ AddStatusReport(budgets, titlesByBudget, messages) {
   }
 }
 
+ReadConfig() {
+  responseLines := ["Not the Mama!"]
+  path := "cfg/?user=" USER
+  try {
+    request := CreateRequest()
+    OpenRequest("GET", request, path).send() 
+    responseLines := StrSplit(request.responseText, "`n")
+  } catch {
+    ; handled below
+  }
+  ; This also handles request failure.
+  if (responseLines[1] != "-*- cfg -*-" || Mod(responseLines.Length(), 2) != 1) {
+    ShowMessage("Failed to read config from " URL "/" path)
+    return
+  }
+  msgs := []
+  Loop % (responseLines.Length() - 1) / 2 {
+    k := responseLines[A_Index * 2]
+    v := responseLines[A_Index * 2 + 1]
+    if (InStr(k, "watch_process") = 1) { 
+      i := RegExMatch(v, "=[^=]+$")
+      if (i > 0) {
+        name := trim(SubStr(v, 1, i - 1))
+        title := trim(SubStr(v, i + 1))
+        CFG[WATCH_PROCESSES][name] := title
+      } else {
+        msgs.Push("Ignoring invalid value for option " k ": " v)
+      }
+    } else if (InStr(k, "ignore_process") = 1) {
+      CFG[IGNORE_PROCESSES][v] := 1
+    } else {
+      CFG[k] := v
+    }
+  }
+  ShowMessages(msgs, false)
+}
+
 ; The main loop that does the thing.
 Loop {
   Critical, On
   ShowMessages(DoTheThing(false))
   Critical, Off
-  Sleep, SAMPLE_INTERVAL_SECONDS * 1000
+  Sleep % CFG[SAMPLE_INTERVAL_SECONDS] * 1000
 }
 
 EpochSeconds() {
@@ -411,8 +456,12 @@ DebugShowStatus() {
     msgs.Push("doomed: " pid)
   }
   msgs.Push("----- watched processes")
-  for name, title in WATCH_PROCESSES {
+  for name, title in CFG[WATCH_PROCESSES] {
     msgs.Push("process: " name " -> " title)
+  }
+  msgs.Push("----- ignored processes")
+  for name, ignored in CFG[IGNORE_PROCESSES] {
+    msgs.Push("process: " name)
   }
   msgs.Push("", "Last successful request: " LAST_SUCCESSFUL_REQUEST)
 

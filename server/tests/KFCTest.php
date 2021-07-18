@@ -1554,6 +1554,7 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addMapping($classId3, $budgetId2);
     $this->kfc->addMapping($classId3, $budgetId3);
     $this->kfc->addMapping($classId3, $budgetId4);
+    $this->kfc->addMapping($classId4, $budgetId4);
     $this->kfc->addMapping($classId4, $budgetId5);
 
     $this->assertEquals(
@@ -1562,7 +1563,8 @@ final class KFCTest extends KFCTestBase {
             ['b2', 'c3', 'b3, b4'],
             ['b3', 'c3', 'b2, b4'],
             ['b4', 'c3', 'b2, b3'],
-            ['b5', 'c4', '']  // TODO: show single other budget
+            ['b4', 'c4', 'b5'],
+            ['b5', 'c4', 'b4']
         ]);
   }
 

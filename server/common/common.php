@@ -71,7 +71,11 @@ function getDateString($dateTime) {
 }
 
 function secondsToHHMMSS($seconds) {
-  return gmdate($seconds < 0 ? "-G:i:s" : "G:i:s", abs($seconds));
+  // Don't limit hours to 23. The value might be 24h or, even worse, more.
+  $sign = $seconds < 0 ? '-' : '';
+  $seconds = abs($seconds);
+  $hours = strval(intval($seconds / 3600));
+  return $sign . $hours . gmdate(':i:s', $seconds);
 }
 
 /**

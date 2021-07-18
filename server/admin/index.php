@@ -203,6 +203,11 @@ echoTable(
     ['Date', 'Limit', 'Minutes', 'Lock'],
     $kfc->queryRecentOverrides($user));
 
+$timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
+
+echo '<h4>Available classes today</h4>
+<p>' . implode(', ', $kfc->queryClassesAvailableTodayTable($user, $timeLeftByBudget)) . '</p>';
+
 // --- BEGIN duplicate code. TODO: Extract.
 $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
@@ -220,7 +225,6 @@ echoTable(
 echo '</span>';
 // --- END duplicate code
 
-$timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
 echo '<span class="inlineBlock"><h3>Time left today</h3>';
 echoTable(
     budgetIdsToNames(array_keys($timeLeftByBudget), $configs),

@@ -749,7 +749,7 @@ class KFC {
     return $timeByBudgetAndDate;
   }
 
-  // TODO: 15 (sample interval) + 10 (latency compensation) magic
+  // TODO: 15 (sample interval) + 10 (latency compensation) magic. The 15s is now a config value!
   private function queryTimeSpentByTitleInternal(
       $user, $fromTimestamp, $toTimestamp, $orderBySum, $topN = 0) {
     DB::query('SET @prev_ts = 0');
@@ -885,6 +885,43 @@ class KFC {
     }
 
     return $timeLeftToday;
+  }
+
+  /**
+   * Returns a list of strings describing all available classes
+   * TODO
+   *  class names and seconds left for that class. This considers the most
+   * restrictive budget and assumes that no time is spent on any other class (which might count
+   * towards a shared budget and thus reduce time for other classes). Classes with zero time are
+   * omitted.
+   */
+  public function queryClassesAvailableTodayTable($user, $timeLeftTodayAllBudgets = null) {
+    $timeLeftTodayAllBudgets =
+        $timeLeftTodayAllBudgets ?? $this->queryTimeLeftTodayAllBudgets($user);
+    $rows = DB::query(
+        'SELECT classes.name, class_id, budget_id FROM budgets
+         JOIN mappings on budgets.id = mappings.budget_id
+         JOIN classes ON mappings.class_id = classes.id
+         WHERE user = |s
+         ORDER BY class_id, budget_id',
+        $user);
+    $classes = [];
+    foreach ($rows as $row) {
+      $classId = $row['class_id'];
+      if (!array_key_exists($classId, $classes)) {
+        $classes[$classId] = [$row['name'], PHP_INT_MAX];
+      }
+      $newLimit = $timeLeftTodayAllBudgets[$row['budget_id']];
+      $classes[$classId][1] = min($classes[$classId][1], $newLimit);
+    }
+    usort($classes, function($a, $b) { return $b[1] - $a[1]; });
+    $classesList = [];
+    foreach ($classes as $classId => $nameAndTime) {
+      if ($nameAndTime[1] > 0) {
+        $classesList[] = $nameAndTime[0] . ' (' . secondsToHHMMSS($nameAndTime[1]) . ')';
+      }
+    }
+    return $classesList;
   }
 
   // ---------- OVERRIDE QUERIES ----------

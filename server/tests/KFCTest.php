@@ -1641,6 +1641,59 @@ final class KFCTest extends KFCTestBase {
     $this->assertEquals(
         "-*- cfg -*-\na\nb\nfoo\nbar\ny\nz", Config::handleRequest($this->kfc, 'u1'));
   }
+
+  public function testQueryAvailableClasses(): void {
+    $this->assertEquals($this->kfc->queryClassesAvailableTodayTable('u1'), []);
+
+    // Empty when no time is configured.
+    $budgetId1 = $this->kfc->addBudget('u1', 'b1');
+    $this->assertEquals($this->kfc->queryClassesAvailableTodayTable('u1'), []);
+
+    // Empty when no class exists.
+    $this->kfc->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 3);
+    $this->assertEquals($this->kfc->queryClassesAvailableTodayTable('u1'), []);
+
+    // Empty when no class is mapped.
+    $classId1 = $this->kfc->addClass('c1');
+    $this->assertEquals($this->kfc->queryClassesAvailableTodayTable('u1'), []);
+
+    // Simple case: one class, one budget.
+    $this->kfc->addMapping($classId1, $budgetId1);
+    $this->assertEquals($this->kfc->queryClassesAvailableTodayTable('u1'), ['c1 (0:03:00)']);
+
+    // Add another budget that requires unlocking. No change for now.
+    $budgetId2 = $this->kfc->addBudget('u1', 'b2');
+    $this->kfc->setBudgetConfig($budgetId2, 'daily_limit_minutes_default', 2);
+    $this->kfc->setBudgetConfig($budgetId2, 'require_unlock', 1);
+    $this->assertEquals($this->kfc->queryClassesAvailableTodayTable('u1'), ['c1 (0:03:00)']);
+
+    // Map the class to the new budget too. This removes the class from the response.
+    $this->kfc->addMapping($classId1, $budgetId2);
+    $this->assertEquals($this->kfc->queryClassesAvailableTodayTable('u1'), []);
+
+    // Unlock the locked budget. It restricts the first budget.
+    $this->kfc->setOverrideUnlock('u1', $this->dateString(), $budgetId2);
+    $this->assertEquals($this->kfc->queryClassesAvailableTodayTable('u1'), ['c1 (0:02:00)']);
+
+    // Allow time for two classes. Sort by time left.
+    $classId2 = $this->kfc->addClass('c2');
+    $this->kfc->addMapping($classId2, $budgetId1);
+    $this->assertEquals($this->kfc->queryClassesAvailableTodayTable('u1'),
+        ['c2 (0:03:00)', 'c1 (0:02:00)']);
+  }
+
+  public function testSecondsToHHMMSS(): void {
+    $this->assertEquals(secondsToHHMMSS(0), '0:00:00');
+    foreach ([false, true] as $minus) {
+      $f = $minus ? -1 : 1;
+      $s = $minus ? '-' : '';
+      $this->assertEquals(secondsToHHMMSS(1 * $f), $s . '0:00:01');
+      $this->assertEquals(secondsToHHMMSS(60 * $f), $s . '0:01:00');
+      $this->assertEquals(secondsToHHMMSS(3600 * $f), $s . '1:00:00');
+      $this->assertEquals(secondsToHHMMSS(24 * 3600 * $f), $s . '24:00:00');
+      $this->assertEquals(secondsToHHMMSS((24 * 3600 + 64) * $f), $s . '24:01:04');
+    }
+  }
 }
 
 (new KFCTest())->run();

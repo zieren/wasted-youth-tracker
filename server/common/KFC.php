@@ -392,20 +392,20 @@ class KFC {
          FROM (
            SELECT budget, class_id, GROUP_CONCAT(other_lim ORDER BY other_lim SEPARATOR ", ") AS other_lims, n
            FROM (
-             SELECT budget, t2.class_id, other_lim, n
+             SELECT budget, user_mappings_extended.class_id, other_lim, n
              FROM (
-               SELECT budget, t1.class_id, name AS other_lim
+               SELECT budget, user_mappings.class_id, name AS other_lim
                FROM (
-                 SELECT budgets.name AS budget, classes.name AS class, class_id, budget_id
+                 SELECT budgets.name AS budget, class_id
                  FROM mappings
                  JOIN budgets ON budgets.id = budget_id
                  JOIN classes ON classes.id = class_id
                  WHERE USER = |s0
-               ) AS t1
-               JOIN mappings ON t1.class_id = mappings.class_id
+               ) AS user_mappings
+               JOIN mappings ON user_mappings.class_id = mappings.class_id
                JOIN budgets ON mappings.budget_id = budgets.id
                WHERE budgets.user = |s0
-             ) AS t2
+             ) AS user_mappings_extended
              JOIN (
                SELECT class_id, COUNT(*) AS n
                FROM mappings
@@ -413,11 +413,11 @@ class KFC {
                WHERE USER = |s0
                GROUP BY class_id
              ) AS budget_count
-             ON t2.class_id = budget_count.class_id
+             ON user_mappings_extended.class_id = budget_count.class_id
              HAVING budget != other_lim OR n = 1
-           ) AS t4
+           ) AS user_mappings_non_redundant
            GROUP BY budget, class_id, n
-         ) AS t5
+         ) AS result
          JOIN classes ON class_id = classes.id
          ORDER BY budget, name',
         $user);

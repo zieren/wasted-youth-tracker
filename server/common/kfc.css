@@ -1,5 +1,6 @@
 table, th, td {
   border: 1px solid black;
+  vertical-align: top;
 }
 
 table.titled tr:first-child td {
@@ -23,7 +24,16 @@ table.collapsible tr.expanded td:last-child {
   margin-right: 1em;
 }
 
+.inlineBlockWithMargin td {
+  max-width: 50em;
+  word-wrap: break-word;
+}
+
 .inlineBlock {
   display: inline-block;
 }
 
+.inlineBlock td {
+  max-width: 50em;
+  word-wrap: break-word;
+}

@@ -356,9 +356,8 @@ class KFC {
   }
 
   /**
-   * Returns configs of all budgets of the specified user. The virtual key 'name' is populated with
-   * the budget's name. Returns a 2D array $configs[$budgetId][$key] = $value. The array is sorted
-   * by budget ID.
+   * Returns configs of all budgets of the specified user. Returns a 2D array
+   * $configs[$budgetId][$key] = $value. The array is sorted by budget ID.
    */
   public function getAllBudgetConfigs($user) {
     $rows = DB::query(

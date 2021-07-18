@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>KFC View</title>
+  <title>Wasted Youth Tracker - View</title>
   <meta charset="iso-8859-1"/>
   <link rel="stylesheet" href="../common/kfc.css">
 </head>

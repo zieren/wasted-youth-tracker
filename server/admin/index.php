@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>KFC Admin</title>
+  <title>Wasted Youth Tracker - Admin</title>
   <meta charset="iso-8859-1"/>
   <link rel="stylesheet" href="../common/kfc.css">
 </head>
@@ -235,7 +235,7 @@ foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
 echo '<br><span class="inlineBlockWithMargin"><h4>Top 10 unclassified last seven days, by recency</h4>';
-echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled XXX_inlineTableWithMargin');
+echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTableWithMargin');
 echo '</span>';
 
 $fromTime = (clone $now)->sub(new DateInterval('P7D'));
@@ -244,7 +244,7 @@ foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
 echo '<span class="inlineBlock"><h4>Top 10 unclassified last seven days, by total time</h4>';
-echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled XXX_inlineTable');
+echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTable');
 echo '</span>';
 
 echo '<h4>Classification (for all users)</h4>';

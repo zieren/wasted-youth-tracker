@@ -24,16 +24,11 @@ table.collapsible tr.expanded td:last-child {
   margin-right: 1em;
 }
 
-.inlineBlockWithMargin td {
-  max-width: 50em;
-  word-wrap: break-word;
-}
-
 .inlineBlock {
   display: inline-block;
 }
 
-.inlineBlock td {
+.limitTdWidth td {
   max-width: 50em;
   word-wrap: break-word;
 }

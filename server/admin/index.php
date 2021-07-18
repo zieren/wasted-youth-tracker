@@ -235,7 +235,7 @@ foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
 echo '<br><span class="inlineBlockWithMargin"><h4>Top 10 unclassified last seven days, by recency</h4>';
-echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTableWithMargin');
+echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTableWithMargin limitTdWidth');
 echo '</span>';
 
 $fromTime = (clone $now)->sub(new DateInterval('P7D'));
@@ -244,14 +244,14 @@ foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
 echo '<span class="inlineBlock"><h4>Top 10 unclassified last seven days, by total time</h4>';
-echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTable');
+echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTable limitTdWidth');
 echo '</span>';
 
 echo '<h4>Classification (for all users)</h4>';
 echoTable(
     ['Class', 'Classification', 'Prio', 'Matches', 'Samples (click to expand)'],
     $kfc->getClassesToClassificationTable(),
-    'titled collapsible');
+    'titled collapsible limitTdWidth');
 
 echo '<hr><h4>Classes and Budgets</h4>';
 echoTable(['Class', 'Budget'], $kfc->getBudgetsToClassesTable($user));

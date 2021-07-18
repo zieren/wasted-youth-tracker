@@ -78,7 +78,7 @@ function dateSelectorJs() {
 
 function budgetSelector($budgetNames, $selectedBudgetId) {
   $select =
-      '<label for="idBudget">Budget: </label>
+      '<label for="idBudget">Limit: </label>
       <select id="idBudget" name="budgetId">';
   foreach ($budgetNames as $budgetId => $budgetName) {
     $selected = $selectedBudgetId == $budgetId ? 'selected="selected"' : '';

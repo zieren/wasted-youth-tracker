@@ -391,16 +391,20 @@ class KFC {
         'SELECT
            budgets.name as budget,
            classes.name AS class,
-           CASE WHEN n = 1 THEN "" ELSE other_budget_ids END
+           CASE WHEN n = 1 THEN "" ELSE other_budgets END
          FROM (
            SELECT
              budget_id,
              class_id,
--- FIX THIS:
-             GROUP_CONCAT(other_budget_id ORDER BY other_budget_id SEPARATOR ", ") AS other_budget_ids,
+             GROUP_CONCAT(other_budget_name ORDER BY other_budget_name SEPARATOR ", ") AS other_budgets,
              n
            FROM (
-             SELECT budget_id, user_mappings_extended.class_id, other_budget_id, n
+             SELECT
+               budget_id,
+               user_mappings_extended.class_id,
+               other_budget_id,
+               budgets.name AS other_budget_name,
+               n
              FROM (
                SELECT
                  user_mappings.budget_id,
@@ -425,6 +429,7 @@ class KFC {
                GROUP BY class_id
              ) AS budget_count
              ON user_mappings_extended.class_id = budget_count.class_id
+             JOIN budgets ON other_budget_id = budgets.id
              HAVING budget_id != other_budget_id OR n = 1
            ) AS user_mappings_non_redundant
            GROUP BY budget_id, class_id, n
@@ -438,7 +443,7 @@ class KFC {
       $table[] = [
           $row['budget'] ?? '',
           $row['class'] ?? '',
-          $row['CASE WHEN n = 1 THEN "" ELSE other_budget_ids END']]; // can't alias CASE
+          $row['CASE WHEN n = 1 THEN "" ELSE other_budgets END']]; // can't alias CASE
     }
     return $table;
   }

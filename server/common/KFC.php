@@ -388,15 +388,26 @@ class KFC {
    */
   public function getBudgetsToClassesTable($user) {
     $rows = DB::query(
-        'SELECT budget, name AS class, CASE WHEN n = 1 THEN "" ELSE other_lims END
+        'SELECT
+           budgets.name as budget,
+           classes.name AS class,
+           CASE WHEN n = 1 THEN "" ELSE other_budget_ids END
          FROM (
-           SELECT budget, class_id, GROUP_CONCAT(other_lim ORDER BY other_lim SEPARATOR ", ") AS other_lims, n
+           SELECT
+             budget_id,
+             class_id,
+-- FIX THIS:
+             GROUP_CONCAT(other_budget_id ORDER BY other_budget_id SEPARATOR ", ") AS other_budget_ids,
+             n
            FROM (
-             SELECT budget, user_mappings_extended.class_id, other_lim, n
+             SELECT budget_id, user_mappings_extended.class_id, other_budget_id, n
              FROM (
-               SELECT budget, user_mappings.class_id, name AS other_lim
+               SELECT
+                 user_mappings.budget_id,
+                 user_mappings.class_id,
+                 budgets.id AS other_budget_id
                FROM (
-                 SELECT budgets.name AS budget, class_id
+                 SELECT budget_id, class_id
                  FROM mappings
                  JOIN budgets ON budgets.id = budget_id
                  JOIN classes ON classes.id = class_id
@@ -414,19 +425,20 @@ class KFC {
                GROUP BY class_id
              ) AS budget_count
              ON user_mappings_extended.class_id = budget_count.class_id
-             HAVING budget != other_lim OR n = 1
+             HAVING budget_id != other_budget_id OR n = 1
            ) AS user_mappings_non_redundant
-           GROUP BY budget, class_id, n
+           GROUP BY budget_id, class_id, n
          ) AS result
          JOIN classes ON class_id = classes.id
-         ORDER BY budget, name',
+         JOIN budgets ON budget_id = budgets.id
+         ORDER BY budget, class',
         $user);
     $table = [];
     foreach ($rows as $row) {
       $table[] = [
           $row['budget'] ?? '',
           $row['class'] ?? '',
-          $row['CASE WHEN n = 1 THEN "" ELSE other_lims END']]; // can't alias CASE
+          $row['CASE WHEN n = 1 THEN "" ELSE other_budget_ids END']]; // can't alias CASE
     }
     return $table;
   }

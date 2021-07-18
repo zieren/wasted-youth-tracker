@@ -1544,18 +1544,25 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addBudget('u1', 'b1');
     $budgetId2 = $this->kfc->addBudget('u1', 'b2');
     $budgetId3 = $this->kfc->addBudget('u1', 'b3');
+    $budgetId4 = $this->kfc->addBudget('u1', 'b4');
+    $budgetId5 = $this->kfc->addBudget('u1', 'b5');
     $this->kfc->addClass('c1');
     $classId2 = $this->kfc->addClass('c2');
     $classId3 = $this->kfc->addClass('c3');
+    $classId4 = $this->kfc->addClass('c4');
     $this->kfc->addMapping($classId2, $budgetId2);
     $this->kfc->addMapping($classId3, $budgetId2);
     $this->kfc->addMapping($classId3, $budgetId3);
+    $this->kfc->addMapping($classId3, $budgetId4);
+    $this->kfc->addMapping($classId4, $budgetId5);
 
     $this->assertEquals(
         $this->kfc->getBudgetsToClassesTable('u1'), [
             ['b2', 'c2', ''],
-            ['b2', 'c3', 'b3'],
-            ['b3', 'c3', 'b2']
+            ['b2', 'c3', 'b3, b4'],
+            ['b3', 'c3', 'b2, b4'],
+            ['b4', 'c3', 'b2, b3'],
+            ['b5', 'c4', '']  // TODO: show single other budget
         ]);
   }
 

@@ -253,8 +253,8 @@ echoTable(
     $kfc->getClassesToClassificationTable(),
     'titled collapsible limitTdWidth');
 
-echo '<hr><h4>Classes and Budgets</h4>';
-echoTable(['Class', 'Budget'], $kfc->getBudgetsToClassesTable($user));
+echo '<hr><h4>Budgets and Classes</h4>';
+echoTable(['Budget', 'Class'], $kfc->getBudgetsToClassesTable($user));
 
 echo '<h4>Map class to budget</h4>
 <form method="post" action="index.php">

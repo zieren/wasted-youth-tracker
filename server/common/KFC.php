@@ -385,13 +385,13 @@ class KFC {
   /** Returns a table listing all budgets and their classes. */
   public function getBudgetsToClassesTable($user) {
     $rows = DB::query(
-        'SELECT classes.name AS class, budgets.name AS budget
+        'SELECT budgets.name AS budget, classes.name AS class
           FROM budgets
           LEFT JOIN mappings ON budgets.id = mappings.budget_id
           LEFT JOIN classes ON mappings.class_id = classes.id
           WHERE user = |s0
           UNION
-          SELECT classes.name AS class, t1.name as budget
+          SELECT t1.name as budget, classes.name AS class
           FROM classes
           LEFT JOIN (
             SELECT *
@@ -403,7 +403,7 @@ class KFC {
         $user);
     $table = [];
     foreach ($rows as $row) {
-      $table[] = [$row['class'] ?? '', $row['budget'] ?? ''];
+      $table[] = [$row['budget'] ?? '', $row['class'] ?? ''];
     }
     return $table;
   }

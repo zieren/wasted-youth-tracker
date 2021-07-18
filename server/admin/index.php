@@ -182,7 +182,7 @@ Credits:
   <input type="checkbox" name="confirm" id="idKfcEnableDestructive"
       onclick="enableDestructiveButtons(false)"/>
   <span onclick="enableDestructiveButtons(true)">Enable destructive actions
-  (e.g. delete class/budget, prune activity)</span>
+  (e.g. delete class/limit, prune activity)</span>
 </form>
 </p>
 
@@ -200,7 +200,7 @@ Credits:
 
 echo '<h4>Current overrides</h4>';
 echoTable(
-    ['Date', 'Budget', 'Minutes', 'Lock'],
+    ['Date', 'Limit', 'Minutes', 'Lock'],
     $kfc->queryRecentOverrides($user));
 
 // --- BEGIN duplicate code. TODO: Extract.
@@ -253,10 +253,10 @@ echoTable(
     $kfc->getClassesToClassificationTable(),
     'titled collapsible limitTdWidth');
 
-echo '<hr><h4>Budgets and Classes</h4>';
-echoTable(['Budget', 'Class'], $kfc->getBudgetsToClassesTable($user));
+echo '<hr><h4>Limits and Classes</h4>';
+echoTable(['Limit', 'Class'], $kfc->getBudgetsToClassesTable($user));
 
-echo '<h4>Map class to budget</h4>
+echo '<h4>Map class to limit</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
   . classSelector($classes, true) . '==> ' . budgetSelector($budgetNames, $budgetId) . '
@@ -302,7 +302,7 @@ echo '<h4>Map class to budget</h4>
 </form>
 ';
 
-echo '<h3>Budgets</h3>';
+echo '<h3>Limits</h3>';
 
 foreach ($budgetConfigs as $id => $config) {
   echo '<h4>' . html($budgetNames[$id]) . "</h4>\n";

@@ -1543,21 +1543,19 @@ final class KFCTest extends KFCTestBase {
   public function testBudgetsToClassesTable(): void {
     $this->kfc->addBudget('u1', 'b1');
     $budgetId2 = $this->kfc->addBudget('u1', 'b2');
-    $this->kfc->addBudget('u1', 'b3');
+    $budgetId3 = $this->kfc->addBudget('u1', 'b3');
     $this->kfc->addClass('c1');
     $classId2 = $this->kfc->addClass('c2');
     $classId3 = $this->kfc->addClass('c3');
     $this->kfc->addMapping($classId2, $budgetId2);
     $this->kfc->addMapping($classId3, $budgetId2);
+    $this->kfc->addMapping($classId3, $budgetId3);
 
     $this->assertEquals(
         $this->kfc->getBudgetsToClassesTable('u1'), [
-            ['c1', ''],
-            [DEFAULT_CLASS_NAME, ''],
-            ['', 'b1'],
-            ['c2', 'b2'],
-            ['c3', 'b2'],
-            ['', 'b3']
+            ['b2', 'c2', ''],
+            ['b2', 'c3', 'b3'],
+            ['b3', 'c3', 'b2']
         ]);
   }
 

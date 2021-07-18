@@ -254,7 +254,7 @@ echoTable(
     'titled collapsible limitTdWidth');
 
 echo '<hr><h4>Limits and Classes</h4>';
-echoTable(['Limit', 'Class'], $kfc->getBudgetsToClassesTable($user));
+echoTable(['Limit', 'Class', 'Further limits'], $kfc->getBudgetsToClassesTable($user));
 
 echo '<h4>Map class to limit</h4>
 <form method="post" action="index.php">

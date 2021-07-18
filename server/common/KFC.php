@@ -382,28 +382,51 @@ class KFC {
     return $configs;
   }
 
-  /** Returns a table listing all budgets and their classes. */
+  /**
+   * Returns a table listing all budgets and their classes. For each class the last column lists
+   * all other budgets affecting this class ("" if there are none).
+   */
   public function getBudgetsToClassesTable($user) {
     $rows = DB::query(
-        'SELECT budgets.name AS budget, classes.name AS class
-          FROM budgets
-          LEFT JOIN mappings ON budgets.id = mappings.budget_id
-          LEFT JOIN classes ON mappings.class_id = classes.id
-          WHERE user = |s0
-          UNION
-          SELECT t1.name as budget, classes.name AS class
-          FROM classes
-          LEFT JOIN (
-            SELECT *
-            FROM budgets
-            JOIN mappings ON budgets.id = mappings.budget_id
-            WHERE user = |s0) t1
-          ON classes.id = t1.class_id
-          ORDER BY budget, class',
+        'SELECT budget, name AS class, CASE WHEN n = 1 THEN "" ELSE other_lims END
+         FROM (
+           SELECT budget, class_id, GROUP_CONCAT(other_lim ORDER BY other_lim SEPARATOR ", ") AS other_lims, n
+           FROM (
+             SELECT budget, t2.class_id, other_lim, n
+             FROM (
+               SELECT budget, t1.class_id, name AS other_lim
+               FROM (
+                 SELECT budgets.name AS budget, classes.name AS class, class_id, budget_id
+                 FROM mappings
+                 JOIN budgets ON budgets.id = budget_id
+                 JOIN classes ON classes.id = class_id
+                 WHERE USER = |s0
+               ) AS t1
+               JOIN mappings ON t1.class_id = mappings.class_id
+               JOIN budgets ON mappings.budget_id = budgets.id
+               WHERE budgets.user = |s0
+             ) AS t2
+             JOIN (
+               SELECT class_id, COUNT(*) AS n
+               FROM mappings
+               JOIN budgets ON mappings.budget_id = budgets.id
+               WHERE USER = |s0
+               GROUP BY class_id
+             ) AS budget_count
+             ON t2.class_id = budget_count.class_id
+             HAVING budget != other_lim OR n = 1
+           ) AS t4
+           GROUP BY budget, class_id, n
+         ) AS t5
+         JOIN classes ON class_id = classes.id
+         ORDER BY budget, name',
         $user);
     $table = [];
     foreach ($rows as $row) {
-      $table[] = [$row['budget'] ?? '', $row['class'] ?? ''];
+      $table[] = [
+          $row['budget'] ?? '',
+          $row['class'] ?? '',
+          $row['CASE WHEN n = 1 THEN "" ELSE other_lims END']]; // can't alias CASE
     }
     return $table;
   }

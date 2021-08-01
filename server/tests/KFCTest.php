@@ -62,26 +62,26 @@ final class KFCTest extends KFCTestBase {
         []);
 
     // A single record amounts to zero.
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 0]]);
 
     $this->mockTime += 5;
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 5]]);
 
     $this->mockTime += 6;
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 11]]);
 
     // Switch window (no effect, same budget).
     $this->mockTime += 7;
-    $this->kfc->insertWindowTitles('user_1', ['window 2'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 2']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 18]]);
@@ -96,34 +96,34 @@ final class KFCTest extends KFCTestBase {
     $this->assertEquals($m0, []);
 
     // A single record amounts to zero.
-    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 0]]);
 
     // Advance 5 seconds. Still two windows, but same budget, so total time is 5 seconds.
     $this->mockTime += 5;
-    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 5]]);
 
     // Same with another 6 seconds.
     $this->mockTime += 6;
-    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 11]]);
 
     // Switch to 'window 2'.
     $this->mockTime += 7;
-    $this->kfc->insertWindowTitles('user_1', ['window 2'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 2']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 18]]);
 
     $this->mockTime += 8;
-    $this->kfc->insertWindowTitles('user_1', ['window 2'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 2']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 26]]);
@@ -207,26 +207,26 @@ final class KFCTest extends KFCTestBase {
         []);
 
     // A single record amounts to zero.
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         [$budgetId1 => ['1970-01-01' => 0]]);
 
     $this->mockTime += 5;
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         [$budgetId1 => ['1970-01-01' => 5]]);
 
     $this->mockTime += 6;
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         [$budgetId1 => ['1970-01-01' => 11]]);
 
     // Switch window. First interval still counts towards previous window/budget.
     $this->mockTime += 7;
-    $this->kfc->insertWindowTitles('user_1', ['window 2'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 2']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         [
@@ -263,14 +263,14 @@ final class KFCTest extends KFCTestBase {
         []);
 
     // Start with a single window. Will not return anything for unused budgets.
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         [$budgetId1 => ['1970-01-01' => 0]]);
 
     // Advance 5 seconds and observe second window.
     $this->mockTime += 5;
-    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
         $budgetId1 => ['1970-01-01' => 5],
@@ -279,7 +279,7 @@ final class KFCTest extends KFCTestBase {
 
     // Observe both again after 5 seconds.
     $this->mockTime += 5;
-    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
         $budgetId1 => ['1970-01-01' => 10],
@@ -288,7 +288,7 @@ final class KFCTest extends KFCTestBase {
 
     // Advance 5 seconds and observe 'window 1' only.
     $this->mockTime += 5;
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
         $budgetId1 => ['1970-01-01' => 15],
@@ -297,7 +297,7 @@ final class KFCTest extends KFCTestBase {
 
     // Add 6 seconds and start two windows of class 1.
     $this->mockTime += 6;
-    $this->kfc->insertWindowTitles('user_1', ['window 1', 'another window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1', 'another window 1']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
         $budgetId1 => ['1970-01-01' => 21],
@@ -306,7 +306,7 @@ final class KFCTest extends KFCTestBase {
 
     // Add 7 seconds and observe both windows of class 1 again.
     $this->mockTime += 7;
-    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
         $budgetId1 => ['1970-01-01' => 28],
@@ -315,7 +315,7 @@ final class KFCTest extends KFCTestBase {
 
     // Add 8 seconds and observe 'window 2'.
     $this->mockTime += 8;
-    $this->kfc->insertWindowTitles('user_1', ['window 2'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 2']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
         $budgetId1 => ['1970-01-01' => 36],
@@ -347,19 +347,19 @@ final class KFCTest extends KFCTestBase {
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime),
           []);
 
-      $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 1']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime),
           [[$this->dateTimeString(), 0, $class1, 'window 1']]);
 
       $this->mockTime += 5;
-      $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 1']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime),
           [[$this->dateTimeString(), 5, $class1, 'window 1']]);
 
       $this->mockTime += 6;
-      $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 1']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime),
           [[$this->dateTimeString(), 11, $class1, 'window 1']]);
@@ -367,7 +367,7 @@ final class KFCTest extends KFCTestBase {
       // Switch to different window.
       $this->mockTime += 7;
       $dateTimeString1 = $this->dateTimeString();
-      $this->kfc->insertWindowTitles('user_1', ['window 2'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 2']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime), [
           [$dateTimeString1, 18, $class1, 'window 1'],
@@ -375,7 +375,7 @@ final class KFCTest extends KFCTestBase {
 
       $this->mockTime += 8;
       $dateTimeString2 = $this->dateTimeString();
-      $this->kfc->insertWindowTitles('user_1', ['window 2'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 2']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime), [
           [$dateTimeString1, 18, $class1, 'window 1'],
@@ -384,7 +384,7 @@ final class KFCTest extends KFCTestBase {
       // Order by time spent.
       $this->mockTime += 20;
       $dateTimeString2 = $this->dateTimeString();
-      $this->kfc->insertWindowTitles('user_1', ['window 2'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 2']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime), [
           [$dateTimeString2, 28, $class2, 'window 2'],
@@ -417,7 +417,7 @@ final class KFCTest extends KFCTestBase {
           []);
 
       $dateTimeString1 = $this->dateTimeString();
-      $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime), [
           [$dateTimeString1, 0, $class1, 'window 1'],
@@ -425,7 +425,7 @@ final class KFCTest extends KFCTestBase {
 
       $this->mockTime += 5;
       $dateTimeString1 = $this->dateTimeString();
-      $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime), [
           [$dateTimeString1, 5, $class1, 'window 1'],
@@ -433,7 +433,7 @@ final class KFCTest extends KFCTestBase {
 
       $this->mockTime += 6;
       $dateTimeString1 = $this->dateTimeString();
-      $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 1', 'window 2']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime), [
           [$dateTimeString1, 11, $class1, 'window 1'],
@@ -442,7 +442,7 @@ final class KFCTest extends KFCTestBase {
       // Switch to different windows.
       $this->mockTime += 7;
       $dateTimeString1 = $this->dateTimeString();
-      $this->kfc->insertWindowTitles('user_1', ['window 11', 'window 2'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 11', 'window 2']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime), [
           [$dateTimeString1, 18, $class1, 'window 1'],
@@ -451,7 +451,7 @@ final class KFCTest extends KFCTestBase {
 
       $this->mockTime += 8;
       $dateTimeString2 = $this->dateTimeString();
-      $this->kfc->insertWindowTitles('user_1', ['window 2'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 2']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime), [
           [$dateTimeString2, 26, $class2, 'window 2'],
@@ -461,7 +461,7 @@ final class KFCTest extends KFCTestBase {
       // Switch to window 1.
       $this->mockTime += 1;
       $dateTimeString3 = $this->dateTimeString();
-      $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 1']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime), [
           [$dateTimeString3, 27, $class2, 'window 2'],
@@ -471,7 +471,7 @@ final class KFCTest extends KFCTestBase {
       // Order by time spent.
       $this->mockTime += 20;
       $dateTimeString4 = $this->dateTimeString();
-      $this->kfc->insertWindowTitles('user_1', ['window 42'], 0);
+      $this->kfc->insertWindowTitles('user_1', ['window 42']);
       $this->assertEquals(
           $this->kfc->queryTimeSpentByTitle('user_1', $fromTime), [
           [$dateTimeString4, 38, $class1, 'window 1'],
@@ -483,14 +483,14 @@ final class KFCTest extends KFCTestBase {
 
   public function testReplaceEmptyTitle(): void {
     $fromTime = $this->newDateTime();
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->mockTime += 5;
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->mockTime += 5;
-    $this->kfc->insertWindowTitles('user_1', [''], 0);
+    $this->kfc->insertWindowTitles('user_1', ['']);
     $window1LastSeen = $this->dateTimeString();
     $this->mockTime += 5;
-    $this->kfc->insertWindowTitles('user_1', [''], 0);
+    $this->kfc->insertWindowTitles('user_1', ['']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 15]]);
@@ -622,11 +622,11 @@ final class KFCTest extends KFCTestBase {
   }
 
   public function testTimeLeftTodayAllBudgets_negative(): void {
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->mockTime += 5;
-    $this->kfc->insertWindowTitles('user_1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('user_1', ['window 1']);
     $this->mockTime += 5;
-    $this->kfc->insertWindowTitles('user_1', [], -1);
+    $this->kfc->insertWindowTitles('user_1', []);
 
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('user_1'),
@@ -676,7 +676,7 @@ final class KFCTest extends KFCTestBase {
     $classification1 = $this->classification($classId, [$budgetId1]);
 
     $this->assertEquals(
-        $this->kfc->insertWindowTitles('u1', ['title 1'], 0),
+        $this->kfc->insertWindowTitles('u1', ['title 1']),
         [$classification1]);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
@@ -684,7 +684,7 @@ final class KFCTest extends KFCTestBase {
 
     $this->mockTime += 15;
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 1'], 0),
+        $this->kfc->insertWindowTitles('u1', ['title 1']),
         [$classification1]);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
@@ -694,14 +694,14 @@ final class KFCTest extends KFCTestBase {
     $this->mockTime += 15;
     $classification2 = $this->classification(DEFAULT_CLASS_ID, [0]);
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2'], 0),
+        $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2']),
         [$classification1, $classification2]);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
         [null => 0, $budgetId1 => 90]);
     $this->mockTime += 15;
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2'], 0),
+        $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2']),
         [$classification1, $classification2]);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
@@ -714,7 +714,7 @@ final class KFCTest extends KFCTestBase {
     $this->mockTime += 1;
     $classification1['budgets'][] = $budgetId2;
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2'], 0),
+        $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2']),
         [$classification1, $classification2]);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
@@ -727,34 +727,23 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addClassification($classId1, 0, '1$');
     $this->kfc->addClassification($classId2, 10, '2$');
 
-    // Single window, with focus.
+    // Single window.
     $this->assertEquals(
-        $this->kfc->insertWindowTitles('u1', ['title 2'], 0), [
+        $this->kfc->insertWindowTitles('u1', ['title 2']), [
             $this->classification($classId2, [0])]);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
         [null => 0]);
 
-    // Single window, no focus.
+    // Two windows.
     $this->assertEquals(
-        $this->kfc->insertWindowTitles('u1', ['title 2'], -1), [
-            $this->classification($classId2, [0])]);
-
-    // Two windows, with focus.
-    $this->assertEquals(
-        $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2'], 0), [
-            $this->classification($classId1, [0]),
-            $this->classification($classId2, [0])]);
-
-    // Two windows, no focus.
-    $this->assertEquals(
-        $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2'], -1), [
+        $this->kfc->insertWindowTitles('u1', ['title 1', 'title 2']), [
             $this->classification($classId1, [0]),
             $this->classification($classId2, [0])]);
 
     // No window at all.
     $this->assertEquals(
-        $this->kfc->insertWindowTitles('u1', [], -1), []);
+        $this->kfc->insertWindowTitles('u1', []), []);
 
     // Time did not advance.
     $this->assertEquals(
@@ -770,7 +759,7 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addMapping($classId, $budgetId);
 
     $this->assertEquals(
-        $this->kfc->insertWindowTitles('u1', ['window 1'], 0), [
+        $this->kfc->insertWindowTitles('u1', ['window 1']), [
             $this->classification($classId, [$budgetId])]);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
@@ -778,7 +767,7 @@ final class KFCTest extends KFCTestBase {
 
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['window 1'], 0), [
+        $this->kfc->insertWindowTitles('u1', ['window 1']), [
             $this->classification($classId, [$budgetId])]);
     $this->assertEquals(
         $this->kfc->queryTimeLeftTodayAllBudgets('u1'),
@@ -787,7 +776,7 @@ final class KFCTest extends KFCTestBase {
     // All windows closed. Bill time to last window.
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', [], -1),
+        $this->kfc->insertWindowTitles('u1', []),
         []);
 
     // Used 2 seconds.
@@ -798,7 +787,7 @@ final class KFCTest extends KFCTestBase {
     // Time advances.
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', [], -1),
+        $this->kfc->insertWindowTitles('u1', []),
         []);
 
     // Still only used 2 seconds because nothing was open.
@@ -812,29 +801,29 @@ final class KFCTest extends KFCTestBase {
     $classId = $this->kfc->addClass('c1');
     $this->kfc->addClassification($classId, 0, '1$');
 
-    $this->kfc->insertWindowTitles('u1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('u1', ['window 1']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('u1', ['window 1']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['window 1'], 0);
+    $this->kfc->insertWindowTitles('u1', ['window 1']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['window 1', 'window 2'], 0);
+    $this->kfc->insertWindowTitles('u1', ['window 1', 'window 2']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['window 3'], 0);
+    $this->kfc->insertWindowTitles('u1', ['window 3']);
     $lastSeenWindow1 = $this->dateTimeString();
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['window 3'], 0);
+    $this->kfc->insertWindowTitles('u1', ['window 3']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['window 3'], -1);
+    $this->kfc->insertWindowTitles('u1', ['window 3']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', [], -1);
+    $this->kfc->insertWindowTitles('u1', []);
     $lastSeenWindow3 = $this->dateTimeString();
     $this->mockTime += 15;
-    $this->kfc->insertWindowTitles('u1', [], -1);
+    $this->kfc->insertWindowTitles('u1', []);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['window 2'], -1);
+    $this->kfc->insertWindowTitles('u1', ['window 2']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['window 2'], -1);
+    $this->kfc->insertWindowTitles('u1', ['window 2']);
     $lastSeenWindow2 = $this->dateTimeString();
 
     // "No windows" events are handled correctly for both listing titles and computing time spent.
@@ -850,9 +839,9 @@ final class KFCTest extends KFCTestBase {
 
   public function testSameTitle(): void {
     $fromTime = $this->newDateTime();
-    $this->kfc->insertWindowTitles('u1', ['Calculator', 'Calculator'], 0);
+    $this->kfc->insertWindowTitles('u1', ['Calculator', 'Calculator']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['Calculator', 'Calculator'], 0);
+    $this->kfc->insertWindowTitles('u1', ['Calculator', 'Calculator']);
     $lastSeen = $this->dateTimeString();
     $this->assertEquals(
         $this->kfc->queryTimeSpentByTitle('u1', $fromTime), [
@@ -1031,11 +1020,11 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addMapping($classId1, $budgetId1);
 
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 2'], 0),
+        $this->kfc->insertWindowTitles('u1', ['title 2']),
         [$this->classification(DEFAULT_CLASS_ID, [0])]);
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 2'], 0),
+        $this->kfc->insertWindowTitles('u1', ['title 2']),
         [$this->classification(DEFAULT_CLASS_ID, [0])]);
     $this->assertEqualsIgnoreOrder(
         $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
@@ -1043,7 +1032,7 @@ final class KFCTest extends KFCTestBase {
 
     // Repeating the last call is idempotent.
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 2'], 0),
+        $this->kfc->insertWindowTitles('u1', ['title 2']),
         [$this->classification(DEFAULT_CLASS_ID, [0])]);
     $this->assertEqualsIgnoreOrder(
         $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
@@ -1055,7 +1044,7 @@ final class KFCTest extends KFCTestBase {
         $this->classification(DEFAULT_CLASS_ID, [0]),
         $this->classification($classId1, [$budgetId1])];
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0),
+        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1']),
         $classification2and1);
     $timeSpent2and1 = [
         '' => ['1970-01-01' => 1],
@@ -1066,7 +1055,7 @@ final class KFCTest extends KFCTestBase {
 
     // Repeating the previous insertion is idempotent.
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0),
+        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1']),
         $classification2and1);
     $this->assertEqualsIgnoreOrder(
         $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
@@ -1080,7 +1069,7 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addMapping($classId2, $budgetId2);
     // Request does return the updated classification...
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0), [
+        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1']), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
         $this->classification($classId2, [$budgetId2])]); // changed to c2, which maps to b2
     // ... but records retain the old one.
@@ -1095,17 +1084,17 @@ final class KFCTest extends KFCTestBase {
     $lastC1DateTimeString = $this->dateTimeString();
     // From now on we accumulate time with the new classification.
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0), [
+        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1']), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
         $this->classification($classId2, [$budgetId2])]);
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0), [
+        $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1']), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
         $this->classification($classId2, [$budgetId2])]);
     // One more second to ensure order in the assertion below.
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1'], 0);
+    $this->kfc->insertWindowTitles('u1', ['title 2', 'title 1']);
 
     // Check results.
     $this->assertEquals(
@@ -1131,12 +1120,12 @@ final class KFCTest extends KFCTestBase {
     // This file uses utf8. Insert an 'ä' (&auml;) character in latin1 encoding.
     // https://cs.stanford.edu/people/miles/iso8859.html
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['t' . chr(228) .'st'], 0),
+        $this->kfc->insertWindowTitles('u1', ['t' . chr(228) .'st']),
         [$this->classification($classId, [0])]);
 
     // Test second classification rule for the word 'süß'.
     $this->assertEqualsIgnoreOrder(
-        $this->kfc->insertWindowTitles('u1', ['x s' . chr(252) . chr(223) . ' x'], 0),
+        $this->kfc->insertWindowTitles('u1', ['x s' . chr(252) . chr(223) . ' x']),
         [$this->classification($classId, [0])]);
   }
 
@@ -1168,15 +1157,15 @@ final class KFCTest extends KFCTestBase {
   function testReclassify(): void {
     $fromTime = $this->newDateTime();
     $date = $this->dateString();
-    $this->kfc->insertWindowTitles('u1', ['w1', 'w2'], 0);
-    $this->kfc->insertWindowTitles('u2', ['w1', 'w2'], 0);
+    $this->kfc->insertWindowTitles('u1', ['w1', 'w2']);
+    $this->kfc->insertWindowTitles('u2', ['w1', 'w2']);
     $this->mockTime++;
     $fromTime2 = $this->newDateTime();
-    $this->kfc->insertWindowTitles('u1', ['w1', 'w2'], 0);
-    $this->kfc->insertWindowTitles('u2', ['w1', 'w2'], 0);
+    $this->kfc->insertWindowTitles('u1', ['w1', 'w2']);
+    $this->kfc->insertWindowTitles('u2', ['w1', 'w2']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['w1', 'w2'], 0);
-    $this->kfc->insertWindowTitles('u2', ['w1', 'w2'], 0);
+    $this->kfc->insertWindowTitles('u1', ['w1', 'w2']);
+    $this->kfc->insertWindowTitles('u2', ['w1', 'w2']);
 
     $this->assertEqualsIgnoreOrder(
         $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime),
@@ -1226,9 +1215,9 @@ final class KFCTest extends KFCTestBase {
 
     // Attempt to mess with the "" placeholder title.
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', [], 0);
+    $this->kfc->insertWindowTitles('u1', []);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', [], 0);
+    $this->kfc->insertWindowTitles('u1', []);
     $this->assertEqualsIgnoreOrder(
         $this->kfc->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
             $budgetId1 => [$date => 3],
@@ -1282,15 +1271,15 @@ final class KFCTest extends KFCTestBase {
     $classId2 = $this->kfc->addClass('c2');
     $classificationId1 = $this->kfc->addClassification($classId1, 0, '1$');
     $classificationId2 = $this->kfc->addClassification($classId2, 0, '2$');
-    $this->kfc->insertWindowTitles('u1', ['t1'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t1']);
 
     $fromTime = $this->newDateTime();
     $this->mockTime++;
     $fromTime1String = $this->dateTimeString();
-    $this->kfc->insertWindowTitles('u1', ['t2'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t2']);
     $this->mockTime++;
     $fromTime2String = $this->dateTimeString();
-    $this->kfc->insertWindowTitles('u1', ['t3'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t3']);
 
     $this->assertEquals(
         $this->kfc->queryTimeSpentByTitle('u1', $fromTime),  [
@@ -1479,7 +1468,7 @@ final class KFCTest extends KFCTestBase {
     $classId = $this->kfc->addClass('c1');
     $this->kfc->addClassification($classId, 0, '()');
     $this->kfc->renameClass($classId, 'c2');
-    $this->kfc->insertWindowTitles('u1', ['t'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByTitle('u1', $fromTime),
         [[$this->dateTimeString(), 0, 'c2', 't']]);
@@ -1489,7 +1478,7 @@ final class KFCTest extends KFCTestBase {
     $fromTime = $this->newDateTime();
     $classId = $this->kfc->addClass('c1');
     $classificationId = $this->kfc->addClassification($classId, 0, 'nope');
-    $this->kfc->insertWindowTitles('u1', ['t'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t']);
     $this->assertEquals(
         $this->kfc->queryTimeSpentByTitle('u1', $fromTime),
         [[$this->dateTimeString(), 0, DEFAULT_CLASS_NAME, 't']]);
@@ -1504,23 +1493,23 @@ final class KFCTest extends KFCTestBase {
     $fromTime = $this->newDateTime();
     $classId = $this->kfc->addClass('c1');
     $this->kfc->addClassification($classId, 0, '1$');
-    $this->kfc->insertWindowTitles('u1', ['t1'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t1']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['t1'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t1']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['t1', 't2'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t1', 't2']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['t1', 't2'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t1', 't2']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['t2', 't3'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t2', 't3']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['t2', 't3'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t2', 't3']);
     $this->mockTime++;
     $lastSeenT2 = $this->dateTimeString();
-    $this->kfc->insertWindowTitles('u1', ['t3', 't4'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t3', 't4']);
     $this->mockTime++;
     $lastSeenT3T4 = $this->dateTimeString();
-    $this->kfc->insertWindowTitles('u1', ['t3', 't4'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t3', 't4']);
 
     $this->assertEquals(
         $this->kfc->queryTopUnclassified('u1', $fromTime, true, 2), [
@@ -1573,13 +1562,13 @@ final class KFCTest extends KFCTestBase {
     $classId2 = $this->kfc->addClass('c2');
     $this->kfc->addClassification($classId1, 42, "1$");
     $this->kfc->addClassification($classId2, 43, "2$");
-    $this->kfc->insertWindowTitles('u1', ['t1', 't2', 't3'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t1', 't2', 't3']);
     $this->mockTime += 2;
-    $this->kfc->insertWindowTitles('u1', ['t1', 't2', 't3'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t1', 't2', 't3']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['t22', 't3', 't4'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t22', 't3', 't4']);
     $this->mockTime++;
-    $this->kfc->insertWindowTitles('u1', ['t22', 't3', 't4'], 0);
+    $this->kfc->insertWindowTitles('u1', ['t22', 't3', 't4']);
     $this->assertEquals(
         $this->kfc->getClassesToClassificationTable(), [
             ['c1', '1$', 42, 1, 't1'],

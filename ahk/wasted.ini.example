@@ -1,0 +1,7 @@
+[account]
+user=kfcuser
+
+[server]
+url=https://server.com/kfc
+username=johndoe
+password=secret

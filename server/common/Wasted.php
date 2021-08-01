@@ -936,6 +936,7 @@ class Wasted {
         'budget_id' => $budgetId,
         'minutes' => $minutes],
         'minutes=|i', $minutes);
+    return $this->queryOverlappingBudgets($budgetId);
   }
 
   /**
@@ -950,23 +951,25 @@ class Wasted {
         'budget_id' => $budgetId,
         'unlocked' => 1],
         'unlocked=|i', 1);
+    return $this->queryOverlappingBudgets($budgetId, $date);
   }
 
   /**
    * Clears all overrides (minutes and unlock) for the specified budget for $date, which is a
    * String in the format 'YYYY-MM-DD'.
-   *
-   * Returns queryOverlappingBudgets().
    */
-  public function clearOverride($user, $date, $budgetId) {
+  public function clearOverrides($user, $date, $budgetId) {
     DB::delete('overrides', 'user=|s AND date=|s AND budget_id=|i', $user, $date, $budgetId);
   }
 
   /**
    * Returns a list of other budgets (by name) that overlap with this budget. Only budgets of the
    * same user are considered.
+   *
+   * If $dateForUnlock (as a string in 'YYYY-MM-DD' format) is specified, the query is restricted to
+   * budgets that are locked on that day, taking overrides into consideration.
    */
-  public function queryOverlappingBudgets($budgetId, $lockedOnly = false) {
+  public function queryOverlappingBudgets($budgetId, $dateForUnlock = null) {
     return array_map(
         function($a) { return $a['name']; },
         DB::query('
@@ -980,8 +983,17 @@ class Wasted {
               WHERE budget_id != |i0
             ) AS overlapping_budgets
             JOIN budgets ON id = budget_id
+            ' . ($dateForUnlock
+            ? 'JOIN budget_config ON id = budget_config.budget_id' : '') . '
             WHERE user = (SELECT user FROM budgets WHERE id = |i0)
-            ORDER BY name', $budgetId));
+            ' . ($dateForUnlock
+            ? 'AND k = "require_unlock" AND v = "1"
+               AND id NOT IN (
+                 SELECT budget_id FROM overrides
+                 WHERE user = (SELECT user FROM budgets WHERE id = |i0)
+                 AND date = |s1
+                 AND unlocked = "1")' : '') . '
+            ORDER BY name', $budgetId, $dateForUnlock));
 
   }
 

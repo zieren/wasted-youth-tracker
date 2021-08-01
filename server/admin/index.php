@@ -78,7 +78,8 @@ if (action('setUserConfig')) {
   $wasted->removeBudget($budgetId);
 } else if (action('setBudgetConfig')) {
   $budgetId = postInt('budgetId');
-  $wasted->setBudgetConfig($budgetId, postSanitized('budgetConfigKey'), postSanitized('budgetConfigValue'));
+  $wasted->setBudgetConfig(
+      $budgetId, postSanitized('budgetConfigKey'), postSanitized('budgetConfigValue'));
 } else if (action('clearBudgetConfig')) {
   $budgetId = postInt('budgetId');
   $wasted->clearBudgetConfig($budgetId, postSanitized('budgetConfigKey'));
@@ -86,17 +87,18 @@ if (action('setUserConfig')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
   $budgetId = postInt('budgetId');
-  $wasted->setOverrideMinutes($user, $dateString, $budgetId, postInt('overrideMinutes', 0));
+  $furtherBudgets =
+      $wasted->setOverrideMinutes($user, $dateString, $budgetId, postInt('overrideMinutes', 0));
 } else if (action('unlock')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
   $budgetId = postInt('budgetId');
-  $wasted->setOverrideUnlock($user, $dateString, $budgetId);
-} else if (action('clearOverride')) {
+  $considerUnlocking = $wasted->setOverrideUnlock($user, $dateString, $budgetId);
+} else if (action('clearOverrides')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
   $budgetId = postInt('budgetId');
-  $wasted->clearOverride($user, $dateString, $budgetId);
+  $wasted->clearOverrides($user, $dateString, $budgetId);
 } else if (action('addMapping')) {
   $user = postSanitized('user');
   $budgetId = postInt('budgetId');
@@ -169,9 +171,17 @@ echo '<h1>'.WASTED_SERVER_HEADING.'</h1>
 Credits:
 <a href="https://www.autohotkey.com/">AutoHotkey</a> by The AutoHotkey Foundation;
 <a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, LGPL;
-<a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license
-
-<p>
+<a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license';
+if ($considerUnlocking) {
+  $budgetIdToName = getBudgetIdToNameMap($configs);
+  echo '<p class="notice">Further locked budgets affecting classes in "'
+      . $budgetIdToName[$budgetId] . '": <b>' . html(implode($considerUnlocking, ', ')) . '</b>';
+} else if ($furtherBudgets) {
+  $budgetIdToName = getBudgetIdToNameMap($configs);
+  echo '<p class="notice">Further budgets affecting classes in "'
+      . $budgetIdToName[$budgetId] . '": <b>' . html(implode($furtherBudgets, ', ')) . '</b>';
+}
+echo '<p>
 <form action="index.php" method="get" style="display: inline; margin-right: 1em;">'
 . userSelector($users, $user) .
 '</form>
@@ -195,7 +205,7 @@ Credits:
     <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
     <input type="submit" value="Set minutes" name="setMinutes">
     <input type="submit" value="Unlock" name="unlock">
-    <input type="submit" value="Clear overrides" name="clearOverride">
+    <input type="submit" value="Clear overrides" name="clearOverrides">
   </form>';
 
 echo '<h4>Current overrides</h4>';

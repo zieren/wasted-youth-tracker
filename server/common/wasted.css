@@ -32,3 +32,7 @@ table.collapsible tr.expanded td:last-child {
   max-width: 50em;
   word-wrap: break-word;
 }
+
+.notice {
+  background-color: lightgreen;
+}

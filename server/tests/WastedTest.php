@@ -999,7 +999,7 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
         [$budgetId => 123 * 60]);
 
-    $this->wasted->clearOverride('u1', $this->dateString(), $budgetId);
+    $this->wasted->clearOverrides('u1', $this->dateString(), $budgetId);
 
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
@@ -1691,6 +1691,8 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testQueryOverlappingBudgets(): void {
+    $date = $this->dateString();
+
     $classId1 = $this->wasted->addClass('c1');
     $classId2 = $this->wasted->addClass('c2');
     $classId3 = $this->wasted->addClass('c3');
@@ -1715,12 +1717,45 @@ final class WastedTest extends WastedTestBase {
     $budgetId5 = $this->wasted->addBudget('u2', 'b5');
     $this->wasted->addMapping($classId1, $budgetId5);
 
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId1), ['b2', 'b3']);
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId2), ['b1']);
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId3), ['b1']);
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId4), []);
+    for ($i = 0; $i < 2; $i++) {
+      // Query for time limitation only (i.e. no date).
+      $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId1), ['b2', 'b3']);
+      $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId2), ['b1']);
+      $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId3), ['b1']);
+      $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId4), []);
 
+      // Initially require unlock for all. No effect on repeating the above time queries.
+      $this->wasted->setBudgetConfig($budgetId1, 'require_unlock', '1');
+      $this->wasted->setBudgetConfig($budgetId2, 'require_unlock', '1');
+      $this->wasted->setBudgetConfig($budgetId3, 'require_unlock', '1');
+      $this->wasted->setBudgetConfig($budgetId4, 'require_unlock', '1');
+    }
 
+    // Query for unlock limitation.
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId1, $date), ['b2', 'b3']);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId2, $date), ['b1']);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId3, $date), ['b1']);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId4, $date), []);
+
+    // b2 no longer needs unlocking.
+    $this->wasted->setOverrideUnlock('u1', $date, $budgetId2);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId1, $date), ['b3']);
+
+    // Consider date.
+    $this->assertEquals(
+        $this->wasted->queryOverlappingBudgets($budgetId1, '1974-09-29'), ['b2', 'b3']);
+
+    // No more unlock required anywhere.
+    $this->wasted->clearBudgetConfig($budgetId1, 'require_unlock');
+    $this->wasted->clearBudgetConfig($budgetId2, 'require_unlock');
+    $this->wasted->clearBudgetConfig($budgetId3, 'require_unlock');
+    $this->wasted->clearBudgetConfig($budgetId4, 'require_unlock');
+
+    // Query for unlock limitation.
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId1, $date), []);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId2, $date), []);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId3, $date), []);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId4, $date), []);
   }
 }
 

@@ -159,7 +159,6 @@ ShowMessages(messages, enableBeep = true) {
 ;
 ; Elements are arrays with these keys:
 ; "ids": ahk_id-s of all windows with that title
-; "active": 0 or 1 to indicate whether the window is active (has focus)
 ; "name": The name of the process owning the window, for debugging
 ;
 ; For processes without windows, or whose windows cannot be detected
@@ -220,12 +219,8 @@ DoTheThing(reportStatus) {
   ; Build request payload.
   windowList := ""
   indexToTitle := []
-  focusIndex := -1
-  for title, window in windows {
+  for title, ignored in windows {
     windowList .= "`n" title
-    if (window["active"]) {
-      focusIndex := indexToTitle.Length()
-    }
     indexToTitle.Push(title)
   }
 
@@ -233,7 +228,7 @@ DoTheThing(reportStatus) {
   ; https://docs.microsoft.com/en-us/previous-versions/windows/desktop/ms759148(v=vs.85)
   request := CreateRequest()
   try {
-    OpenRequest("POST", request, "rx/").send(USER "`n" focusIndex windowList)
+    OpenRequest("POST", request, "rx/").send(USER windowList)
     LAST_SUCCESSFUL_REQUEST := EpochSeconds()
   } catch {
     return HandleOffline(windows)

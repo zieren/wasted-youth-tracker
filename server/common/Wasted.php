@@ -924,7 +924,11 @@ class Wasted {
 
   // ---------- OVERRIDE QUERIES ----------
 
-  /** Overrides the budget minutes limit for $date, which is a String in the format 'YYYY-MM-DD'. */
+  /**
+   * Overrides the budget minutes limit for $date, which is a String in the format 'YYYY-MM-DD'.
+   *
+   * Returns queryOverlappingBudgets().
+   */
   public function setOverrideMinutes($user, $date, $budgetId, $minutes) {
     DB::insertUpdate('overrides', [
         'user' => $user,
@@ -934,7 +938,11 @@ class Wasted {
         'minutes=|i', $minutes);
   }
 
-  /** Unlocks the specified budget for $date, which is a String in the format 'YYYY-MM-DD'. */
+  /**
+   * Unlocks the specified budget for $date, which is a String in the format 'YYYY-MM-DD'.
+   *
+   * Returns queryOverlappingBudgets().
+   */
   public function setOverrideUnlock($user, $date, $budgetId) {
     DB::insertUpdate('overrides', [
         'user' => $user,
@@ -947,9 +955,34 @@ class Wasted {
   /**
    * Clears all overrides (minutes and unlock) for the specified budget for $date, which is a
    * String in the format 'YYYY-MM-DD'.
+   *
+   * Returns queryOverlappingBudgets().
    */
   public function clearOverride($user, $date, $budgetId) {
     DB::delete('overrides', 'user=|s AND date=|s AND budget_id=|i', $user, $date, $budgetId);
+  }
+
+  /**
+   * Returns a list of other budgets (by name) that overlap with this budget. Only budgets of the
+   * same user are considered.
+   */
+  public function queryOverlappingBudgets($budgetId, $lockedOnly = false) {
+    return array_map(
+        function($a) { return $a['name']; },
+        DB::query('
+            SELECT name, id FROM (
+              SELECT DISTINCT budget_id FROM (
+                SELECT class_id FROM budgets
+                JOIN mappings ON id = budget_id
+                WHERE id = |i0
+              ) AS affected_classes
+              JOIN mappings ON affected_classes.class_id = mappings.class_id
+              WHERE budget_id != |i0
+            ) AS overlapping_budgets
+            JOIN budgets ON id = budget_id
+            WHERE user = (SELECT user FROM budgets WHERE id = |i0)
+            ORDER BY name', $budgetId));
+
   }
 
   /** Returns recent overrides for the specified user. */

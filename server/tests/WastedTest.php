@@ -1689,6 +1689,39 @@ final class WastedTest extends WastedTestBase {
       $this->assertEquals(secondsToHHMMSS((24 * 3600 + 64) * $f), $s . '24:01:04');
     }
   }
+
+  public function testQueryOverlappingBudgets(): void {
+    $classId1 = $this->wasted->addClass('c1');
+    $classId2 = $this->wasted->addClass('c2');
+    $classId3 = $this->wasted->addClass('c3');
+    $classId4 = $this->wasted->addClass('c4');
+    $budgetId1 = $this->wasted->addBudget('u1', 'b1');
+    $budgetId2 = $this->wasted->addBudget('u1', 'b2');
+    $budgetId3 = $this->wasted->addBudget('u1', 'b3');
+    $budgetId4 = $this->wasted->addBudget('u1', 'b4');
+    // b1: c1, c2, c3
+    // b2: c1, c2
+    // b3: c3
+    // b4: c4
+    $this->wasted->addMapping($classId1, $budgetId1);
+    $this->wasted->addMapping($classId2, $budgetId1);
+    $this->wasted->addMapping($classId3, $budgetId1);
+    $this->wasted->addMapping($classId1, $budgetId2);
+    $this->wasted->addMapping($classId2, $budgetId2);
+    $this->wasted->addMapping($classId3, $budgetId3);
+    $this->wasted->addMapping($classId4, $budgetId4);
+
+    // Add an overlapping mapping for another user.
+    $budgetId5 = $this->wasted->addBudget('u2', 'b5');
+    $this->wasted->addMapping($classId1, $budgetId5);
+
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId1), ['b2', 'b3']);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId2), ['b1']);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId3), ['b1']);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId4), []);
+
+
+  }
 }
 
 (new WastedTest())->run();

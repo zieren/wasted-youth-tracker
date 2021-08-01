@@ -18,9 +18,6 @@ define('CREATE_TABLE_SUFFIX', 'CHARACTER SET ' . CHARSET_AND_COLLATION . ' ');
 // - https://dev.mysql.com/doc/refman/8.0/en/charset-table.html
 // - https://stackoverflow.com/questions/1049728/
 
-// TODO: Consider caching repeated queries.
-// TODO: Handle user timezone != server timezone.
-
 DB::$success_handler = 'logDbQuery';
 DB::$error_handler = 'logDbQueryError';
 DB::$param_char = '|';

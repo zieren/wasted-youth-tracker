@@ -914,12 +914,19 @@ class KFC {
       $newLimit = $timeLeftTodayAllBudgets[$row['budget_id']];
       $classes[$classId][1] = min($classes[$classId][1], $newLimit);
     }
-    usort($classes, function($a, $b) { return $b[1] - $a[1]; });
+    // Remove classes for which no time is left.
+    $classes = array_filter($classes, function($c) { return $c[1] > 0; });
+    // Sort by time left, then by name.
+    usort($classes, function($a, $b) { return $b[1] - $a[1] ?: strcasecmp($a[0], $b[0]); });
+
+    // List classes, adding time left to last class of a sequence that have this much time left.
     $classesList = [];
-    foreach ($classes as $classId => $nameAndTime) {
-      if ($nameAndTime[1] > 0) {
-        $classesList[] = $nameAndTime[0] . ' (' . secondsToHHMMSS($nameAndTime[1]) . ')';
+    for ($i = 0; $i < count($classes); $i++) {
+      $s = $classes[$i][0];
+      if ($i == count($classes) - 1 || $classes[$i + 1][1] != $classes[$i][1]) {
+        $s .= ' (' . secondsToHHMMSS($classes[$i][1]) . ')';
       }
+      $classesList[] = $s;
     }
     return $classesList;
   }

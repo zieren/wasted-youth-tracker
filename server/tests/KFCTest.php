@@ -1680,6 +1680,12 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addMapping($classId2, $budgetId1);
     $this->assertEquals($this->kfc->queryClassesAvailableTodayTable('u1'),
         ['c2 (0:03:00)', 'c1 (0:02:00)']);
+
+    // Group by time left.
+    $classId3 = $this->kfc->addClass('c3');
+    $this->kfc->addMapping($classId3, $budgetId2);
+    $this->assertEquals($this->kfc->queryClassesAvailableTodayTable('u1'),
+        ['c2 (0:03:00)', 'c1', 'c3 (0:02:00)']);
   }
 
   public function testSecondsToHHMMSS(): void {

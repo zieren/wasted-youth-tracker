@@ -17,7 +17,7 @@ function logDbQueryInSetUp($params) {
   Logger::Instance()->debug('DB query: ' . str_replace("\r\n", '', $params['query']));
 }
 
-final class WastedSlowTest extends KFCTestBase {
+final class WastedSlowTest extends WastedTestBase {
 
   protected function setUp(): void {
     DB::$success_handler = 'logDbQueryInSetUp';

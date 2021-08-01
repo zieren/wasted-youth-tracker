@@ -2,7 +2,7 @@
 
 // Internal constants.
 define('PHP_MIN_VERSION', '7.3');
-define('KFC_SERVER_HEADING', 'Wasted Youth Tracker 0.0.0');
+define('WASTED_SERVER_HEADING', 'Wasted Youth Tracker 0.0.0');
 define('DEFAULT_CLASS_NAME', 'default_class');
 define('DEFAULT_CLASS_ID', 1);
 define('DEFAULT_CLASSIFICATION_ID', 1);
@@ -12,25 +12,25 @@ define('MYSQL_SIGNED_INT_MIN', -2147483648);
 require_once 'base.php';
 require_once 'config.php';
 
-// Logger must be initialized before used in kfcFatalErrorHandler; see
+// Logger must be initialized before used in wastedFatalErrorHandler; see
 // http://stackoverflow.com/questions/4242534
 Logger::Instance();
 
-function kfcErrorHandler($errno, $errstr, $errfile, $errline) {
+function wastedErrorHandler($errno, $errstr, $errfile, $errline) {
   Logger::Instance()->critical('Error ' . $errno . ': ' . $errstr . ' @ ' . $errfile . ':' . $errline);
   return false; // continue with built-in error handling
 }
 
-set_error_handler('kfcErrorHandler');
+set_error_handler('wastedErrorHandler');
 
-function kfcFatalErrorHandler() {
+function wastedFatalErrorHandler() {
   $error = error_get_last();
   if ($error && $error['type'] === E_ERROR) {
     Logger::Instance()->critical('Error: ' . json_encode($error));
   }
 }
 
-register_shutdown_function('kfcFatalErrorHandler');
+register_shutdown_function('wastedFatalErrorHandler');
 
 /** Returns the mapped value (possibly null) if $key exists, else $default. */
 function getOrDefault($array, $key, $default = null) {

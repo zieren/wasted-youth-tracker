@@ -2,16 +2,16 @@
 <head>
   <title>Wasted Youth Tracker - Admin</title>
   <meta charset="iso-8859-1"/>
-  <link rel="stylesheet" href="../common/kfc.css">
+  <link rel="stylesheet" href="../common/wasted.css">
 </head>
 <body onload="setup()">
 <script>
 function enableDestructiveButtons(toggleCheckbox) {
-  var checkbox = document.getElementById('idKfcEnableDestructive');
+  var checkbox = document.getElementById('idWastedEnableDestructive');
   if (toggleCheckbox) {
     checkbox.checked = !checkbox.checked;
   }
-  var buttons = document.getElementsByClassName('kfcDestructive');
+  var buttons = document.getElementsByClassName('wastedDestructive');
   for (var i = 0; i < buttons.length; i++) {
     buttons[i].disabled = !checkbox.checked;
   }
@@ -164,7 +164,7 @@ $classifications = $wasted->getAllClassifications();
 echo dateSelectorJs();
 echo classificationSelectorJs($classifications);
 
-echo '<h1>'.KFC_SERVER_HEADING.'</h1>
+echo '<h1>'.WASTED_SERVER_HEADING.'</h1>
 <p>&copy; 2021 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
 Credits:
 <a href="https://www.autohotkey.com/">AutoHotkey</a> by The AutoHotkey Foundation;
@@ -179,7 +179,7 @@ Credits:
   <a href="../view/index.php?user=' . $user . '">View activity</a>
 </span>
 <form style="display: inline; margin-right: 1em;">
-  <input type="checkbox" name="confirm" id="idKfcEnableDestructive"
+  <input type="checkbox" name="confirm" id="idWastedEnableDestructive"
       onclick="enableDestructiveButtons(false)"/>
   <span onclick="enableDestructiveButtons(true)">Enable destructive actions
   (e.g. delete class/limit, prune activity)</span>
@@ -274,7 +274,7 @@ echo '<h4>Map class to limit</h4>
   <input type="hidden" name="user" value="' . $user . '"> '
   . classSelector($classes, false) .
   '<input type="submit" value="Remove (incl. classification!)" name="removeClass"
-    class="kfcDestructive" disabled>
+    class="wastedDestructive" disabled>
   <label for="idClassName">Name: </label>
   <input id="idClassName" name="className" type="text" value="">
   <input type="submit" value="Rename" name="renameClass">
@@ -292,7 +292,7 @@ echo '<h4>Map class to limit</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
   . classificationSelector($classifications) . '
-  <input type="submit" value="Remove" name="removeClassification" class="kfcDestructive" disabled>
+  <input type="submit" value="Remove" name="removeClassification" class="wastedDestructive" disabled>
   <input type="text" id="idClassificationRegEx" name="classificationRegEx" value=""
       style="width: 40em">
   <input type="submit" value="Change" name="changeClassification">
@@ -330,7 +330,7 @@ echo '
   <input type="hidden" name="user" value="' . $user . '"> '
   . budgetSelector($budgetNames, $budgetId) .
   '<input type="submit" value="Remove (incl. config!)" name="removeBudget"
-    class="kfcDestructive" disabled>
+    class="wastedDestructive" disabled>
   <label for="idBudgetName">Name: </label>
   <input id="idBudgetName" name="budgetName" type="text" value="">
   <input type="submit" value="Rename" name="renameBudget">
@@ -361,7 +361,7 @@ echo '<h3>Update config</h3>
 PRUNE data and logs before
 <form method="post">
   <input type="date" name="datePrune" value="' . date('Y-m-d') . '">
-  <input class="kfcDestructive" type="submit" value="PRUNE" name="prune" disabled />
+  <input class="wastedDestructive" type="submit" value="PRUNE" name="prune" disabled />
 </form>
 ';
 ?>

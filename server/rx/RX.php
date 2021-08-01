@@ -50,7 +50,7 @@ class RX {
    * 10,11
    * 12
    */
-  public static function handleRequest($kfc, $content): string {
+  public static function handleRequest($wasted, $content): string {
     $lines = $array = preg_split("/\r\n|\n|\r/", $content);
     Logger::Instance()->debug('Received data: ' . implode($lines, '\n'));
     $user = $lines[0];
@@ -64,15 +64,15 @@ class RX {
     // support utf8. https://github.com/zieren/kids-freedom-control/issues/33
     $titles = array_map('utf8_decode', $titles);
 
-    $classifications = $kfc->insertWindowTitles($user, $titles);
+    $classifications = $wasted->insertWindowTitles($user, $titles);
 
     // Build response.
 
     // Part 1: Budgets and time left.
     $response = [];
-    $configs = $kfc->getAllBudgetConfigs($user);
+    $configs = $wasted->getAllBudgetConfigs($user);
     $budgetIdToName = getBudgetIdToNameMap($configs);
-    $timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
+    $timeLeftByBudget = $wasted->queryTimeLeftTodayAllBudgets($user);
     foreach ($timeLeftByBudget as $budgetId => $timeLeft) {
       $response[] =
           ($budgetId ? $budgetId : 0) . ':' . $timeLeft . ':' . $budgetIdToName[$budgetId];

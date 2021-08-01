@@ -52,98 +52,98 @@ function checkRequirements() {
 
 checkRequirements();
 
-$kfc = KFC::create(true /* create missing tables */);
+$wasted = Wasted::create(true /* create missing tables */);
 $now = new DateTime();
 
 if (action('setUserConfig')) {
   $user = postSanitized('configUser');
-  $kfc->setUserConfig($user, postSanitized('configKey'), postSanitized('configValue'));
+  $wasted->setUserConfig($user, postSanitized('configKey'), postSanitized('configValue'));
 } else if (action('clearUserConfig')) {
   $user = postSanitized('configUser');
-  $kfc->clearUserConfig($user, postSanitized('configKey'));
+  $wasted->clearUserConfig($user, postSanitized('configKey'));
 } else if (action('setGlobalConfig')) {
-  $kfc->setGlobalConfig(postSanitized('configKey'), postSanitized('configValue'));
+  $wasted->setGlobalConfig(postSanitized('configKey'), postSanitized('configValue'));
 } else if (action('clearGlobalConfig')) {
-  $kfc->clearGlobalConfig(postSanitized('configKey'));
+  $wasted->clearGlobalConfig(postSanitized('configKey'));
 } else if (action('addBudget')) {
   $user = postSanitized('user');
-  $kfc->addBudget($user, postSanitized('budgetName'));
+  $wasted->addBudget($user, postSanitized('budgetName'));
 } else if (action('renameBudget')) {
   $budgetId = postInt('budgetId');
-  $kfc->renameBudget($budgetId, postSanitized('budgetName'));
+  $wasted->renameBudget($budgetId, postSanitized('budgetName'));
 } else if (action('addClass')) {
-  $kfc->addClass(postSanitized('className'));
+  $wasted->addClass(postSanitized('className'));
 } else if (action('removeBudget')) {
   $budgetId = postInt('budgetId');
-  $kfc->removeBudget($budgetId);
+  $wasted->removeBudget($budgetId);
 } else if (action('setBudgetConfig')) {
   $budgetId = postInt('budgetId');
-  $kfc->setBudgetConfig($budgetId, postSanitized('budgetConfigKey'), postSanitized('budgetConfigValue'));
+  $wasted->setBudgetConfig($budgetId, postSanitized('budgetConfigKey'), postSanitized('budgetConfigValue'));
 } else if (action('clearBudgetConfig')) {
   $budgetId = postInt('budgetId');
-  $kfc->clearBudgetConfig($budgetId, postSanitized('budgetConfigKey'));
+  $wasted->clearBudgetConfig($budgetId, postSanitized('budgetConfigKey'));
 } else if (action('setMinutes')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
   $budgetId = postInt('budgetId');
-  $kfc->setOverrideMinutes($user, $dateString, $budgetId, postInt('overrideMinutes', 0));
+  $wasted->setOverrideMinutes($user, $dateString, $budgetId, postInt('overrideMinutes', 0));
 } else if (action('unlock')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
   $budgetId = postInt('budgetId');
-  $kfc->setOverrideUnlock($user, $dateString, $budgetId);
+  $wasted->setOverrideUnlock($user, $dateString, $budgetId);
 } else if (action('clearOverride')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
   $budgetId = postInt('budgetId');
-  $kfc->clearOverride($user, $dateString, $budgetId);
+  $wasted->clearOverride($user, $dateString, $budgetId);
 } else if (action('addMapping')) {
   $user = postSanitized('user');
   $budgetId = postInt('budgetId');
   $classId = postInt('classId');
-  $kfc->addMapping($classId, $budgetId);
+  $wasted->addMapping($classId, $budgetId);
 } else if (action('removeMapping')) {
   $user = postSanitized('user');
   $budgetId = postInt('budgetId');
   $classId = postInt('classId');
-  $kfc->removeMapping($classId, $budgetId);
+  $wasted->removeMapping($classId, $budgetId);
 } else if (action('setTotalBudget')) {
   $user = postSanitized('user');
   $budgetId = postInt('budgetId');
-  $kfc->setTotalBudget($user, $budgetId);
+  $wasted->setTotalBudget($user, $budgetId);
 } else if (action('unsetTotalBudget')) {
   $user = postSanitized('user');
-  $kfc->unsetTotalBudget($user);
+  $wasted->unsetTotalBudget($user);
 } else if (action('removeClassification')) {
   $classificationId = postInt('classificationId');
-  $kfc->removeClassification($classificationId);
+  $wasted->removeClassification($classificationId);
 } else if (action('addClassification')) {
   $classId = postInt('classId');
-  $kfc->addClassification(
+  $wasted->addClassification(
       $classId, postInt('classificationPriority'), postRaw('classificationRegEx'));
 } else if (action('changeClassification')) {
   $classificationId = postInt('classificationId');
-  $kfc->changeClassification($classificationId, postRaw('classificationRegEx'));
+  $wasted->changeClassification($classificationId, postRaw('classificationRegEx'));
 } else if (action('removeClass')) {
   $classId = postInt('classId');
-  $kfc->removeClass($classId);
+  $wasted->removeClass($classId);
 } else if (action('renameClass')) {
   $classId = postInt('classId');
-  $kfc->renameClass($classId, postSanitized('className'));
+  $wasted->renameClass($classId, postSanitized('className'));
 } else if (action('doReclassify')) {
   $days = postInt('reclassificationDays');
   $fromTime = (clone $now)->sub(new DateInterval('P' . $days . 'D'));
-  $kfc->reclassify($fromTime);
+  $wasted->reclassify($fromTime);
 
 // TODO: Implement.
 } else if (action('prune')) {
   $dateString = postSanitized('datePrune');
   $dateTime = DateTime::createFromFormat("Y-m-d", $dateString);
-  $kfc->pruneTables($dateTime);
+  $wasted->pruneTables($dateTime);
   echo '<b>Tables pruned before ' . getDateString($dateTime) . '</b></hr>';
 }
 
-$users = $kfc->getUsers();
+$users = $wasted->getUsers();
 
 if (!isset($user)) {
   $user = get('user') ?? postSanitized('user') ?? getOrDefault($users, 0, '');
@@ -155,11 +155,11 @@ if (!isset($budgetId)) {
   $budgetId = 0; // never exists, MySQL index is 1-based
 }
 
-$budgetConfigs = $kfc->getAllBudgetConfigs($user);
+$budgetConfigs = $wasted->getAllBudgetConfigs($user);
 $budgetNames = budgetIdsToNames(array_keys($budgetConfigs), $budgetConfigs);
-$classes = $kfc->getAllClasses();
-$configs = $kfc->getAllBudgetConfigs($user);
-$classifications = $kfc->getAllClassifications();
+$classes = $wasted->getAllClasses();
+$configs = $wasted->getAllBudgetConfigs($user);
+$classifications = $wasted->getAllClassifications();
 
 echo dateSelectorJs();
 echo classificationSelectorJs($classifications);
@@ -201,17 +201,17 @@ Credits:
 echo '<h4>Current overrides</h4>';
 echoTable(
     ['Date', 'Limit', 'Minutes', 'Lock'],
-    $kfc->queryRecentOverrides($user));
+    $wasted->queryRecentOverrides($user));
 
-$timeLeftByBudget = $kfc->queryTimeLeftTodayAllBudgets($user);
+$timeLeftByBudget = $wasted->queryTimeLeftTodayAllBudgets($user);
 
 echo '<h4>Available classes today</h4>
-<p>' . implode(', ', $kfc->queryClassesAvailableTodayTable($user, $timeLeftByBudget)) . '</p>';
+<p>' . implode(', ', $wasted->queryClassesAvailableTodayTable($user, $timeLeftByBudget)) . '</p>';
 
 // --- BEGIN duplicate code. TODO: Extract.
 $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-$timeSpentByBudgetAndDate = $kfc->queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime);
+$timeSpentByBudgetAndDate = $wasted->queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime);
 $timeSpentByBudget = [];
 foreach ($timeSpentByBudgetAndDate as $id=>$timeSpentByDate) {
   $timeSpentByBudget[$id] = getOrDefault($timeSpentByDate, $dateString, 0);
@@ -234,7 +234,7 @@ echo '</span>';
 // TODO: This IGNORED the selected date. Add its own date selector?
 
 $fromTime = (clone $now)->sub(new DateInterval('P7D'));
-$topUnclassified = $kfc->queryTopUnclassified($user, $fromTime, false, 10);
+$topUnclassified = $wasted->queryTopUnclassified($user, $fromTime, false, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
@@ -243,7 +243,7 @@ echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTableW
 echo '</span>';
 
 $fromTime = (clone $now)->sub(new DateInterval('P7D'));
-$topUnclassified = $kfc->queryTopUnclassified($user, $fromTime, true, 10);
+$topUnclassified = $wasted->queryTopUnclassified($user, $fromTime, true, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
@@ -254,11 +254,11 @@ echo '</span>';
 echo '<h4>Classification (for all users)</h4>';
 echoTable(
     ['Class', 'Classification', 'Prio', 'Matches', 'Samples (click to expand)'],
-    $kfc->getClassesToClassificationTable(),
+    $wasted->getClassesToClassificationTable(),
     'titled collapsible limitTdWidth');
 
 echo '<hr><h4>Limits and classes</h4>';
-echoTable(['Limit', 'Class', 'Further limits'], $kfc->getBudgetsToClassesTable($user));
+echoTable(['Limit', 'Class', 'Further limits'], $wasted->getBudgetsToClassesTable($user));
 
 echo '<h4>Map class to limit</h4>
 <form method="post" action="index.php">
@@ -339,10 +339,10 @@ echo '
 ';
 
 echo '<h3>User config</h3>';
-echoTableAssociative($kfc->getUserConfig($user));
+echoTableAssociative($wasted->getUserConfig($user));
 
 echo '<h3>Global config</h3>';
-echoTableAssociative($kfc->getGlobalConfig());
+echoTableAssociative($wasted->getGlobalConfig());
 
 echo '<h3>Update config</h3>
 <form method="post" enctype="multipart/form-data">

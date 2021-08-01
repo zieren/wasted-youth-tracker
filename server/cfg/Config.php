@@ -13,8 +13,8 @@ class Config {
    * value2
    * ...
    */
-  public static function handleRequest(KFC $kfc, string $user): string {
-    $config = $kfc->getClientConfig($user);
+  public static function handleRequest(Wasted $wasted, string $user): string {
+    $config = $wasted->getClientConfig($user);
     // Prefix response with a marker to simplify error (e.g. 404) detection on the client.
     $response = '-*- cfg -*-';
     foreach ($config as $k => $v) {

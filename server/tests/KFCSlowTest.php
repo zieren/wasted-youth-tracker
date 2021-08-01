@@ -33,7 +33,7 @@ final class KFCSlowTest extends KFCTestBase {
   public function testCreateTablesWorksAndIsIdempotent(): void {
     for ($i = 0; $i < 2; $i++) {
       $this->onFailMessage("i=$i");
-      KFC::createForTest(TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS, $this->mockTime, true);
+      Wasted::createForTest(TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS, $this->mockTime, true);
       $this->setErrorHandler();
 
       $classification = DB::query('SELECT * FROM classification');

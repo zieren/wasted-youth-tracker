@@ -80,7 +80,7 @@ function secondsToHHMMSS($seconds) {
 
 /**
  * Maps budget IDs in the input array to names, given the configs obtained from
- * KFC::getAllBudgetConfigs().
+ * Wasted::getAllBudgetConfigs().
  */
 function budgetIdsToNames($ids, $configs) {
   $names = [];

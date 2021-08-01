@@ -9,7 +9,7 @@ if (!$user) {
   return;
 }
 
-$response = Config::handleRequest(KFC::create(), $user);
+$response = Config::handleRequest(Wasted::create(), $user);
 echo $response;
 Logger::Instance()->debug(
     'Config response for user "' . $user . '": ' . str_replace("\n", '\n', $response));

@@ -193,7 +193,7 @@ Credits:
     . budgetSelector($budgetNames, $budgetId) .
     '<label for="idOverrideMinutes">Minutes: </label>
     <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
-    <input type="submit" value="Set Minutes" name="setMinutes">
+    <input type="submit" value="Set minutes" name="setMinutes">
     <input type="submit" value="Unlock" name="unlock">
     <input type="submit" value="Clear overrides" name="clearOverride">
   </form>';

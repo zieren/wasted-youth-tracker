@@ -257,7 +257,7 @@ echoTable(
     $kfc->getClassesToClassificationTable(),
     'titled collapsible limitTdWidth');
 
-echo '<hr><h4>Limits and Classes</h4>';
+echo '<hr><h4>Limits and classes</h4>';
 echoTable(['Limit', 'Class', 'Further limits'], $kfc->getBudgetsToClassesTable($user));
 
 echo '<h4>Map class to limit</h4>

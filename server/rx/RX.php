@@ -17,17 +17,16 @@ class RX {
    * Incoming data format by line:
    *
    * 1. username
-   * 2. focused window index
-   * 3. window title #0
-   * 4. window title #1
+   * 2. window title #0
+   * 3. window title #1
    * ...
    *
-   * At least the first line must be sent. This would indicate that no windows are open.
+   * No trailing newline must be added. At least the first line must be sent. This would indicate
+   * that no windows are open.
    *
    * Example request:
    *
    * john_doe
-   * 0
    * Minecraft
    * Calculator
    *
@@ -55,18 +54,17 @@ class RX {
     $lines = $array = preg_split("/\r\n|\n|\r/", $content);
     Logger::Instance()->debug('Received data: ' . implode($lines, '\n'));
     $user = $lines[0];
-    $focusIndex = getOrDefault($lines, 1, -1);
-    if (!$user || !is_numeric($focusIndex)) {
+    if (!$user) {
       http_response_code(400);
       Logger::Instance()->error('Invalid request: "' . str_replace("\n", '\n', $content) . '"');
       return "error\nInvalid request";
     }
-    $titles = array_slice($lines, 2); // could be empty, but we still need to insert a timestamp
+    $titles = array_slice($lines, 1); // could be empty, but we still need to insert a timestamp
     // AutoHotkey sends strings in utf8, but we use latin1 because MySQL's RegExp library doesn't
     // support utf8. https://github.com/zieren/kids-freedom-control/issues/33
     $titles = array_map('utf8_decode', $titles);
 
-    $classifications = $kfc->insertWindowTitles($user, $titles, $focusIndex);
+    $classifications = $kfc->insertWindowTitles($user, $titles);
 
     // Build response.
 

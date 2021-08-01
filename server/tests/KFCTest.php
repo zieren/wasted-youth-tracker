@@ -863,7 +863,7 @@ final class KFCTest extends KFCTestBase {
   }
 
   public function testHandleRequest_invalidRequests(): void {
-    foreach (['', "u1\nfoo", "\n123"] as $content) {
+    foreach (['', "\n123"] as $content) {
       $this->onFailMessage("content: $content");
       $this->assertEquals(
           explode("\n", RX::handleRequest($this->kfc, $content), 1)[0],
@@ -873,11 +873,11 @@ final class KFCTest extends KFCTestBase {
 
   public function testHandleRequest_smokeTest(): void {
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n-1"),
+        RX::handleRequest($this->kfc, 'u1'),
         '');
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n0\ntitle 1"),
+        RX::handleRequest($this->kfc, "u1\ntitle 1"),
         "0:0:no_budget\n\n0");
   }
 
@@ -889,29 +889,29 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 5);
 
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n-1"),
+        RX::handleRequest($this->kfc, 'u1'),
         $budgetId1 . ":300:b1\n");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n0\ntitle 1"),
+        RX::handleRequest($this->kfc, "u1\ntitle 1"),
         $budgetId1 . ":300:b1\n\n$budgetId1");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n0\ntitle 1"),
+        RX::handleRequest($this->kfc, "u1\ntitle 1"),
         $budgetId1 . ":299:b1\n\n$budgetId1");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n0\ntitle 1\nfoo"),
+        RX::handleRequest($this->kfc, "u1\ntitle 1\nfoo"),
         "0:0:no_budget\n$budgetId1:298:b1\n\n$budgetId1\n0");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n0\ntitle 1\nfoo"),
+        RX::handleRequest($this->kfc, "u1\ntitle 1\nfoo"),
         "0:-1:no_budget\n$budgetId1:297:b1\n\n$budgetId1\n0");
 
     // Flip order.
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n0\nfoo\ntitle 1"),
+        RX::handleRequest($this->kfc, "u1\nfoo\ntitle 1"),
         "0:-2:no_budget\n$budgetId1:296:b1\n\n0\n" . $budgetId1);
 
     // Add second budget.
@@ -924,24 +924,24 @@ final class KFCTest extends KFCTestBase {
 
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n0\ntitle 1\nfoo"),
+        RX::handleRequest($this->kfc, "u1\ntitle 1\nfoo"),
         "0:-3:no_budget\n$budgetId1:295:b1\n$budgetId2:115:b2\n\n$budgetId1,$budgetId2\n0");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n0\ntitle 1\ntitle 2"),
+        RX::handleRequest($this->kfc, "u1\ntitle 1\ntitle 2"),
         "0:-4:no_budget\n$budgetId1:294:b1\n$budgetId2:114:b2\n\n"
         . "$budgetId1,$budgetId2\n$budgetId2");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n0\ntitle 2"),
+        RX::handleRequest($this->kfc, "u1\ntitle 2"),
         "0:-4:no_budget\n$budgetId1:293:b1\n$budgetId2:113:b2\n\n$budgetId2");
     $this->mockTime++; // This still counts towards b2.
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n-1"),
+        RX::handleRequest($this->kfc, 'u1'),
         "0:-4:no_budget\n$budgetId1:293:b1\n$budgetId2:112:b2\n");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u1\n0\ntitle 2"),
+        RX::handleRequest($this->kfc, "u1\ntitle 2"),
         "0:-4:no_budget\n$budgetId1:293:b1\n$budgetId2:112:b2\n\n$budgetId2");
   }
 
@@ -952,14 +952,14 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addMapping($classId, $budgetId1);
     $this->kfc->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 1);
 
-    $this->assertEquals(RX::handleRequest($this->kfc, "u2\n-1"), '');
+    $this->assertEquals(RX::handleRequest($this->kfc, 'u2'), '');
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u2\n0\ntitle 1"),
+        RX::handleRequest($this->kfc, "u2\ntitle 1"),
         "0:0:no_budget\n\n0");
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u2\n0\ntitle 1"),
+        RX::handleRequest($this->kfc, "u2\ntitle 1"),
         "0:-1:no_budget\n\n0");
 
     // Now map same class for user u2.
@@ -968,7 +968,7 @@ final class KFCTest extends KFCTestBase {
     $this->kfc->addMapping($classId, $budgetId2);
     $this->mockTime++;
     $this->assertEquals(
-        RX::handleRequest($this->kfc, "u2\n0\ntitle 1"),
+        RX::handleRequest($this->kfc, "u2\ntitle 1"),
         "$budgetId2:58:b2\n\n$budgetId2");
   }
 
@@ -980,7 +980,7 @@ final class KFCTest extends KFCTestBase {
 
     // This file uses utf8 encoding. The word 'süß' would not match the above RE in utf8 because
     // MySQL's RE library does not support utf8 and would see 5 bytes.
-    $this->assertEquals(RX::handleRequest($this->kfc, "u1\n0\nsüß"),
+    $this->assertEquals(RX::handleRequest($this->kfc, "u1\nsüß"),
         $budgetId . ":0:b1\n\n" . $budgetId);
   }
 

@@ -102,9 +102,8 @@ class KFC {
         . 'user VARCHAR(32) NOT NULL, '
         . 'ts BIGINT NOT NULL, '
         . 'class_id INT NOT NULL, '
-        . 'focus BOOL NOT NULL, '
         . 'title VARCHAR(256) NOT NULL, '
-        . 'PRIMARY KEY (user, ts, focus, title), '
+        . 'PRIMARY KEY (user, ts, title), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id) '
         . ') '
         . CREATE_TABLE_SUFFIX);
@@ -513,8 +512,8 @@ class KFC {
   public function reclassify($fromTime) {
     DB::query('SET @prev_title = ""');
     DB::query(
-        'REPLACE INTO activity (user, ts, class_id, focus, title)
-          SELECT user, ts, reclassification.class_id, focus, activity.title FROM (
+        'REPLACE INTO activity (user, ts, class_id, title)
+          SELECT user, ts, reclassification.class_id, activity.title FROM (
             SELECT
               title,
               class_id,
@@ -541,8 +540,8 @@ class KFC {
   public function reclassifyForRemoval($classToRemove) {
     DB::query('SET @prev_title = ""');
     DB::query(
-        'REPLACE INTO activity (user, ts, class_id, focus, title)
-          SELECT user, ts, reclassification.class_id, focus, activity.title FROM (
+        'REPLACE INTO activity (user, ts, class_id, title)
+          SELECT user, ts, reclassification.class_id, activity.title FROM (
             SELECT
               title,
               class_id,
@@ -583,23 +582,21 @@ class KFC {
   // ---------- WRITE ACTIVITY QUERIES ----------
 
   /**
-   * Records the specified window titles. If no window has focus, $focusIndex should be -1.
-   * Return value is that of classify().
+   * Records the specified window titles. Return value is that of classify().
    *
    * If no windows are open, $titles should be an empty array. In this case the timestamp is
    * recorded for the computation of the previous interval.
    */
-  public function insertWindowTitles($user, $titles, $focusIndex) {
+  public function insertWindowTitles($user, $titles) {
     $ts = $this->time();
 
-    // Special case: No windows open. We only record a timestamp.
+    // Special case: No titles at all. We only record a timestamp.
     if (!$titles) {
       DB::insertIgnore('activity', [
           'ts' => $ts,
           'user' => $user,
           'title' => '', // Below we map actually empty titles to something else.
-          'class_id' => DEFAULT_CLASS_ID,
-          'focus' => 0]);
+          'class_id' => DEFAULT_CLASS_ID]);
       return [];
     }
 
@@ -612,9 +609,7 @@ class KFC {
           // An empty title is not counted and only serves to close the interval. In the unlikely
           // event a window actually has no title, substitute something non-empty.
           'title' => $title ? $title : '(no title)',
-          'class_id' => $classifications[$i]['class_id'],
-          'focus' => $i == $focusIndex ? 1 : 0,
-          ];
+          'class_id' => $classifications[$i]['class_id']];
     }
     // Ignore duplicates. This is a rather theoretical case of racing requests while classification
     // rules are updated.
@@ -698,7 +693,6 @@ class KFC {
    * upper limit.
    */
   public function queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime = null) {
-    // TODO: Optionally restrict to activity.focus=1.
     $toTimestamp = $toTime ? $toTime->getTimestamp() : 9223372036854775807; // max(BIGINT)
     DB::query('SET @prev_ts = 0'); // TODO: ":=" vs "="
     // TODO: 15 (sample interval) + 10 (latency compensation) magic
@@ -794,7 +788,7 @@ class KFC {
    * (i.e. usually 24h) later. $date should therefore usually have a time of 0:00. Records are
    * ordered by the amount of time ($orderBySum = true) or else by recency.
    *
-   * TODO: Semantics, parameter names. How should we handle focus 0/1?
+   * TODO: Semantics, parameter names.
    */
   public function queryTimeSpentByTitle($user, $fromTime, $orderBySum = true) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));

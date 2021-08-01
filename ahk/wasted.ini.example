@@ -1,7 +1,7 @@
 [account]
-user=kfcuser
+user=kevin
 
 [server]
-url=https://server.com/kfc
-username=johndoe
-password=secret
+url=https://server.com/wasted
+username=webuser
+password=webpassword

@@ -110,24 +110,26 @@ function classificationSelectorJs($classificationsLatin1) {
   array_walk_recursive($classificationsUtf8, '_arrayUtf8Encode');
   return '<script>
             var classifications = ' . json_encode($classificationsUtf8) . ';
-            function copyRegEx() {
+            function populateClassificationFields() {
               var selectClassification = document.querySelector("#idClassification");
               var inputTextRegEx = document.querySelector("#idClassificationRegEx");
+              var inputNumberPrio = document.querySelector("#idClassificationPriority");
               var selectedIndex = selectClassification.selectedIndex;
               if (selectedIndex >= 0) {
                 var id = selectClassification.options[selectedIndex].value;
                 inputTextRegEx.value = classifications[id]["re"];
+                inputNumberPrio.value = classifications[id]["priority"];
               }
             }
-            window.addEventListener("load", copyRegEx);
+            window.addEventListener("load", populateClassificationFields);
           </script>';
 }
 
 function classificationSelector($classifications) {
   $select =
       '<label for="idClassification">Classification: </label>
-      <select onchange="copyRegEx()" id="idClassification" name="classificationId"
-         style="width: 20em">';
+      <select onchange="populateClassificationFields()"
+          id="idClassification" name="classificationId">';
   foreach ($classifications as $id => $c) {
     $select .= '<option value="' . $id . '">' . html($c['name'] . ': ' . $c['re']) . '</option>';
   }

@@ -1241,14 +1241,14 @@ final class WastedTest extends WastedTestBase {
     $classId = $this->wasted->addClass('c1');
     $budgetId = $this->wasted->addBudget('u1', 'b1');
     $this->wasted->addMapping($classId, $budgetId);
-    $classificationId = $this->wasted->addClassification($classId, 0, '()');
+    $classificationId = $this->wasted->addClassification($classId, 42, '()');
 
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']),
         [['class_id' => $classId, 'budgets' => [$budgetId]]]);
     $this->assertEquals(
         $this->wasted->getAllClassifications(),
-        [$classificationId => ['name' => 'c1', 're' => '()']]);
+        [$classificationId => ['name' => 'c1', 're' => '()', 'priority' => 42]]);
     $this->assertEquals(
         count(DB::query('SELECT * FROM mappings')),
         1);
@@ -1289,8 +1289,8 @@ final class WastedTest extends WastedTestBase {
         ]);
     $this->assertEquals(
         $this->wasted->getAllClassifications(), [
-            $classificationId1 => ['name' => 'c1', 're' => '1$'],
-            $classificationId2 => ['name' => 'c2', 're' => '2$']
+            $classificationId1 => ['name' => 'c1', 're' => '1$', 'priority' => 0],
+            $classificationId2 => ['name' => 'c2', 're' => '2$', 'priority' => 0]
         ]);
 
     $classId3 = $this->wasted->addClass('c3');
@@ -1305,8 +1305,8 @@ final class WastedTest extends WastedTestBase {
         ]);
     $this->assertEquals(
         $this->wasted->getAllClassifications(), [
-            $classificationId1 => ['name' => 'c1', 're' => '1$'],
-            $classificationId3 => ['name' => 'c3', 're' => '2$']
+            $classificationId1 => ['name' => 'c1', 're' => '1$', 'priority' => 0],
+            $classificationId3 => ['name' => 'c3', 're' => '2$', 'priority' => -42]
         ]);
   }
 
@@ -1438,7 +1438,7 @@ final class WastedTest extends WastedTestBase {
 
   public function testChangeDefaultClassification(): void {
     try {
-      $this->wasted->changeClassification(DEFAULT_CLASSIFICATION_ID, 'foo');
+      $this->wasted->changeClassification(DEFAULT_CLASSIFICATION_ID, 'foo', 42);
       throw new AssertionError('Should not be able to change the default classification');
     } catch (Exception $e) {
       // expected
@@ -1478,15 +1478,21 @@ final class WastedTest extends WastedTestBase {
     $fromTime = $this->newDateTime();
     $classId = $this->wasted->addClass('c1');
     $classificationId = $this->wasted->addClassification($classId, 0, 'nope');
+    $this->assertEquals(
+        $this->wasted->getAllClassifications(),
+        [$classificationId => ['name' => 'c1', 're' => 'nope', 'priority' => 0]]);
     $this->wasted->insertWindowTitles('u1', ['t']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByTitle('u1', $fromTime),
         [[$this->dateTimeString(), 0, DEFAULT_CLASS_NAME, 't']]);
-    $this->wasted->changeClassification($classificationId, '()');
+    $this->wasted->changeClassification($classificationId, '()', 42);
     $this->wasted->reclassify($fromTime);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByTitle('u1', $fromTime),
         [[$this->dateTimeString(), 0, 'c1', 't']]);
+    $this->assertEquals(
+        $this->wasted->getAllClassifications(),
+        [$classificationId => ['name' => 'c1', 're' => '()', 'priority' => 42]]);
   }
 
   public function testTopUnclassified(): void {

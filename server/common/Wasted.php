@@ -240,11 +240,14 @@ class Wasted {
     DB::delete('classification', 'id = |i', $classificationId);
   }
 
-  public function changeClassification($classificationId, $newRegEx) {
+  public function changeClassification($classificationId, $newRegEx, $newPriority) {
     if ($classificationId == DEFAULT_CLASSIFICATION_ID) {
       $this->throwException('Cannot change default classification');
     }
-    DB::update('classification', ['re' => $newRegEx], 'id = |s', $classificationId);
+    DB::update(
+        'classification',
+        ['re' => $newRegEx, 'priority' => $newPriority],
+        'id = |s', $classificationId);
   }
 
   public function addMapping($classId, $budgetId) {
@@ -461,7 +464,7 @@ class Wasted {
               GROUP_CONCAT(title ORDER BY title SEPARATOR "\n") AS samples
             FROM classification
             LEFT JOIN(
-                SELECT DISTINCT title FROM activity
+              SELECT DISTINCT title FROM activity
             ) t1
             ON t1.title REGEXP classification.re
             WHERE classification.id != |i0
@@ -489,13 +492,13 @@ class Wasted {
   }
 
   /**
-   * Returns an array keyed by classification ID containing arrays with the classification rules'
-   * name (key 'name') and regular expression (key 're'). The default classification is not
+   * Returns an array keyed by classification ID containing arrays with the class name (key 'name'),
+   * regular expression (key 're') and priority (key 'priority'). The default classification is not
    * returned.
    */
   public function getAllClassifications() {
     $rows = DB::query(
-        'SELECT classification.id, name, re
+        'SELECT classification.id, name, re, priority
           FROM classification
           JOIN classes on classification.class_id = classes.id
           WHERE classes.id != |i
@@ -503,7 +506,10 @@ class Wasted {
         DEFAULT_CLASS_ID);
     $table = [];
     foreach ($rows as $row) {
-      $table[$row['id']] = ['name' => $row['name'], 're' => $row['re']];
+      $table[$row['id']] = [
+          'name' => $row['name'],
+          're' => $row['re'],
+          'priority' => intval($row['priority'])];
     }
     return $table;
   }

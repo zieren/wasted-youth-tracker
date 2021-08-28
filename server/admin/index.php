@@ -125,7 +125,8 @@ if (action('setUserConfig')) {
       $classId, postInt('classificationPriority'), postRaw('classificationRegEx'));
 } else if (action('changeClassification')) {
   $classificationId = postInt('classificationId');
-  $wasted->changeClassification($classificationId, postRaw('classificationRegEx'));
+  $wasted->changeClassification(
+      $classificationId, postRaw('classificationRegEx'), postRaw('classificationPriority'));
 } else if (action('removeClass')) {
   $classId = postInt('classId');
   $wasted->removeClass($classId);
@@ -295,16 +296,17 @@ echo '<h4>Map class to limit</h4>
   <input type="hidden" name="user" value="' . $user . '">'
   . classSelector($classes, false) . '
   <input type="text" name="classificationRegEx" value="" placeholder="Regular Expression">
-  <input type="number" name="classificationPriority" value="0">
+  Prio: <input type="number" name="classificationPriority" value="0">
   <input type="submit" value="Add classification" name="addClassification">
 </form>
 
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
   . classificationSelector($classifications) . '
-  <input type="submit" value="Remove" name="removeClassification" class="wastedDestructive" disabled>
-  <input type="text" id="idClassificationRegEx" name="classificationRegEx" value=""
-      style="width: 40em">
+  <input type="submit" value="Remove" name="removeClassification" class="wastedDestructive"
+      disabled>
+  <input type="text" id="idClassificationRegEx" name="classificationRegEx" value="">
+  Prio: <input type="number" name="classificationPriority" id="idClassificationPriority" value="0">
   <input type="submit" value="Change" name="changeClassification">
 </form>
 

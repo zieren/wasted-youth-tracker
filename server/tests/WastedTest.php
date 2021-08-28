@@ -1566,8 +1566,8 @@ final class WastedTest extends WastedTestBase {
   public function testClassesToClassificationTable(): void {
     $classId1 = $this->wasted->addClass('c1');
     $classId2 = $this->wasted->addClass('c2');
-    $this->wasted->addClassification($classId1, 42, "1$");
-    $this->wasted->addClassification($classId2, 43, "2$");
+    $this->wasted->addClassification($classId1, 42, '1');
+    $this->wasted->addClassification($classId2, 43, '2');
     $this->wasted->insertWindowTitles('u1', ['t1', 't2', 't3']);
     $this->mockTime += 2;
     $this->wasted->insertWindowTitles('u1', ['t1', 't2', 't3']);
@@ -1577,8 +1577,17 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->insertWindowTitles('u1', ['t22', 't3', 't4']);
     $this->assertEquals(
         $this->wasted->getClassesToClassificationTable(), [
-            ['c1', '1$', 42, 1, 't1'],
-            ['c2', '2$', 43, 2, "t2\nt22"]
+            ['c1', '1', 42, 1, 't1'],
+            ['c2', '2', 43, 2, "t2\nt22"]
+        ]);
+    // Test that priority is considered: "t12" is not a sample for c1, but for c2.
+    $this->mockTime++;
+    $classification = $this->wasted->insertWindowTitles('u1', ['t12']);
+    $this->assertEquals($classification, [['class_id' => $classId2, 'budgets' => [0]]]);
+    $this->assertEquals(
+        $this->wasted->getClassesToClassificationTable(), [
+            ['c1', '1', 42, 1, 't1'],
+            ['c2', '2', 43, 2, "t12\nt2\nt22"]
         ]);
   }
 

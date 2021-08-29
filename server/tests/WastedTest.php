@@ -1587,7 +1587,7 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals(
         $this->wasted->getClassesToClassificationTable(), [
             ['c1', '1', 42, 1, 't1'],
-            ['c2', '2', 43, 2, "t12\nt2\nt22"]
+            ['c2', '2', 43, 3, "t12\nt2\nt22"]
         ]);
   }
 

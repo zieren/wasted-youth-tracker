@@ -450,9 +450,10 @@ class Wasted {
   /**
    * Returns a table listing all classes and their classification rules.
    *
-   * TODO: Add time limit.
+   * TODO: Add time limit. Also limit number of samples.
    */
   public function getClassesToClassificationTable() {
+    DB::query('SET @prev_title = ""');
     $rows = DB::query(
         'SELECT name, re, priority, n, samples
           FROM classes
@@ -462,12 +463,25 @@ class Wasted {
               id,
               COUNT(title) AS n,
               GROUP_CONCAT(title ORDER BY title SEPARATOR "\n") AS samples
-            FROM classification
-            LEFT JOIN(
-              SELECT DISTINCT title FROM activity
-            ) t1
-            ON t1.title REGEXP classification.re
-            WHERE classification.id != |i0
+            FROM (
+              SELECT
+                id,
+                title,
+                IF (@prev_title = title, 0, 1) AS first,
+                @prev_title := title
+                FROM (
+                  SELECT title, priority, id
+                  FROM classification
+                  LEFT JOIN(
+                    SELECT DISTINCT title FROM activity
+                    WHERE title != ""
+                  ) t1
+                  ON t1.title REGEXP classification.re
+                  WHERE classification.class_id != |i0
+                  ORDER BY title, priority DESC
+                ) classification_all_prios
+                HAVING first = 1
+            ) classification_winners
             GROUP BY id
           ) t2
           ON classification.id = t2.id

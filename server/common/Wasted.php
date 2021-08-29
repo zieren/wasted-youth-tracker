@@ -450,7 +450,7 @@ class Wasted {
   /**
    * Returns a table listing all classes and their classification rules.
    *
-   * TODO: Add time limit. Also limit number of samples.
+   * TODO: Add time limit. Also limit number of samples (probably: crop resulting string).
    */
   public function getClassesToClassificationTable() {
     DB::query('SET @prev_title = ""');

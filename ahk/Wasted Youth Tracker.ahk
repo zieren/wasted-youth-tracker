@@ -59,7 +59,7 @@ ReadConfig()
 DetectHiddenWindows, Off
 
 ; The tray icon allows the user to exit the script, so hide it.
-; Killing it with the task manager or removing it from autostart requires 
+; Killing it with the task manager or removing it from autostart requires
 ; significantly more skill; for now this is good enough.
 if (!CFG[DISABLE_ENFORCEMENT]) {
   Menu, Tray, NoIcon
@@ -93,19 +93,21 @@ FormatSeconds(seconds) {
   return sign Format("{:i}:{:02i}:{:02i}", hours, minutes, seconds)
 }
 
-; Close the window with the specified ahk_id.
-TerminateWindow(id) {
+; Close the window with the specified ahk_id. If the window title does not match what was originally
+; doomed, this is a no-op. This is for browsers, which change the title when the tab is closed (or
+; deselected, which unfortunately we can't tell apart), but retain the ahk_id.
+TerminateWindow(id, title) {
   if (CFG[DISABLE_ENFORCEMENT]) {
-    ShowMessage("enforcement disabled: close window " id)
+    ShowMessage("enforcement disabled: close/kill '" title "' (" id ")")
   } else {
-    if (WinExist("ahk_id" id)) {
+    WinGetTitle, currentTitle, ahk_id %id%
+    if (currentTitle == title) {
       WinGet, pid, PID, ahk_id %id%
       ; WinKill does not seem to work: E.g. EditPlus with an unsaved file will just prompt to save,
       ; but not actually close. So maybe it sends a close request, and when the program acks that
       ; request it considers that success.
       WinClose % "ahk_id" id, , % CFG[KILL_AFTER_SECONDS]
-      id2 := WinExist("ahk_id" id)
-      if (id2) {
+      if (WinExist("ahk_id" id)) {
         ; The PID can be too high up in the hierarchy. E.g. calculator.exe has its own PID, but
         ; the below call returns that of "Application Frame Host", which is shared with other
         ; processes (try Solitaire). DllCall("GetWindowThreadProcessId"...) has the same problem.
@@ -162,7 +164,7 @@ ShowMessages(messages, enableBeep = true) {
 ; "name": The name of the process owning the window, for debugging
 ;
 ; For processes without windows, or whose windows cannot be detected
-; (see https://github.com/zieren/kids-freedom-control/issues/18), process
+; (see https://github.com/zieren/wasted-youth-tracker/issues/18), process
 ; names can be configured on the server together with a "synthetic" title.
 ; If these processes are detected, the synthetic title is injected into the
 ; result. In this case the keys are:
@@ -291,7 +293,12 @@ HandleOffline(windows) {
   if (offlineCloseSecondsLeft < 0) {
     messages := []
     for title, window in windows {
-      DoomWindow(window, messages, "No uplink to the mothership. Please close '" title "'")
+      ; Specifying the title here is slightly counterproductive because it allows to evade 
+      ; termination by e.g. switching between browser tabs. The allowed offline period is likely
+      ; larger than the regular sample interval, so this could be worthwhile. However, without a 
+      ; network connection the browser (which is the primary means of exploit) is not too useful.
+      ; All in all, this case seems too obscure to special case it in the code.
+      DoomWindow(window, title, messages, "No uplink to the mothership. Please close '" title "'")
     }
     return messages
   }
@@ -313,7 +320,7 @@ ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
   budget := budgets[lowestBudgetId]["name"]
   if (secondsLeft <= 0) {
     closeMessage := "Time is up for budget '" budget "', please close '" title "'"
-    DoomWindow(windows[title], messages, closeMessage)
+    DoomWindow(windows[title], title, messages, closeMessage)
   } else if (secondsLeft <= 300) {
     ; TODO: Make this configurable. Maybe pull config from server on start?
     if (!WARNED_BUDGETS[lowestBudgetId]) {
@@ -327,13 +334,13 @@ ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
 }
 
 ; Dooms the specified window/process, adding the appropriate message to "messages".
-DoomWindow(window, messages, closeMessage) {
+DoomWindow(window, title, messages, closeMessage) {
   pushCloseMessage := false
   ; Handle regular windows.
   for ignored, id in window["ids"] {
     if (!DOOMED_WINDOWS[id]) {
       DOOMED_WINDOWS[id] := 1
-      terminateWindow := Func("TerminateWindow").Bind(id)
+      terminateWindow := Func("TerminateWindow").Bind(id, title)
       SetTimer % terminateWindow, % CFG[GRACE_PERIOD_SECONDS] * (-1000)
       pushCloseMessage = true
     }
@@ -376,7 +383,7 @@ ReadConfig() {
   path := "cfg/?user=" USER
   try {
     request := CreateRequest()
-    OpenRequest("GET", request, path).send() 
+    OpenRequest("GET", request, path).send()
     responseLines := StrSplit(request.responseText, "`n")
   } catch {
     ; handled below
@@ -390,7 +397,7 @@ ReadConfig() {
   Loop % (responseLines.Length() - 1) / 2 {
     k := responseLines[A_Index * 2]
     v := responseLines[A_Index * 2 + 1]
-    if (InStr(k, "watch_process") = 1) { 
+    if (InStr(k, "watch_process") = 1) {
       i := RegExMatch(v, "=[^=]+$")
       if (i > 0) {
         name := trim(SubStr(v, 1, i - 1))

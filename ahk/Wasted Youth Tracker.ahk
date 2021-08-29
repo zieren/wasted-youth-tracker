@@ -169,7 +169,6 @@ ShowMessages(messages, enableBeep = true) {
 ; If these processes are detected, the synthetic title is injected into the
 ; result. In this case the keys are:
 ; "ids": always empty, i.e. []
-; "active": always false (to avoid multiple active titles)
 ; "name": The process name (which was already known and now detected)
 ; "pid": The PID, for termination handling
 ; If an entry with the synthetic title already exists, the "pid" field is
@@ -177,7 +176,6 @@ ShowMessages(messages, enableBeep = true) {
 GetAllWindows() {
   windows := {}
   WinGet, ids, List ; get all window IDs
-  WinGet, activeID, ID, A ; get active window ID
   Loop %ids% {
     id := ids%A_Index%
     ; Get the ancestor window because we may have dialogs titled "Open File" etc.
@@ -189,10 +187,9 @@ GetAllWindows() {
       ; Store process name for debugging: This is needed when we close a window that should have
       ; been ignored.
       if (!windows[rootTitle]) {
-        windows[rootTitle] := {"ids": [rootID], "active": id == activeID, "name": processName}
+        windows[rootTitle] := {"ids": [rootID], "name": processName}
       } else {
         windows[rootTitle]["ids"].Push(rootID)
-        windows[rootTitle]["active"] := windows[rootTitle]["active"] || id == activeID
       }
     }
   }
@@ -201,7 +198,7 @@ GetAllWindows() {
     Process, Exist, %name%
     if (ErrorLevel) {
       if (!windows[title]) {
-        windows[title] := {"ids": [], "pid": ErrorLevel, "active": false, "name": name}
+        windows[title] := {"ids": [], "pid": ErrorLevel, "name": name}
       } else {
         ; It is possible that this title already exists, e.g. if the user has deliberately
         ; chosen such a title. Just add the PID for termination handling.
@@ -440,10 +437,10 @@ DebugShowStatus() {
   for title, window in GetAllWindows()
   {
     ids := ""
-    for id, ignored in window["ids"] {
+    for ignored, id in window["ids"] {
       ids .= (ids ? "/" : "") id
     }
-    msgs.Push("title=" title " ids=" ids " active=" window["active"] " name=" window["name"])
+    msgs.Push("title=" title " ids=" ids " name=" window["name"])
   }
   msgs.Push("----- warned limits:")
   for limit, ignored in WARNED_LIMITS {

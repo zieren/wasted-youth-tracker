@@ -1589,6 +1589,17 @@ final class WastedTest extends WastedTestBase {
             ['c1', '1', 42, 1, 't1'],
             ['c2', '2', 43, 3, "t12\nt2\nt22"]
         ]);
+    // Test that samples are cropped to 1024 characters. Titles are VARCHAR(256).
+    $this->mockTime++;
+    $one255 = str_repeat('1', 255);
+    $titles = ['a' . $one255, 'b' . $one255, 'c' . $one255, 'd' . $one255, 'e' . $one255];
+    $classification = $this->wasted->insertWindowTitles('u1', $titles);
+    $samples = substr(implode("\n", $titles), 0, 1021) . '...';
+    $this->assertEquals(
+        $this->wasted->getClassesToClassificationTable(), [
+            ['c1', '1', 42, 6, $samples],
+            ['c2', '2', 43, 3, "t12\nt2\nt22"]
+        ]);
   }
 
   public function testUserConfig(): void {

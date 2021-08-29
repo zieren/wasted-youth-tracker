@@ -448,49 +448,36 @@ class Wasted {
   }
 
   /**
-   * Returns a table listing all classes and their classification rules.
+   * Returns a table listing all classes, their classification rules and samples from all users.
    *
-   * TODO: Add time limit. Also limit number of samples (probably: crop resulting string).
+   * TODO: Add time limit.
    */
   public function getClassesToClassificationTable() {
     DB::query('SET @prev_title = ""');
     $rows = DB::query(
-        'SELECT name, re, priority, n, samples
+        'SELECT
+            classes.id AS id,
+            name,
+            re,
+            priority,
+            COUNT(DISTINCT title) AS n,
+            LEFT(GROUP_CONCAT(title ORDER BY title SEPARATOR "\n"), 1025) AS samples
           FROM classes
           LEFT JOIN classification ON classes.id = classification.class_id
           LEFT JOIN (
-            SELECT
-              id,
-              COUNT(title) AS n,
-              GROUP_CONCAT(title ORDER BY title SEPARATOR "\n") AS samples
-            FROM (
-              SELECT
-                id,
-                title,
-                IF (@prev_title = title, 0, 1) AS first,
-                @prev_title := title
-                FROM (
-                  SELECT title, priority, id
-                  FROM classification
-                  LEFT JOIN(
-                    SELECT DISTINCT title FROM activity
-                    WHERE title != ""
-                  ) t1
-                  ON t1.title REGEXP classification.re
-                  WHERE classification.class_id != |i0
-                  ORDER BY title, priority DESC
-                ) classification_all_prios
-                HAVING first = 1
-            ) classification_winners
-            GROUP BY id
-          ) t2
-          ON classification.id = t2.id
+            SELECT DISTINCT title, class_id FROM activity WHERE title != ""
+          ) t1
+          ON t1.class_id = classification.class_id
           WHERE classes.id != |i0
+          GROUP BY id, name, re, priority
           ORDER BY name, priority DESC',
         DEFAULT_CLASS_ID);
     $table = [];
     foreach ($rows as $r) {
-      $table[] = [$r['name'], $r['re'], intval($r['priority']), intval($r['n']), $r['samples']];
+      $samples = strlen($r['samples']) <= 1024
+          ? $r['samples']
+          : (substr($r['samples'], 0, 1021) . '...');
+      $table[] = [$r['name'], $r['re'], intval($r['priority']), intval($r['n']), $samples];
     }
     return $table;
   }

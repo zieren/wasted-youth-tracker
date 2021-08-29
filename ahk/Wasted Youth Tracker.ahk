@@ -462,7 +462,8 @@ DebugShowStatus() {
   for name, ignored in CFG[IGNORE_PROCESSES] {
     msgs.Push("process: " name)
   }
-  msgs.Push("", "Last successful request: " LAST_SUCCESSFUL_REQUEST)
+  t := FormatSeconds(EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
+  msgs.Push("", "Last successful request: " t " ago")
 
   ShowMessages(msgs, false)
 }

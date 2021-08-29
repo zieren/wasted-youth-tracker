@@ -19,8 +19,8 @@ global LAST_SUCCESSFUL_REQUEST := 0 ; epoch seconds
 global DOOMED_WINDOWS := {}
 ; Same for processes without windows.
 global DOOMED_PROCESSES := {}
-; Remember budgets for which a "time is almost up" message has been shown.
-global WARNED_BUDGETS := {}
+; Remember limits for which a "time is almost up" message has been shown.
+global WARNED_LIMITS := {}
 
 ; Populate config with defaults.
 global CFG := {}
@@ -133,15 +133,15 @@ TerminateProcess(pid) {
   DOOMED_PROCESSES.Delete(pid)
 }
 
-FindLowestBudget(budgetIds, budgets) {
-  lowestBudgetId := -1
-  for ignored, budgetId in budgetIds {
-    if (lowestBudgetId == -1
-        || budgets[budgetId]["remaining"] < budgets[lowestBudgetId]["remaining"]) {
-      lowestBudgetId := budgetId
+FindLowestLimit(limitIds, limits) {
+  lowestLimitId := -1
+  for ignored, limitId in limitIds {
+    if (lowestLimitId == -1
+        || limits[limitId]["remaining"] < limits[lowestLimitId]["remaining"]) {
+      lowestLimitId := limitId
     }
   }
-  return lowestBudgetId
+  return lowestLimitId
 }
 
 ShowMessages(messages, enableBeep = true) {
@@ -240,8 +240,8 @@ DoTheThing(reportStatus) {
   responseLines := StrSplit(request.responseText, "`n")
   ; Collect messages to show after processing the response.
   messages := []
-  ; Collect titles by budget ID so we can show them if reportStatus is set.
-  titlesByBudget := {}
+  ; Collect titles by limit ID so we can show them if reportStatus is set.
+  titlesByLimit := {}
 
   if (responseLines[1] == "error") {
     messages := responseLines
@@ -250,7 +250,7 @@ DoTheThing(reportStatus) {
     ; See RX.php for response sections.
     section := 1
     index := 1
-    budgets := {}
+    limits := {}
     for ignored, line in responseLines {
       if (line == "") {
         section++
@@ -259,9 +259,9 @@ DoTheThing(reportStatus) {
       switch (section) {
         case 1:
           s := StrSplit(line, ":", "", 3)
-          budgets[s[1]] := {"remaining": s[2], "name": s[3]}
+          limits[s[1]] := {"remaining": s[2], "name": s[3]}
         case 2:
-          ProcessTitleResponse(line, windows, indexToTitle[index++], budgets, titlesByBudget, messages)
+          ProcessTitleResponse(line, windows, indexToTitle[index++], limits, titlesByLimit, messages)
         default:
           messages := responseLines
           messages.InsertAt(1, "Invalid response received from server:")
@@ -272,7 +272,7 @@ DoTheThing(reportStatus) {
   }
 
   if (reportStatus) {
-    AddStatusReport(budgets, titlesByBudget, messages)
+    AddStatusReport(limits, titlesByLimit, messages)
   }
 
   return messages
@@ -293,9 +293,9 @@ HandleOffline(windows) {
   if (offlineCloseSecondsLeft < 0) {
     messages := []
     for title, window in windows {
-      ; Specifying the title here is slightly counterproductive because it allows to evade 
+      ; Specifying the title here is slightly counterproductive because it allows to evade
       ; termination by e.g. switching between browser tabs. The allowed offline period is likely
-      ; larger than the regular sample interval, so this could be worthwhile. However, without a 
+      ; larger than the regular sample interval, so this could be worthwhile. However, without a
       ; network connection the browser (which is the primary means of exploit) is not too useful.
       ; All in all, this case seems too obscure to special case it in the code.
       DoomWindow(window, title, messages, "No uplink to the mothership. Please close '" title "'")
@@ -307,29 +307,29 @@ HandleOffline(windows) {
   }
 }
 
-ProcessTitleResponse(line, windows, title, budgets, titlesByBudget, messages) {
-  budgetIds := StrSplit(line, ",")
-  for ignored, id in budgetIds {
-    if (!titlesByBudget[id]) {
-      titlesByBudget[id] := []
+ProcessTitleResponse(line, windows, title, limits, titlesByLimit, messages) {
+  limitIds := StrSplit(line, ",")
+  for ignored, id in limitIds {
+    if (!titlesByLimit[id]) {
+      titlesByLimit[id] := []
     }
-    titlesByBudget[id].Push(title)
+    titlesByLimit[id].Push(title)
   }
-  lowestBudgetId := FindLowestBudget(budgetIds, budgets)
-  secondsLeft := budgets[lowestBudgetId]["remaining"]
-  budget := budgets[lowestBudgetId]["name"]
+  lowestLimitId := FindLowestLimit(limitIds, limits)
+  secondsLeft := limits[lowestLimitId]["remaining"]
+  limit := limits[lowestLimitId]["name"]
   if (secondsLeft <= 0) {
-    closeMessage := "Time is up for budget '" budget "', please close '" title "'"
+    closeMessage := "Time is up for '" limit "', please close '" title "'"
     DoomWindow(windows[title], title, messages, closeMessage)
   } else if (secondsLeft <= 300) {
-    ; TODO: Make this configurable. Maybe pull config from server on start?
-    if (!WARNED_BUDGETS[lowestBudgetId]) {
-      WARNED_BUDGETS[lowestBudgetId] := 1
+    ; TODO: Make this configurable.
+    if (!WARNED_LIMITS[lowestLimitId]) {
+      WARNED_LIMITS[lowestLimitId] := 1
       timeLeftString := FormatSeconds(secondsLeft)
-      messages.Push("Budget '" budget "' for '" title "' has " timeLeftString " left.")
+      messages.Push("Limit '" limit "' for '" title "' has " timeLeftString " left.")
     }
-  } else if (WARNED_BUDGETS[lowestBudgetId]) { ; budget time was increased, need to warn again
-    WARNED_BUDGETS.Delete(lowestBudgetId)
+  } else if (WARNED_LIMITS[lowestLimitId]) { ; limit was increased, need to warn again
+    WARNED_LIMITS.Delete(lowestLimitId)
   }
 }
 
@@ -360,19 +360,19 @@ DoomWindow(window, title, messages, closeMessage) {
     messages.Push(closeMessage)
 }
 
-AddStatusReport(budgets, titlesByBudget, messages) {
+AddStatusReport(limits, titlesByLimit, messages) {
   if (messages.Length()) {
     messages.Push("")
   }
   messages.Push("---------- * STATUS * ----------", "")
-  budgetsSorted := {}
-  for id, budget in budgets {
-    budgetsSorted[budget["name"]] := {"remaining": budget["remaining"], "id": id}
+  limitsSorted := {}
+  for id, limit in limits {
+    limitsSorted[limit["name"]] := {"remaining": limit["remaining"], "id": id}
   }
-  for name, budget in budgetsSorted {
+  for name, limit in limitsSorted {
     messages.Push("")
-    messages.Push(FormatSeconds(budget["remaining"]) " " name)
-    for ignored, title in titlesByBudget[budget["id"]] {
+    messages.Push(FormatSeconds(limit["remaining"]) " " name)
+    for ignored, title in titlesByLimit[limit["id"]] {
       messages.Push("  --> " title)
     }
   }
@@ -445,9 +445,9 @@ DebugShowStatus() {
     }
     msgs.Push("title=" title " ids=" ids " active=" window["active"] " name=" window["name"])
   }
-  msgs.Push("----- warned budgets:")
-  for budget, ignored in WARNED_BUDGETS {
-    msgs.Push("warned: " budget)
+  msgs.Push("----- warned limits:")
+  for limit, ignored in WARNED_LIMITS {
+    msgs.Push("warned: " limit)
   }
   msgs.Push("----- doomed windows")
   for id, ignored in DOOMED_WINDOWS {

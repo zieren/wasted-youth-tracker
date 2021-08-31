@@ -71,11 +71,11 @@ class RX {
     // Part 1: Budgets and time left.
     $response = [];
     $configs = $wasted->getAllBudgetConfigs($user);
-    $budgetIdToName = getBudgetIdToNameMap($configs);
+    $limitIdToName = getBudgetIdToNameMap($configs);
     $timeLeftByBudget = $wasted->queryTimeLeftTodayAllBudgets($user);
-    foreach ($timeLeftByBudget as $budgetId => $timeLeft) {
+    foreach ($timeLeftByBudget as $limitId => $timeLeft) {
       $response[] =
-          ($budgetId ? $budgetId : 0) . ':' . $timeLeft . ':' . $budgetIdToName[$budgetId];
+          ($limitId ? $limitId : 0) . ':' . $timeLeft . ':' . $limitIdToName[$limitId];
     }
     $response[] = '';
 

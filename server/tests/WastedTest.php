@@ -40,8 +40,8 @@ final class WastedTest extends WastedTestBase {
     return $c;
   }
 
-  private function mapping($budgetId, $classId) {
-    return ['budget_id' => strval($budgetId), 'class_id' => strval($classId)];
+  private function mapping($limitId, $classId) {
+    return ['budget_id' => strval($limitId), 'class_id' => strval($classId)];
   }
 
   private function queryMappings() {
@@ -130,9 +130,9 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testSetUpBudgets(): void {
-    $budgetId1 = $this->wasted->addLimit('user_1', 'b1');
-    $budgetId2 = $this->wasted->addLimit('user_1', 'b2');
-    $this->assertEquals($budgetId2 - $budgetId1, 1);
+    $limitId1 = $this->wasted->addLimit('user_1', 'b1');
+    $limitId2 = $this->wasted->addLimit('user_1', 'b2');
+    $this->assertEquals($limitId2 - $limitId1, 1);
 
     $classId1 = $this->wasted->addClass('c1');
     $classId2 = $this->wasted->addClass('c2');
@@ -142,61 +142,61 @@ final class WastedTest extends WastedTestBase {
     $classificationId2 = $this->wasted->addClassification($classId2, 10, '2$');
     $this->assertEquals($classificationId2 - $classificationId1, 1);
 
-    $this->wasted->addMapping($classId1, $budgetId1);
+    $this->wasted->addMapping($classId1, $limitId1);
 
     // Class 1 mapped to budget 1, other classes are not assigned to any budget.
     $classification = $this->wasted->classify('user_1', ['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
         $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId1, [$budgetId1]),
+        $this->classification($classId1, [$limitId1]),
         $this->classification($classId2, [0]),
     ]);
 
     // Add a second mapping for the same class.
-    $this->wasted->addMapping($classId1, $budgetId2);
+    $this->wasted->addMapping($classId1, $limitId2);
 
     // Class 1 is now mapped to budgets 1 and 2.
     $classification = $this->wasted->classify('user_1', ['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
         $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId1, [$budgetId1, $budgetId2]),
+        $this->classification($classId1, [$limitId1, $limitId2]),
         $this->classification($classId2, [0]),
     ]);
 
     // Add a mapping for the default class.
-    $this->wasted->addMapping(DEFAULT_CLASS_ID, $budgetId2);
+    $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId2);
 
     // Default class is now mapped to budget 2.
     $classification = $this->wasted->classify('user_1', ['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
-        $this->classification(DEFAULT_CLASS_ID, [$budgetId2]),
-        $this->classification($classId1, [$budgetId1, $budgetId2]),
+        $this->classification(DEFAULT_CLASS_ID, [$limitId2]),
+        $this->classification($classId1, [$limitId1, $limitId2]),
         $this->classification($classId2, [0]),
     ]);
 
     // Remove mapping.
     $this->assertEquals($this->wasted->classify('user_1', ['window 1']), [
-        $this->classification($classId1, [$budgetId1, $budgetId2]),
+        $this->classification($classId1, [$limitId1, $limitId2]),
     ]);
-    $this->wasted->removeMapping($classId1, $budgetId1);
+    $this->wasted->removeMapping($classId1, $limitId1);
     $this->assertEquals($this->wasted->classify('user_1', ['window 1']), [
-        $this->classification($classId1, [$budgetId2]),
+        $this->classification($classId1, [$limitId2]),
     ]);
   }
 
   public function testTotalTime_SingleWindow_WithBudgets(): void {
     // Set up test budgets.
-    $budgetId1 = $this->wasted->addLimit('user_1', 'b1');
-    $budgetId2 = $this->wasted->addLimit('user_1', 'b2');
+    $limitId1 = $this->wasted->addLimit('user_1', 'b1');
+    $limitId2 = $this->wasted->addLimit('user_1', 'b2');
     $classId1 = $this->wasted->addClass('c1');
     $classId2 = $this->wasted->addClass('c2');
     $this->wasted->addClassification($classId1, 0, '1$');
     $this->wasted->addClassification($classId2, 10, '2$');
     // b1 <= default, c1
     // b2 <= c2
-    $this->wasted->addMapping(DEFAULT_CLASS_ID, $budgetId1);
-    $this->wasted->addMapping($classId1, $budgetId1);
-    $this->wasted->addMapping($classId2, $budgetId2);
+    $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId1);
+    $this->wasted->addMapping($classId1, $limitId1);
+    $this->wasted->addMapping($classId2, $limitId2);
 
     $fromTime = $this->newDateTime();
 
@@ -210,19 +210,19 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
-        [$budgetId1 => ['1970-01-01' => 0]]);
+        [$limitId1 => ['1970-01-01' => 0]]);
 
     $this->mockTime += 5;
     $this->wasted->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
-        [$budgetId1 => ['1970-01-01' => 5]]);
+        [$limitId1 => ['1970-01-01' => 5]]);
 
     $this->mockTime += 6;
     $this->wasted->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
-        [$budgetId1 => ['1970-01-01' => 11]]);
+        [$limitId1 => ['1970-01-01' => 11]]);
 
     // Switch window. First interval still counts towards previous window/budget.
     $this->mockTime += 7;
@@ -230,16 +230,16 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals(
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         [
-            $budgetId1 => ['1970-01-01' => 18],
-            $budgetId2 => ['1970-01-01' => 0]
+            $limitId1 => ['1970-01-01' => 18],
+            $limitId2 => ['1970-01-01' => 0]
     ]);
   }
 
   public function testTotalTime_TwoWindows_WithBudgets(): void {
     // Set up test budgets.
-    $budgetId1 = $this->wasted->addLimit('user_1', 'b1');
-    $budgetId2 = $this->wasted->addLimit('user_1', 'b2');
-    $budgetId3 = $this->wasted->addLimit('user_1', 'b3');
+    $limitId1 = $this->wasted->addLimit('user_1', 'b1');
+    $limitId2 = $this->wasted->addLimit('user_1', 'b2');
+    $limitId3 = $this->wasted->addLimit('user_1', 'b3');
     $classId1 = $this->wasted->addClass('c1');
     $classId2 = $this->wasted->addClass('c2');
     $classId3 = $this->wasted->addClass('c3');
@@ -249,11 +249,11 @@ final class WastedTest extends WastedTestBase {
     // b1 <= default, c1
     // b2 <= c2
     // b3 <= c2, c3
-    $this->wasted->addMapping(DEFAULT_CLASS_ID, $budgetId1);
-    $this->wasted->addMapping($classId1, $budgetId1);
-    $this->wasted->addMapping($classId2, $budgetId2);
-    $this->wasted->addMapping($classId2, $budgetId3);
-    $this->wasted->addMapping($classId3, $budgetId3);
+    $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId1);
+    $this->wasted->addMapping($classId1, $limitId1);
+    $this->wasted->addMapping($classId2, $limitId2);
+    $this->wasted->addMapping($classId2, $limitId3);
+    $this->wasted->addMapping($classId3, $limitId3);
 
     $fromTime = $this->newDateTime();
 
@@ -266,61 +266,61 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
-        [$budgetId1 => ['1970-01-01' => 0]]);
+        [$limitId1 => ['1970-01-01' => 0]]);
 
     // Advance 5 seconds and observe second window.
     $this->mockTime += 5;
     $this->wasted->insertWindowTitles('user_1', ['window 1', 'window 2']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
-        $budgetId1 => ['1970-01-01' => 5],
-        $budgetId2 => ['1970-01-01' => 0],
-        $budgetId3 => ['1970-01-01' => 0]]);
+        $limitId1 => ['1970-01-01' => 5],
+        $limitId2 => ['1970-01-01' => 0],
+        $limitId3 => ['1970-01-01' => 0]]);
 
     // Observe both again after 5 seconds.
     $this->mockTime += 5;
     $this->wasted->insertWindowTitles('user_1', ['window 1', 'window 2']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
-        $budgetId1 => ['1970-01-01' => 10],
-        $budgetId2 => ['1970-01-01' => 5],
-        $budgetId3 => ['1970-01-01' => 5]]);
+        $limitId1 => ['1970-01-01' => 10],
+        $limitId2 => ['1970-01-01' => 5],
+        $limitId3 => ['1970-01-01' => 5]]);
 
     // Advance 5 seconds and observe 'window 1' only.
     $this->mockTime += 5;
     $this->wasted->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
-        $budgetId1 => ['1970-01-01' => 15],
-        $budgetId2 => ['1970-01-01' => 10],
-        $budgetId3 => ['1970-01-01' => 10]]);
+        $limitId1 => ['1970-01-01' => 15],
+        $limitId2 => ['1970-01-01' => 10],
+        $limitId3 => ['1970-01-01' => 10]]);
 
     // Add 6 seconds and start two windows of class 1.
     $this->mockTime += 6;
     $this->wasted->insertWindowTitles('user_1', ['window 1', 'another window 1']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
-        $budgetId1 => ['1970-01-01' => 21],
-        $budgetId2 => ['1970-01-01' => 10],
-        $budgetId3 => ['1970-01-01' => 10]]);
+        $limitId1 => ['1970-01-01' => 21],
+        $limitId2 => ['1970-01-01' => 10],
+        $limitId3 => ['1970-01-01' => 10]]);
 
     // Add 7 seconds and observe both windows of class 1 again.
     $this->mockTime += 7;
     $this->wasted->insertWindowTitles('user_1', ['window 1', 'window 2']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
-        $budgetId1 => ['1970-01-01' => 28],
-        $budgetId2 => ['1970-01-01' => 10],
-        $budgetId3 => ['1970-01-01' => 10]]);
+        $limitId1 => ['1970-01-01' => 28],
+        $limitId2 => ['1970-01-01' => 10],
+        $limitId3 => ['1970-01-01' => 10]]);
 
     // Add 8 seconds and observe 'window 2'.
     $this->mockTime += 8;
     $this->wasted->insertWindowTitles('user_1', ['window 2']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime), [
-        $budgetId1 => ['1970-01-01' => 36],
-        $budgetId2 => ['1970-01-01' => 18],
-        $budgetId3 => ['1970-01-01' => 18]]);
+        $limitId1 => ['1970-01-01' => 36],
+        $limitId2 => ['1970-01-01' => 18],
+        $limitId3 => ['1970-01-01' => 18]]);
   }
 
   public function testTimeSpentByTitle_singleWindow(): void {
@@ -502,43 +502,43 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testWeeklyLimit(): void {
-    $budgetId = $this->wasted->addLimit('u', 'b');
-    $this->wasted->addMapping(DEFAULT_CLASS_ID, $budgetId);
+    $limitId = $this->wasted->addLimit('u', 'b');
+    $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId);
 
     // Budgets default to zero.
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u'),
-        [$budgetId => 0]);
+        [$limitId => 0]);
 
     // Daily limit is 42 minutes.
-    $this->wasted->setBudgetConfig($budgetId, 'daily_limit_minutes_default', 42);
+    $this->wasted->setBudgetConfig($limitId, 'daily_limit_minutes_default', 42);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u'),
-        [$budgetId => 42 * 60]);
+        [$limitId => 42 * 60]);
 
     // The weekly limit cannot extend the daily limit.
-    $this->wasted->setBudgetConfig($budgetId, 'weekly_limit_minutes', 666);
+    $this->wasted->setBudgetConfig($limitId, 'weekly_limit_minutes', 666);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u'),
-        [$budgetId => 42 * 60]);
+        [$limitId => 42 * 60]);
 
     // The weekly limit can shorten the daily limit.
-    $this->wasted->setBudgetConfig($budgetId, 'weekly_limit_minutes', 5);
+    $this->wasted->setBudgetConfig($limitId, 'weekly_limit_minutes', 5);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u'),
-        [$budgetId => 5 * 60]);
+        [$limitId => 5 * 60]);
 
     // The weekly limit can also be zero.
-    $this->wasted->setBudgetConfig($budgetId, 'weekly_limit_minutes', 0);
+    $this->wasted->setBudgetConfig($limitId, 'weekly_limit_minutes', 0);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u'),
-        [$budgetId => 0]);
+        [$limitId => 0]);
 
     // Clear the limit.
-    $this->wasted->clearBudgetConfig($budgetId, 'weekly_limit_minutes');
+    $this->wasted->clearBudgetConfig($limitId, 'weekly_limit_minutes');
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u'),
-        [$budgetId => 42 * 60]);
+        [$limitId => 42 * 60]);
   }
 
   public function testGetAllBudgetConfigs(): void {
@@ -547,24 +547,24 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->getAllBudgetConfigs('u'),
         []);
 
-    $budgetId = $this->wasted->addLimit('u', 'b');
+    $limitId = $this->wasted->addLimit('u', 'b');
 
     // A mapping is not required for the budget to be returned for the user.
     $this->assertEquals(
         $this->wasted->getAllBudgetConfigs('u'),
-        [$budgetId => ['name' => 'b']]);
+        [$limitId => ['name' => 'b']]);
 
     // Add mapping, doesn't change result.
-    $this->wasted->addMapping(DEFAULT_CLASS_ID, $budgetId);
+    $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->getAllBudgetConfigs('u'),
-        [$budgetId => ['name' => 'b']]);
+        [$limitId => ['name' => 'b']]);
 
     // Add a config.
-    $this->wasted->setBudgetConfig($budgetId, 'foo', 'bar');
+    $this->wasted->setBudgetConfig($limitId, 'foo', 'bar');
     $this->assertEqualsIgnoreOrder(
         $this->wasted->getAllBudgetConfigs('u'),
-        [$budgetId => ['foo' => 'bar', 'name' => 'b']]);
+        [$limitId => ['foo' => 'bar', 'name' => 'b']]);
   }
 
   public function testManageBudgets(): void {
@@ -573,7 +573,7 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->getAllBudgetConfigs('u1'),
         []);
     // Add a budget but no maping yet.
-    $budgetId1 = $this->wasted->addLimit('u1', 'b1');
+    $limitId1 = $this->wasted->addLimit('u1', 'b1');
     // Not returned when user does not match.
     $this->assertEquals(
         $this->wasted->getAllBudgetConfigs('nobody'),
@@ -581,17 +581,17 @@ final class WastedTest extends WastedTestBase {
     // Returned when user matches.
     $this->assertEquals(
         $this->wasted->getAllBudgetConfigs('u1'),
-        [$budgetId1 => ['name' => 'b1']]);
+        [$limitId1 => ['name' => 'b1']]);
 
     // Add a mapping.
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']), [
             $this->classification(DEFAULT_CLASS_ID, [0])
             ]);
-    $this->wasted->addMapping(DEFAULT_CLASS_ID, $budgetId1);
+    $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId1);
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']), [
-            $this->classification(DEFAULT_CLASS_ID, [$budgetId1])
+            $this->classification(DEFAULT_CLASS_ID, [$limitId1])
             ]);
 
     // Same behavior:
@@ -602,16 +602,16 @@ final class WastedTest extends WastedTestBase {
     // Returned when user matches.
     $this->assertEquals(
         $this->wasted->getAllBudgetConfigs('u1'),
-        [$budgetId1 => ['name' => 'b1']]);
+        [$limitId1 => ['name' => 'b1']]);
 
     // Add budget config.
-    $this->wasted->setBudgetConfig($budgetId1, 'foo', 'bar');
+    $this->wasted->setBudgetConfig($limitId1, 'foo', 'bar');
     $this->assertEqualsIgnoreOrder(
         $this->wasted->getAllBudgetConfigs('u1'),
-        [$budgetId1 => ['name' => 'b1', 'foo' => 'bar']]);
+        [$limitId1 => ['name' => 'b1', 'foo' => 'bar']]);
 
     // Remove budget, this cascades to mappings and config.
-    $this->wasted->removeBudget($budgetId1);
+    $this->wasted->removeBudget($limitId1);
     $this->assertEquals(
         $this->wasted->getAllBudgetConfigs('u1'),
         []);
@@ -640,8 +640,8 @@ final class WastedTest extends WastedTestBase {
 
     $classId = $this->wasted->addClass('c1');
     $this->wasted->addClassification($classId, 42, '1$');
-    $budgetId = $this->wasted->addLimit('u2', 'b1');
-    $this->wasted->addMapping($classId, $budgetId);
+    $limitId = $this->wasted->addLimit('u2', 'b1');
+    $this->wasted->addMapping($classId, $limitId);
 
     // No budget is mapped for user u1. The window is classified, but no budget is associated.
 
@@ -653,34 +653,34 @@ final class WastedTest extends WastedTestBase {
   public function testTimeLeftTodayAllBudgets_consumeTimeAndClassify(): void {
     $classId = $this->wasted->addClass('c1');
     $this->wasted->addClassification($classId, 42, '1$');
-    $budgetId1 = $this->wasted->addLimit('u1', 'b1');
+    $limitId1 = $this->wasted->addLimit('u1', 'b1');
 
     // Budget is listed even when no mapping is present.
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId1 => 0]);
+        [$limitId1 => 0]);
 
     // Add mapping.
-    $this->wasted->addMapping($classId, $budgetId1);
+    $this->wasted->addMapping($classId, $limitId1);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId1 => 0]);
+        [$limitId1 => 0]);
 
     // Provide 2 minutes.
-    $this->wasted->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 2);
+    $this->wasted->setBudgetConfig($limitId1, 'daily_limit_minutes_default', 2);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId1 => 120]);
+        [$limitId1 => 120]);
 
     // Start consuming time.
-    $classification1 = $this->classification($classId, [$budgetId1]);
+    $classification1 = $this->classification($classId, [$limitId1]);
 
     $this->assertEquals(
         $this->wasted->insertWindowTitles('u1', ['title 1']),
         [$classification1]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId1 => 120]);
+        [$limitId1 => 120]);
 
     $this->mockTime += 15;
     $this->assertEqualsIgnoreOrder(
@@ -688,7 +688,7 @@ final class WastedTest extends WastedTestBase {
         [$classification1]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId1 => 105]);
+        [$limitId1 => 105]);
 
     // Add a window that maps to no budget.
     $this->mockTime += 15;
@@ -698,27 +698,27 @@ final class WastedTest extends WastedTestBase {
         [$classification1, $classification2]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [null => 0, $budgetId1 => 90]);
+        [null => 0, $limitId1 => 90]);
     $this->mockTime += 15;
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 1', 'title 2']),
         [$classification1, $classification2]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [null => -15, $budgetId1 => 75]);
+        [null => -15, $limitId1 => 75]);
 
     // Add a second budget for title 1 with only 1 minute.
-    $budgetId2 = $this->wasted->addLimit('u1', 'b2');
-    $this->wasted->addMapping($classId, $budgetId2);
-    $this->wasted->setBudgetConfig($budgetId2, 'daily_limit_minutes_default', 1);
+    $limitId2 = $this->wasted->addLimit('u1', 'b2');
+    $this->wasted->addMapping($classId, $limitId2);
+    $this->wasted->setBudgetConfig($limitId2, 'daily_limit_minutes_default', 1);
     $this->mockTime += 1;
-    $classification1['budgets'][] = $budgetId2;
+    $classification1['budgets'][] = $limitId2;
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 1', 'title 2']),
         [$classification1, $classification2]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [null => -16, $budgetId1 => 74, $budgetId2 => 14]);
+        [null => -16, $limitId1 => 74, $limitId2 => 14]);
   }
 
   public function testInsertClassification(): void {
@@ -755,23 +755,23 @@ final class WastedTest extends WastedTestBase {
     $fromTime = $this->newDateTime();
     $classId = $this->wasted->addClass('c1');
     $this->wasted->addClassification($classId, 42, '1$');
-    $budgetId = $this->wasted->addLimit('u1', 'b1');
-    $this->wasted->addMapping($classId, $budgetId);
+    $limitId = $this->wasted->addLimit('u1', 'b1');
+    $this->wasted->addMapping($classId, $limitId);
 
     $this->assertEquals(
         $this->wasted->insertWindowTitles('u1', ['window 1']), [
-            $this->classification($classId, [$budgetId])]);
+            $this->classification($classId, [$limitId])]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId => 0]);
+        [$limitId => 0]);
 
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['window 1']), [
-            $this->classification($classId, [$budgetId])]);
+            $this->classification($classId, [$limitId])]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId => -1]);
+        [$limitId => -1]);
 
     // All windows closed. Bill time to last window.
     $this->mockTime++;
@@ -782,7 +782,7 @@ final class WastedTest extends WastedTestBase {
     // Used 2 seconds.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByBudgetAndDate('u1', $fromTime),
-        [$budgetId => ['1970-01-01' => 2]]);
+        [$limitId => ['1970-01-01' => 2]]);
 
     // Time advances.
     $this->mockTime++;
@@ -793,7 +793,7 @@ final class WastedTest extends WastedTestBase {
     // Still only used 2 seconds because nothing was open.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByBudgetAndDate('u1', $fromTime),
-        [$budgetId => ['1970-01-01' => 2]]);
+        [$limitId => ['1970-01-01' => 2]]);
   }
 
   public function testTimeSpent_handleNoWindows(): void {
@@ -873,73 +873,73 @@ final class WastedTest extends WastedTestBase {
   public function testHandleRequest_withBudgets(): void {
     $classId1 = $this->wasted->addClass('c1');
     $this->wasted->addClassification($classId1, 0, '1$');
-    $budgetId1 = $this->wasted->addLimit('u1', 'b1');
-    $this->wasted->addMapping($classId1, $budgetId1);
-    $this->wasted->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 5);
+    $limitId1 = $this->wasted->addLimit('u1', 'b1');
+    $this->wasted->addMapping($classId1, $limitId1);
+    $this->wasted->setBudgetConfig($limitId1, 'daily_limit_minutes_default', 5);
 
     $this->assertEquals(
         RX::handleRequest($this->wasted, 'u1'),
-        $budgetId1 . ":300:b1\n");
+        $limitId1 . ":300:b1\n");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 1"),
-        $budgetId1 . ":300:b1\n\n$budgetId1");
+        $limitId1 . ":300:b1\n\n$limitId1");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 1"),
-        $budgetId1 . ":299:b1\n\n$budgetId1");
+        $limitId1 . ":299:b1\n\n$limitId1");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 1\nfoo"),
-        "0:0:no_budget\n$budgetId1:298:b1\n\n$budgetId1\n0");
+        "0:0:no_budget\n$limitId1:298:b1\n\n$limitId1\n0");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 1\nfoo"),
-        "0:-1:no_budget\n$budgetId1:297:b1\n\n$budgetId1\n0");
+        "0:-1:no_budget\n$limitId1:297:b1\n\n$limitId1\n0");
 
     // Flip order.
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\nfoo\ntitle 1"),
-        "0:-2:no_budget\n$budgetId1:296:b1\n\n0\n" . $budgetId1);
+        "0:-2:no_budget\n$limitId1:296:b1\n\n0\n" . $limitId1);
 
     // Add second budget.
     $classId2 = $this->wasted->addClass('c2');
     $this->wasted->addClassification($classId2, 10, '2$');
-    $budgetId2 = $this->wasted->addLimit('u1', 'b2');
-    $this->wasted->addMapping($classId1, $budgetId2);
-    $this->wasted->addMapping($classId2, $budgetId2);
-    $this->wasted->setBudgetConfig($budgetId2, 'daily_limit_minutes_default', 2);
+    $limitId2 = $this->wasted->addLimit('u1', 'b2');
+    $this->wasted->addMapping($classId1, $limitId2);
+    $this->wasted->addMapping($classId2, $limitId2);
+    $this->wasted->setBudgetConfig($limitId2, 'daily_limit_minutes_default', 2);
 
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 1\nfoo"),
-        "0:-3:no_budget\n$budgetId1:295:b1\n$budgetId2:115:b2\n\n$budgetId1,$budgetId2\n0");
+        "0:-3:no_budget\n$limitId1:295:b1\n$limitId2:115:b2\n\n$limitId1,$limitId2\n0");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 1\ntitle 2"),
-        "0:-4:no_budget\n$budgetId1:294:b1\n$budgetId2:114:b2\n\n"
-        . "$budgetId1,$budgetId2\n$budgetId2");
+        "0:-4:no_budget\n$limitId1:294:b1\n$limitId2:114:b2\n\n"
+        . "$limitId1,$limitId2\n$limitId2");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 2"),
-        "0:-4:no_budget\n$budgetId1:293:b1\n$budgetId2:113:b2\n\n$budgetId2");
+        "0:-4:no_budget\n$limitId1:293:b1\n$limitId2:113:b2\n\n$limitId2");
     $this->mockTime++; // This still counts towards b2.
     $this->assertEquals(
         RX::handleRequest($this->wasted, 'u1'),
-        "0:-4:no_budget\n$budgetId1:293:b1\n$budgetId2:112:b2\n");
+        "0:-4:no_budget\n$limitId1:293:b1\n$limitId2:112:b2\n");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 2"),
-        "0:-4:no_budget\n$budgetId1:293:b1\n$budgetId2:112:b2\n\n$budgetId2");
+        "0:-4:no_budget\n$limitId1:293:b1\n$limitId2:112:b2\n\n$limitId2");
   }
 
   public function testHandleRequest_mappedForOtherUser(): void {
     $classId = $this->wasted->addClass('c1');
     $this->wasted->addClassification($classId, 0, '1$');
-    $budgetId1 = $this->wasted->addLimit('u1', 'b1');
-    $this->wasted->addMapping($classId, $budgetId1);
-    $this->wasted->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 1);
+    $limitId1 = $this->wasted->addLimit('u1', 'b1');
+    $this->wasted->addMapping($classId, $limitId1);
+    $this->wasted->setBudgetConfig($limitId1, 'daily_limit_minutes_default', 1);
 
     $this->assertEquals(RX::handleRequest($this->wasted, 'u2'), '');
     $this->mockTime++;
@@ -952,63 +952,63 @@ final class WastedTest extends WastedTestBase {
         "0:-1:no_budget\n\n0");
 
     // Now map same class for user u2.
-    $budgetId2 = $this->wasted->addLimit('u2', 'b2');
-    $this->wasted->setBudgetConfig($budgetId2, 'daily_limit_minutes_default', 1);
-    $this->wasted->addMapping($classId, $budgetId2);
+    $limitId2 = $this->wasted->addLimit('u2', 'b2');
+    $this->wasted->setBudgetConfig($limitId2, 'daily_limit_minutes_default', 1);
+    $this->wasted->addMapping($classId, $limitId2);
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u2\ntitle 1"),
-        "$budgetId2:58:b2\n\n$budgetId2");
+        "$limitId2:58:b2\n\n$limitId2");
   }
 
   public function testHandleRequest_utf8Conversion(): void {
     $classId = $this->wasted->addClass('c1');
     $this->wasted->addClassification($classId, 0, '^...$');
-    $budgetId = $this->wasted->addLimit('u1', 'b1');
-    $this->wasted->addMapping($classId, $budgetId);
+    $limitId = $this->wasted->addLimit('u1', 'b1');
+    $this->wasted->addMapping($classId, $limitId);
 
     // This file uses utf8 encoding. The word 'süß' would not match the above RE in utf8 because
     // MySQL's RE library does not support utf8 and would see 5 bytes.
     $this->assertEquals(RX::handleRequest($this->wasted, "u1\nsüß"),
-        $budgetId . ":0:b1\n\n" . $budgetId);
+        $limitId . ":0:b1\n\n" . $limitId);
   }
 
   public function testSetOverrideMinutesAndUnlock(): void {
-    $budgetId = $this->wasted->addLimit('u1', 'b1');
-    $this->wasted->addMapping(DEFAULT_CLASS_ID, $budgetId);
-    $this->wasted->setBudgetConfig($budgetId, 'daily_limit_minutes_default', 42);
-    $this->wasted->setBudgetConfig($budgetId, 'require_unlock', 1);
+    $limitId = $this->wasted->addLimit('u1', 'b1');
+    $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId);
+    $this->wasted->setBudgetConfig($limitId, 'daily_limit_minutes_default', 42);
+    $this->wasted->setBudgetConfig($limitId, 'require_unlock', 1);
 
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId => 0]);
+        [$limitId => 0]);
 
-    $this->wasted->setOverrideUnlock('u1', $this->dateString(), $budgetId);
+    $this->wasted->setOverrideUnlock('u1', $this->dateString(), $limitId);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId => 42 * 60]);
+        [$limitId => 42 * 60]);
 
-    $this->wasted->setOverrideMinutes('u1', $this->dateString(), $budgetId, 666);
+    $this->wasted->setOverrideMinutes('u1', $this->dateString(), $limitId, 666);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId => 666 * 60]);
+        [$limitId => 666 * 60]);
 
     // Test updating.
-    $this->wasted->setOverrideMinutes('u1', $this->dateString(), $budgetId, 123);
+    $this->wasted->setOverrideMinutes('u1', $this->dateString(), $limitId, 123);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId => 123 * 60]);
+        [$limitId => 123 * 60]);
 
-    $this->wasted->clearOverrides('u1', $this->dateString(), $budgetId);
+    $this->wasted->clearOverrides('u1', $this->dateString(), $limitId);
 
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId => 0]);
+        [$limitId => 0]);
 
-    $this->wasted->setOverrideUnlock('u1', $this->dateString(), $budgetId);
+    $this->wasted->setOverrideUnlock('u1', $this->dateString(), $limitId);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
-        [$budgetId => 42 * 60]);
+        [$limitId => 42 * 60]);
   }
 
   public function testConcurrentRequests(): void {
@@ -1016,8 +1016,8 @@ final class WastedTest extends WastedTestBase {
 
     $classId1 = $this->wasted->addClass('c1');
     $this->wasted->addClassification($classId1, 0, '1$');
-    $budgetId1 = $this->wasted->addLimit('u1', 'b1');
-    $this->wasted->addMapping($classId1, $budgetId1);
+    $limitId1 = $this->wasted->addLimit('u1', 'b1');
+    $this->wasted->addMapping($classId1, $limitId1);
 
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2']),
@@ -1042,13 +1042,13 @@ final class WastedTest extends WastedTestBase {
     // title from the previous call.
     $classification2and1 = [
         $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId1, [$budgetId1])];
+        $this->classification($classId1, [$limitId1])];
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']),
         $classification2and1);
     $timeSpent2and1 = [
         '' => ['1970-01-01' => 1],
-        $budgetId1 => ['1970-01-01' => 0]];
+        $limitId1 => ['1970-01-01' => 0]];
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByBudgetAndDate('u1', $fromTime),
         $timeSpent2and1);
@@ -1065,18 +1065,18 @@ final class WastedTest extends WastedTestBase {
     // record to collide with the first (because class_id is not part of the PK) and be ignored.
     $classId2 = $this->wasted->addClass('c2');
     $this->wasted->addClassification($classId2, 10 /* higher priority */, '1$');
-    $budgetId2 = $this->wasted->addLimit('u1', 'b2');
-    $this->wasted->addMapping($classId2, $budgetId2);
+    $limitId2 = $this->wasted->addLimit('u1', 'b2');
+    $this->wasted->addMapping($classId2, $limitId2);
     // Request does return the updated classification...
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId2, [$budgetId2])]); // changed to c2, which maps to b2
+        $this->classification($classId2, [$limitId2])]); // changed to c2, which maps to b2
     // ... but records retain the old one.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
         '' => ['1970-01-01' => 1],
-        $budgetId1 => ['1970-01-01' => 0]]);
+        $limitId1 => ['1970-01-01' => 0]]);
 
     // Accumulate time.
     $this->mockTime++;
@@ -1086,12 +1086,12 @@ final class WastedTest extends WastedTestBase {
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId2, [$budgetId2])]);
+        $this->classification($classId2, [$limitId2])]);
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId2, [$budgetId2])]);
+        $this->classification($classId2, [$limitId2])]);
     // One more second to ensure order in the assertion below.
     $this->mockTime++;
     $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']);
@@ -1105,8 +1105,8 @@ final class WastedTest extends WastedTestBase {
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
         '' => ['1970-01-01' => 4],
-        $budgetId1 => ['1970-01-01' => 1],
-        $budgetId2 => ['1970-01-01' => 2]]);
+        $limitId1 => ['1970-01-01' => 1],
+        $limitId2 => ['1970-01-01' => 2]]);
   }
 
   function testUmlauts(): void {
@@ -1138,20 +1138,20 @@ final class WastedTest extends WastedTestBase {
   }
 
   function testSameBudgetName(): void {
-    $budgetId1 = $this->wasted->addLimit('u1', 'b1');
-    $budgetId2 = $this->wasted->addLimit('u2', 'b1');
+    $limitId1 = $this->wasted->addLimit('u1', 'b1');
+    $limitId2 = $this->wasted->addLimit('u2', 'b1');
     $this->assertEquals($this->wasted->getAllBudgetConfigs('u1'),
-        [$budgetId1 => ['name' => 'b1']]);
+        [$limitId1 => ['name' => 'b1']]);
     $this->assertEquals($this->wasted->getAllBudgetConfigs('u2'),
-        [$budgetId2 => ['name' => 'b1']]);
+        [$limitId2 => ['name' => 'b1']]);
     $this->assertEquals($this->wasted->getAllBudgetConfigs('nobody'), []);
   }
 
   function testBudgetWithUmlauts(): void {
     $budgetName = 't' . chr(228) .'st';
-    $budgetId = $this->wasted->addLimit('u1', $budgetName);
+    $limitId = $this->wasted->addLimit('u1', $budgetName);
     $this->assertEquals($this->wasted->getAllBudgetConfigs('u1'),
-        [$budgetId => ['name' => $budgetName]]);
+        [$limitId => ['name' => $budgetName]]);
   }
 
   function testReclassify(): void {
@@ -1180,38 +1180,38 @@ final class WastedTest extends WastedTestBase {
     // Add classification for w1.
     $classId1 = $this->wasted->addClass('c1');
     $this->wasted->addClassification($classId1, 0, '1$');
-    $budgetId1 = $this->wasted->addLimit('u1', 'b1');
-    $this->wasted->addMapping($classId1, $budgetId1);
+    $limitId1 = $this->wasted->addLimit('u1', 'b1');
+    $this->wasted->addMapping($classId1, $limitId1);
 
     $this->wasted->reclassify($fromTime);
 
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
             '' => [$date => 2],
-            $budgetId1 => [$date => 2]]);
+            $limitId1 => [$date => 2]]);
 
     // Add classification for w2.
     $classId2 = $this->wasted->addClass('c2');
     $this->wasted->addClassification($classId2, 0, '2$');
-    $budgetId2 = $this->wasted->addLimit('u1', 'b2');
-    $this->wasted->addMapping($classId2, $budgetId2);
+    $limitId2 = $this->wasted->addLimit('u1', 'b2');
+    $this->wasted->addMapping($classId2, $limitId2);
 
     $this->wasted->reclassify($fromTime);
 
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
-            $budgetId1 => [$date => 2],
-            $budgetId2 => [$date => 2]]);
+            $limitId1 => [$date => 2],
+            $limitId2 => [$date => 2]]);
 
     // Check u2 to ensure reclassification works across users.
-    $budgetId1_2 = $this->wasted->addLimit('u2', 'b1');
-    $budgetId2_2 = $this->wasted->addLimit('u2', 'b2');
-    $this->wasted->addMapping($classId1, $budgetId1_2);
-    $this->wasted->addMapping($classId2, $budgetId2_2);
+    $limitId1_2 = $this->wasted->addLimit('u2', 'b1');
+    $limitId2_2 = $this->wasted->addLimit('u2', 'b2');
+    $this->wasted->addMapping($classId1, $limitId1_2);
+    $this->wasted->addMapping($classId2, $limitId2_2);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByBudgetAndDate('u2', $fromTime), [
-            $budgetId1_2 => [$date => 2],
-            $budgetId2_2 => [$date => 2]]);
+            $limitId1_2 => [$date => 2],
+            $limitId2_2 => [$date => 2]]);
 
     // Attempt to mess with the "" placeholder title.
     $this->mockTime++;
@@ -1220,32 +1220,32 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->insertWindowTitles('u1', []);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
-            $budgetId1 => [$date => 3],
-            $budgetId2 => [$date => 3]]);
+            $limitId1 => [$date => 3],
+            $limitId2 => [$date => 3]]);
     $this->wasted->addClassification($classId1, 666, '()');
     $this->wasted->reclassify($fromTime);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
-            $budgetId1 => [$date => 3]]);
+            $limitId1 => [$date => 3]]);
 
     // Reclassify only a subset.
     $this->wasted->addClassification($classId2, 667, '()');
     $this->wasted->reclassify($fromTime2);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByBudgetAndDate('u1', $fromTime), [
-            $budgetId1 => [$date => 1],
-            $budgetId2 => [$date => 2]]);
+            $limitId1 => [$date => 1],
+            $limitId2 => [$date => 2]]);
   }
 
   public function testRemoveClass(): void {
     $classId = $this->wasted->addClass('c1');
-    $budgetId = $this->wasted->addLimit('u1', 'b1');
-    $this->wasted->addMapping($classId, $budgetId);
+    $limitId = $this->wasted->addLimit('u1', 'b1');
+    $this->wasted->addMapping($classId, $limitId);
     $classificationId = $this->wasted->addClassification($classId, 42, '()');
 
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']),
-        [['class_id' => $classId, 'budgets' => [$budgetId]]]);
+        [['class_id' => $classId, 'budgets' => [$limitId]]]);
     $this->assertEquals(
         $this->wasted->getAllClassifications(),
         [$classificationId => ['name' => 'c1', 're' => '()', 'priority' => 42]]);
@@ -1313,58 +1313,58 @@ final class WastedTest extends WastedTestBase {
   public function testTotalBudget(): void {
     $classId1 = $this->wasted->addClass('c1');
     $classId2 = $this->wasted->addClass('c2');
-    $budgetId1 = $this->wasted->addLimit('u1', 'b1');
-    $budgetId2 = $this->wasted->addLimit('u1', 'b2');
-    $this->wasted->addMapping($classId1, $budgetId1);
+    $limitId1 = $this->wasted->addLimit('u1', 'b1');
+    $limitId2 = $this->wasted->addLimit('u1', 'b2');
+    $this->wasted->addMapping($classId1, $limitId1);
     $this->assertEquals(
         $this->queryMappings(),
-        [$this->mapping($budgetId1, $classId1)]);
+        [$this->mapping($limitId1, $classId1)]);
     $classId3 = $this->wasted->addClass('c3');
     $classId4 = $this->wasted->addClass('c4');
-    $this->wasted->setTotalBudget('u1', $budgetId1);
+    $this->wasted->setTotalBudget('u1', $limitId1);
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($budgetId1, DEFAULT_CLASS_ID),
-            $this->mapping($budgetId1, $classId1),
-            $this->mapping($budgetId1, $classId2),
-            $this->mapping($budgetId1, $classId3),
-            $this->mapping($budgetId1, $classId4),
+            $this->mapping($limitId1, DEFAULT_CLASS_ID),
+            $this->mapping($limitId1, $classId1),
+            $this->mapping($limitId1, $classId2),
+            $this->mapping($limitId1, $classId3),
+            $this->mapping($limitId1, $classId4),
             ]);
     $classId5 = $this->wasted->addClass('c5');
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($budgetId1, DEFAULT_CLASS_ID),
-            $this->mapping($budgetId1, $classId1),
-            $this->mapping($budgetId1, $classId2),
-            $this->mapping($budgetId1, $classId3),
-            $this->mapping($budgetId1, $classId4),
-            $this->mapping($budgetId1, $classId5),
+            $this->mapping($limitId1, DEFAULT_CLASS_ID),
+            $this->mapping($limitId1, $classId1),
+            $this->mapping($limitId1, $classId2),
+            $this->mapping($limitId1, $classId3),
+            $this->mapping($limitId1, $classId4),
+            $this->mapping($limitId1, $classId5),
             ]);
 
     DB::query('TRUNCATE TABLE mappings');
     $this->assertEquals(
         $this->queryMappings(),
         []);
-    $this->wasted->setTotalBudget('u1', $budgetId2);
+    $this->wasted->setTotalBudget('u1', $limitId2);
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
-            $this->mapping($budgetId2, $classId1),
-            $this->mapping($budgetId2, $classId2),
-            $this->mapping($budgetId2, $classId3),
-            $this->mapping($budgetId2, $classId4),
-            $this->mapping($budgetId2, $classId5),
+            $this->mapping($limitId2, DEFAULT_CLASS_ID),
+            $this->mapping($limitId2, $classId1),
+            $this->mapping($limitId2, $classId2),
+            $this->mapping($limitId2, $classId3),
+            $this->mapping($limitId2, $classId4),
+            $this->mapping($limitId2, $classId5),
             ]);
     $classId6 = $this->wasted->addClass('c6');
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
-            $this->mapping($budgetId2, $classId1),
-            $this->mapping($budgetId2, $classId2),
-            $this->mapping($budgetId2, $classId3),
-            $this->mapping($budgetId2, $classId4),
-            $this->mapping($budgetId2, $classId5),
-            $this->mapping($budgetId2, $classId6),
+            $this->mapping($limitId2, DEFAULT_CLASS_ID),
+            $this->mapping($limitId2, $classId1),
+            $this->mapping($limitId2, $classId2),
+            $this->mapping($limitId2, $classId3),
+            $this->mapping($limitId2, $classId4),
+            $this->mapping($limitId2, $classId5),
+            $this->mapping($limitId2, $classId6),
             ]);
 
     $this->wasted->removeClass($classId2);
@@ -1373,37 +1373,37 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->removeClass($classId5);
     $this->wasted->removeClass($classId6);
     // Configure b1 for u2.
-    $this->wasted->setTotalbudget('u2', $budgetId1);
+    $this->wasted->setTotalbudget('u2', $limitId1);
 
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($budgetId1, DEFAULT_CLASS_ID),
-            $this->mapping($budgetId1, $classId1),
-            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
-            $this->mapping($budgetId2, $classId1),
+            $this->mapping($limitId1, DEFAULT_CLASS_ID),
+            $this->mapping($limitId1, $classId1),
+            $this->mapping($limitId2, DEFAULT_CLASS_ID),
+            $this->mapping($limitId2, $classId1),
             ]);
 
     $classId7 = $this->wasted->addClass('c7');
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($budgetId1, DEFAULT_CLASS_ID),
-            $this->mapping($budgetId1, $classId1),
-            $this->mapping($budgetId1, $classId7),
-            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
-            $this->mapping($budgetId2, $classId1),
-            $this->mapping($budgetId2, $classId7),
+            $this->mapping($limitId1, DEFAULT_CLASS_ID),
+            $this->mapping($limitId1, $classId1),
+            $this->mapping($limitId1, $classId7),
+            $this->mapping($limitId2, DEFAULT_CLASS_ID),
+            $this->mapping($limitId2, $classId1),
+            $this->mapping($limitId2, $classId7),
             ]);
 
     // Removing a total budget will make the trigger fail from now on. But if a trigger fails alone
     // in the forest and nobody is there to hear it, does it make a sound? No!
-    $this->wasted->removeBudget($budgetId1);
+    $this->wasted->removeBudget($limitId1);
     $classId8 = $this->wasted->addClass('c8');
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
-            $this->mapping($budgetId2, $classId1),
-            $this->mapping($budgetId2, $classId7),
-            $this->mapping($budgetId2, $classId8),
+            $this->mapping($limitId2, DEFAULT_CLASS_ID),
+            $this->mapping($limitId2, $classId1),
+            $this->mapping($limitId2, $classId7),
+            $this->mapping($limitId2, $classId8),
             ]);
 
     // Remove the total budget setting.
@@ -1411,10 +1411,10 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->addClass('c9');
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($budgetId2, DEFAULT_CLASS_ID),
-            $this->mapping($budgetId2, $classId1),
-            $this->mapping($budgetId2, $classId7),
-            $this->mapping($budgetId2, $classId8),
+            $this->mapping($limitId2, DEFAULT_CLASS_ID),
+            $this->mapping($limitId2, $classId1),
+            $this->mapping($limitId2, $classId7),
+            $this->mapping($limitId2, $classId8),
             ]);
   }
 
@@ -1446,8 +1446,8 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testRemoveTriggersForTest(): void {
-    $budgetId = $this->wasted->addLimit('u1', 'b1');
-    $this->wasted->setTotalBudget('u1', $budgetId);
+    $limitId = $this->wasted->addLimit('u1', 'b1');
+    $this->wasted->setTotalBudget('u1', $limitId);
     $this->wasted->clearAllForTest();
 
     $this->assertEquals(count(DB::query('SELECT * FROM budgets')), 0);
@@ -1455,11 +1455,11 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testRenameBudget(): void {
-    $budgetId = $this->wasted->addLimit('u1', 'b1');
-    $this->wasted->renameBudget($budgetId, 'b2');
+    $limitId = $this->wasted->addLimit('u1', 'b1');
+    $this->wasted->renameBudget($limitId, 'b2');
     $this->assertEquals(
         $this->wasted->getAllBudgetConfigs('u1'),
-        [$budgetId => ['name' => 'b2']]);
+        [$limitId => ['name' => 'b2']]);
 
   }
 
@@ -1537,20 +1537,20 @@ final class WastedTest extends WastedTestBase {
 
   public function testBudgetsToClassesTable(): void {
     $this->wasted->addLimit('u1', 'b1');
-    $budgetId2 = $this->wasted->addLimit('u1', 'b2');
-    $budgetId3 = $this->wasted->addLimit('u1', 'b3');
-    $budgetId4 = $this->wasted->addLimit('u1', 'b4');
-    $budgetId5 = $this->wasted->addLimit('u1', 'b5');
+    $limitId2 = $this->wasted->addLimit('u1', 'b2');
+    $limitId3 = $this->wasted->addLimit('u1', 'b3');
+    $limitId4 = $this->wasted->addLimit('u1', 'b4');
+    $limitId5 = $this->wasted->addLimit('u1', 'b5');
     $this->wasted->addClass('c1');
     $classId2 = $this->wasted->addClass('c2');
     $classId3 = $this->wasted->addClass('c3');
     $classId4 = $this->wasted->addClass('c4');
-    $this->wasted->addMapping($classId2, $budgetId2);
-    $this->wasted->addMapping($classId3, $budgetId2);
-    $this->wasted->addMapping($classId3, $budgetId3);
-    $this->wasted->addMapping($classId3, $budgetId4);
-    $this->wasted->addMapping($classId4, $budgetId4);
-    $this->wasted->addMapping($classId4, $budgetId5);
+    $this->wasted->addMapping($classId2, $limitId2);
+    $this->wasted->addMapping($classId3, $limitId2);
+    $this->wasted->addMapping($classId3, $limitId3);
+    $this->wasted->addMapping($classId3, $limitId4);
+    $this->wasted->addMapping($classId4, $limitId4);
+    $this->wasted->addMapping($classId4, $limitId5);
 
     $this->assertEquals(
         $this->wasted->getBudgetsToClassesTable('u1'), [
@@ -1661,11 +1661,11 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), []);
 
     // Empty when no time is configured.
-    $budgetId1 = $this->wasted->addLimit('u1', 'b1');
+    $limitId1 = $this->wasted->addLimit('u1', 'b1');
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), []);
 
     // Empty when no class exists.
-    $this->wasted->setBudgetConfig($budgetId1, 'daily_limit_minutes_default', 3);
+    $this->wasted->setBudgetConfig($limitId1, 'daily_limit_minutes_default', 3);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), []);
 
     // Empty when no class is mapped.
@@ -1673,32 +1673,32 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), []);
 
     // Simple case: one class, one budget.
-    $this->wasted->addMapping($classId1, $budgetId1);
+    $this->wasted->addMapping($classId1, $limitId1);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), ['c1 (0:03:00)']);
 
     // Add another budget that requires unlocking. No change for now.
-    $budgetId2 = $this->wasted->addLimit('u1', 'b2');
-    $this->wasted->setBudgetConfig($budgetId2, 'daily_limit_minutes_default', 2);
-    $this->wasted->setBudgetConfig($budgetId2, 'require_unlock', 1);
+    $limitId2 = $this->wasted->addLimit('u1', 'b2');
+    $this->wasted->setBudgetConfig($limitId2, 'daily_limit_minutes_default', 2);
+    $this->wasted->setBudgetConfig($limitId2, 'require_unlock', 1);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), ['c1 (0:03:00)']);
 
     // Map the class to the new budget too. This removes the class from the response.
-    $this->wasted->addMapping($classId1, $budgetId2);
+    $this->wasted->addMapping($classId1, $limitId2);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), []);
 
     // Unlock the locked budget. It restricts the first budget.
-    $this->wasted->setOverrideUnlock('u1', $this->dateString(), $budgetId2);
+    $this->wasted->setOverrideUnlock('u1', $this->dateString(), $limitId2);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), ['c1 (0:02:00)']);
 
     // Allow time for two classes. Sort by time left.
     $classId2 = $this->wasted->addClass('c2');
-    $this->wasted->addMapping($classId2, $budgetId1);
+    $this->wasted->addMapping($classId2, $limitId1);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'),
         ['c2 (0:03:00)', 'c1 (0:02:00)']);
 
     // Group by time left.
     $classId3 = $this->wasted->addClass('c3');
-    $this->wasted->addMapping($classId3, $budgetId2);
+    $this->wasted->addMapping($classId3, $limitId2);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'),
         ['c2 (0:03:00)', 'c1', 'c3 (0:02:00)']);
   }
@@ -1723,65 +1723,65 @@ final class WastedTest extends WastedTestBase {
     $classId2 = $this->wasted->addClass('c2');
     $classId3 = $this->wasted->addClass('c3');
     $classId4 = $this->wasted->addClass('c4');
-    $budgetId1 = $this->wasted->addLimit('u1', 'b1');
-    $budgetId2 = $this->wasted->addLimit('u1', 'b2');
-    $budgetId3 = $this->wasted->addLimit('u1', 'b3');
-    $budgetId4 = $this->wasted->addLimit('u1', 'b4');
+    $limitId1 = $this->wasted->addLimit('u1', 'b1');
+    $limitId2 = $this->wasted->addLimit('u1', 'b2');
+    $limitId3 = $this->wasted->addLimit('u1', 'b3');
+    $limitId4 = $this->wasted->addLimit('u1', 'b4');
     // b1: c1, c2, c3
     // b2: c1, c2
     // b3: c3
     // b4: c4
-    $this->wasted->addMapping($classId1, $budgetId1);
-    $this->wasted->addMapping($classId2, $budgetId1);
-    $this->wasted->addMapping($classId3, $budgetId1);
-    $this->wasted->addMapping($classId1, $budgetId2);
-    $this->wasted->addMapping($classId2, $budgetId2);
-    $this->wasted->addMapping($classId3, $budgetId3);
-    $this->wasted->addMapping($classId4, $budgetId4);
+    $this->wasted->addMapping($classId1, $limitId1);
+    $this->wasted->addMapping($classId2, $limitId1);
+    $this->wasted->addMapping($classId3, $limitId1);
+    $this->wasted->addMapping($classId1, $limitId2);
+    $this->wasted->addMapping($classId2, $limitId2);
+    $this->wasted->addMapping($classId3, $limitId3);
+    $this->wasted->addMapping($classId4, $limitId4);
 
     // Add an overlapping mapping for another user.
-    $budgetId5 = $this->wasted->addLimit('u2', 'b5');
-    $this->wasted->addMapping($classId1, $budgetId5);
+    $limitId5 = $this->wasted->addLimit('u2', 'b5');
+    $this->wasted->addMapping($classId1, $limitId5);
 
     for ($i = 0; $i < 2; $i++) {
       // Query for time limitation only (i.e. no date).
-      $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId1), ['b2', 'b3']);
-      $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId2), ['b1']);
-      $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId3), ['b1']);
-      $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId4), []);
+      $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId1), ['b2', 'b3']);
+      $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId2), ['b1']);
+      $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId3), ['b1']);
+      $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId4), []);
 
       // Initially require unlock for all. No effect on repeating the above time queries.
-      $this->wasted->setBudgetConfig($budgetId1, 'require_unlock', '1');
-      $this->wasted->setBudgetConfig($budgetId2, 'require_unlock', '1');
-      $this->wasted->setBudgetConfig($budgetId3, 'require_unlock', '1');
-      $this->wasted->setBudgetConfig($budgetId4, 'require_unlock', '1');
+      $this->wasted->setBudgetConfig($limitId1, 'require_unlock', '1');
+      $this->wasted->setBudgetConfig($limitId2, 'require_unlock', '1');
+      $this->wasted->setBudgetConfig($limitId3, 'require_unlock', '1');
+      $this->wasted->setBudgetConfig($limitId4, 'require_unlock', '1');
     }
 
     // Query for unlock limitation.
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId1, $date), ['b2', 'b3']);
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId2, $date), ['b1']);
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId3, $date), ['b1']);
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId4, $date), []);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId1, $date), ['b2', 'b3']);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId2, $date), ['b1']);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId3, $date), ['b1']);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId4, $date), []);
 
     // b2 no longer needs unlocking.
-    $this->wasted->setOverrideUnlock('u1', $date, $budgetId2);
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId1, $date), ['b3']);
+    $this->wasted->setOverrideUnlock('u1', $date, $limitId2);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId1, $date), ['b3']);
 
     // Consider date.
     $this->assertEquals(
-        $this->wasted->queryOverlappingBudgets($budgetId1, '1974-09-29'), ['b2', 'b3']);
+        $this->wasted->queryOverlappingBudgets($limitId1, '1974-09-29'), ['b2', 'b3']);
 
     // No more unlock required anywhere.
-    $this->wasted->clearBudgetConfig($budgetId1, 'require_unlock');
-    $this->wasted->clearBudgetConfig($budgetId2, 'require_unlock');
-    $this->wasted->clearBudgetConfig($budgetId3, 'require_unlock');
-    $this->wasted->clearBudgetConfig($budgetId4, 'require_unlock');
+    $this->wasted->clearBudgetConfig($limitId1, 'require_unlock');
+    $this->wasted->clearBudgetConfig($limitId2, 'require_unlock');
+    $this->wasted->clearBudgetConfig($limitId3, 'require_unlock');
+    $this->wasted->clearBudgetConfig($limitId4, 'require_unlock');
 
     // Query for unlock limitation.
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId1, $date), []);
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId2, $date), []);
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId3, $date), []);
-    $this->assertEquals($this->wasted->queryOverlappingBudgets($budgetId4, $date), []);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId1, $date), []);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId2, $date), []);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId3, $date), []);
+    $this->assertEquals($this->wasted->queryOverlappingBudgets($limitId4, $date), []);
   }
 }
 

@@ -69,50 +69,50 @@ if (action('setUserConfig')) {
   $user = postSanitized('user');
   $wasted->addLimit($user, postSanitized('budgetName'));
 } else if (action('renameBudget')) {
-  $budgetId = postInt('budgetId');
-  $wasted->renameBudget($budgetId, postSanitized('budgetName'));
+  $limitId = postInt('budgetId');
+  $wasted->renameBudget($limitId, postSanitized('budgetName'));
 } else if (action('addClass')) {
   $wasted->addClass(postSanitized('className'));
 } else if (action('removeBudget')) {
-  $budgetId = postInt('budgetId');
-  $wasted->removeBudget($budgetId);
+  $limitId = postInt('budgetId');
+  $wasted->removeBudget($limitId);
 } else if (action('setBudgetConfig')) {
-  $budgetId = postInt('budgetId');
+  $limitId = postInt('budgetId');
   $wasted->setBudgetConfig(
-      $budgetId, postSanitized('budgetConfigKey'), postSanitized('budgetConfigValue'));
+      $limitId, postSanitized('budgetConfigKey'), postSanitized('budgetConfigValue'));
 } else if (action('clearBudgetConfig')) {
-  $budgetId = postInt('budgetId');
-  $wasted->clearBudgetConfig($budgetId, postSanitized('budgetConfigKey'));
+  $limitId = postInt('budgetId');
+  $wasted->clearBudgetConfig($limitId, postSanitized('budgetConfigKey'));
 } else if (action('setMinutes')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
-  $budgetId = postInt('budgetId');
+  $limitId = postInt('budgetId');
   $furtherBudgets =
-      $wasted->setOverrideMinutes($user, $dateString, $budgetId, postInt('overrideMinutes', 0));
+      $wasted->setOverrideMinutes($user, $dateString, $limitId, postInt('overrideMinutes', 0));
 } else if (action('unlock')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
-  $budgetId = postInt('budgetId');
-  $considerUnlocking = $wasted->setOverrideUnlock($user, $dateString, $budgetId);
+  $limitId = postInt('budgetId');
+  $considerUnlocking = $wasted->setOverrideUnlock($user, $dateString, $limitId);
 } else if (action('clearOverrides')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
-  $budgetId = postInt('budgetId');
-  $wasted->clearOverrides($user, $dateString, $budgetId);
+  $limitId = postInt('budgetId');
+  $wasted->clearOverrides($user, $dateString, $limitId);
 } else if (action('addMapping')) {
   $user = postSanitized('user');
-  $budgetId = postInt('budgetId');
+  $limitId = postInt('budgetId');
   $classId = postInt('classId');
-  $wasted->addMapping($classId, $budgetId);
+  $wasted->addMapping($classId, $limitId);
 } else if (action('removeMapping')) {
   $user = postSanitized('user');
-  $budgetId = postInt('budgetId');
+  $limitId = postInt('budgetId');
   $classId = postInt('classId');
-  $wasted->removeMapping($classId, $budgetId);
+  $wasted->removeMapping($classId, $limitId);
 } else if (action('setTotalBudget')) {
   $user = postSanitized('user');
-  $budgetId = postInt('budgetId');
-  $wasted->setTotalBudget($user, $budgetId);
+  $limitId = postInt('budgetId');
+  $wasted->setTotalBudget($user, $limitId);
 } else if (action('unsetTotalBudget')) {
   $user = postSanitized('user');
   $wasted->unsetTotalBudget($user);
@@ -154,8 +154,8 @@ if (!isset($user)) {
 if (!isset($dateString)) {
   $dateString = get('date') ?? date('Y-m-d');
 }
-if (!isset($budgetId)) {
-  $budgetId = 0; // never exists, MySQL index is 1-based
+if (!isset($limitId)) {
+  $limitId = 0; // never exists, MySQL index is 1-based
 }
 
 $budgetConfigs = $wasted->getAllBudgetConfigs($user);
@@ -174,13 +174,13 @@ Credits:
 <a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, LGPL;
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license';
 if ($considerUnlocking) {
-  $budgetIdToName = getBudgetIdToNameMap($configs);
+  $limitIdToName = getBudgetIdToNameMap($configs);
   echo '<p class="notice">Further locked budgets affecting classes in "'
-      . $budgetIdToName[$budgetId] . '": <b>' . html(implode($considerUnlocking, ', ')) . '</b>';
+      . $limitIdToName[$limitId] . '": <b>' . html(implode($considerUnlocking, ', ')) . '</b>';
 } else if ($furtherBudgets) {
-  $budgetIdToName = getBudgetIdToNameMap($configs);
+  $limitIdToName = getBudgetIdToNameMap($configs);
   echo '<p class="notice">Further budgets affecting classes in "'
-      . $budgetIdToName[$budgetId] . '": <b>' . html(implode($furtherBudgets, ', ')) . '</b>';
+      . $limitIdToName[$limitId] . '": <b>' . html(implode($furtherBudgets, ', ')) . '</b>';
 }
 echo '<p>
 <form action="index.php" method="get" style="display: inline; margin-right: 1em;">'
@@ -201,7 +201,7 @@ echo '<p>
   <form method="post" action="index.php">
     <input type="hidden" name="user" value="' . $user . '">'
     . dateSelector($dateString, false)
-    . budgetSelector($budgetNames, $budgetId) .
+    . budgetSelector($budgetNames, $limitId) .
     '<label for="idOverrideMinutes">Minutes: </label>
     <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
     <input type="submit" value="Set minutes" name="setMinutes">
@@ -274,7 +274,7 @@ echoTable(['Limit', 'Class', 'Further limits'], $wasted->getBudgetsToClassesTabl
 echo '<h4>Map class to limit</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
-  . classSelector($classes, true) . '==> ' . budgetSelector($budgetNames, $budgetId) . '
+  . classSelector($classes, true) . '==> ' . budgetSelector($budgetNames, $limitId) . '
   <input type="submit" value="Add" name="addMapping">
   <input type="submit" value="Remove" name="removeMapping">
 </form>
@@ -329,7 +329,7 @@ echo '
 <h4>Configuration</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
-  . budgetSelector($budgetNames, $budgetId) .
+  . budgetSelector($budgetNames, $limitId) .
   '<input type="text" name="budgetConfigKey" value="" placeholder="key">
   <input type="text" name="budgetConfigValue" value="" placeholder="value">
   <input type="submit" value="Set config" name="setBudgetConfig">
@@ -340,7 +340,7 @@ echo '
 
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '"> '
-  . budgetSelector($budgetNames, $budgetId) .
+  . budgetSelector($budgetNames, $limitId) .
   '<input type="submit" value="Remove (incl. config!)" name="removeBudget"
     class="wastedDestructive" disabled>
   <label for="idBudgetName">Name: </label>

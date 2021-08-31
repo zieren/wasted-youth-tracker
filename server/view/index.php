@@ -35,8 +35,8 @@ $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
 $timeSpentByBudgetAndDate = $wasted->queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime);
 $timeSpentByBudget = [];
-foreach ($timeSpentByBudgetAndDate as $budgetId=>$timeSpentByDate) {
-  $timeSpentByBudget[$budgetId] = getOrDefault($timeSpentByDate, $dateString, 0);
+foreach ($timeSpentByBudgetAndDate as $limitId=>$timeSpentByDate) {
+  $timeSpentByBudget[$limitId] = getOrDefault($timeSpentByDate, $dateString, 0);
 }
 // TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
 // budget at all.

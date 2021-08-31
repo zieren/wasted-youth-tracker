@@ -80,10 +80,10 @@ function budgetSelector($budgetNames, $selectedBudgetId) {
   $select =
       '<label for="idBudget">Limit: </label>
       <select id="idBudget" name="budgetId">';
-  foreach ($budgetNames as $budgetId => $budgetName) {
-    $selected = $selectedBudgetId == $budgetId ? 'selected="selected"' : '';
+  foreach ($budgetNames as $limitId => $budgetName) {
+    $selected = $selectedBudgetId == $limitId ? 'selected="selected"' : '';
     $select .=
-        '<option value="' . $budgetId . '" ' . $selected . '>' . html($budgetName) . '</option>';
+        '<option value="' . $limitId . '" ' . $selected . '>' . html($budgetName) . '</option>';
   }
   $select .= "</select>\n";
   return $select;

@@ -194,12 +194,12 @@ class Wasted {
     return intval(DB::insertId());
   }
 
-  public function removeBudget($budgetId) {
-    DB::delete('budgets', 'id = |i', $budgetId);
+  public function removeBudget($limitId) {
+    DB::delete('budgets', 'id = |i', $limitId);
   }
 
-  public function renameBudget($budgetId, $newName) {
-    DB::update('budgets', ['name' => $newName], 'id = |s', $budgetId);
+  public function renameBudget($limitId, $newName) {
+    DB::update('budgets', ['name' => $newName], 'id = |s', $limitId);
   }
 
   public function addClass($className) {
@@ -250,13 +250,13 @@ class Wasted {
         'id = |s', $classificationId);
   }
 
-  public function addMapping($classId, $budgetId) {
-    DB::insert('mappings', ['class_id' => $classId, 'budget_id' => $budgetId]);
+  public function addMapping($classId, $limitId) {
+    DB::insert('mappings', ['class_id' => $classId, 'budget_id' => $limitId]);
     return DB::insertId();
   }
 
-  public function removeMapping($classId, $budgetId) {
-    DB::delete('mappings', 'class_id=|i AND budget_id=|i', $classId, $budgetId);
+  public function removeMapping($classId, $limitId) {
+    DB::delete('mappings', 'class_id=|i AND budget_id=|i', $classId, $limitId);
   }
 
   private function getTotalBudgetTriggerName($user) {
@@ -267,20 +267,20 @@ class Wasted {
    * Maps all existing classes to the specified budget and installs a trigger that adds each newly
    * added class to this budget.
    */
-  public function setTotalBudget($user, $budgetId) {
+  public function setTotalBudget($user, $limitId) {
     $triggerName = $this->getTotalBudgetTriggerName($user);
     DB::query(
         'INSERT IGNORE INTO mappings (budget_id, class_id)
           SELECT |i AS budget_id, classes.id AS class_id
           FROM classes',
-        $budgetId);
+        $limitId);
     DB::query('DROP TRIGGER IF EXISTS ' . $triggerName);
     DB::query(
         'CREATE TRIGGER ' . $triggerName . ' AFTER INSERT ON classes
           FOR EACH ROW
           INSERT IGNORE INTO mappings
           SET budget_id = |i, class_id = NEW.id',
-        $budgetId);
+        $limitId);
   }
 
   /** Removes the total budget (if any) for the user. */
@@ -331,8 +331,8 @@ class Wasted {
       $classification['budgets'] = [];
       foreach ($rows as $row) {
         // Budget ID may be null.
-        if ($budgetId = $row['budget_id']) {
-          $classification['budgets'][] = intval($budgetId);
+        if ($limitId = $row['budget_id']) {
+          $classification['budgets'][] = intval($limitId);
         } else {
           $classification['budgets'][] = 0;
         }
@@ -345,18 +345,18 @@ class Wasted {
   // TODO: Decide how to treat disabled (non-enabled!?) budgets. Then check callers.
 
   /** Sets the specified budget config. */
-  public function setBudgetConfig($budgetId, $key, $value) {
-    DB::insertUpdate('budget_config', ['budget_id' => $budgetId, 'k' => $key, 'v' => $value]);
+  public function setBudgetConfig($limitId, $key, $value) {
+    DB::insertUpdate('budget_config', ['budget_id' => $limitId, 'k' => $key, 'v' => $value]);
   }
 
   /** Clears the specified budget config. */
-  public function clearBudgetConfig($budgetId, $key) {
-    DB::delete('budget_config', 'budget_id = |s AND k = |s', $budgetId, $key);
+  public function clearBudgetConfig($limitId, $key) {
+    DB::delete('budget_config', 'budget_id = |s AND k = |s', $limitId, $key);
   }
 
   /**
    * Returns configs of all budgets of the specified user. Returns a 2D array
-   * $configs[$budgetId][$key] = $value. The array is sorted by budget ID.
+   * $configs[$limitId][$key] = $value. The array is sorted by budget ID.
    */
   public function getAllBudgetConfigs($user) {
     $rows = DB::query(
@@ -368,14 +368,14 @@ class Wasted {
         $user);
     $configs = [];
     foreach ($rows as $row) {
-      $budgetId = $row['id'];
-      if (!array_key_exists($budgetId, $configs)) {
-        $configs[$budgetId] = [];
+      $limitId = $row['id'];
+      if (!array_key_exists($limitId, $configs)) {
+        $configs[$limitId] = [];
       }
       if ($row['k']) { // May be absent due to RIGHT JOIN.
-        $configs[$budgetId][$row['k']] = $row['v'];
+        $configs[$limitId][$row['k']] = $row['v'];
       }
-      $configs[$budgetId]['name'] = $row['name'];
+      $configs[$limitId]['name'] = $row['name'];
     }
     ksort($configs);
     return $configs;
@@ -737,11 +737,11 @@ class Wasted {
         $user, $fromTime->getTimestamp(), $toTimestamp);
     $timeByBudgetAndDate = [];
     foreach ($rows as $row) {
-      $budgetId = $row['budget_id'];
-      if (!array_key_exists($budgetId, $timeByBudgetAndDate)) {
-        $timeByBudgetAndDate[$budgetId] = [];
+      $limitId = $row['budget_id'];
+      if (!array_key_exists($limitId, $timeByBudgetAndDate)) {
+        $timeByBudgetAndDate[$limitId] = [];
       }
-      $timeByBudgetAndDate[$budgetId][$row['date']] = intval($row['sum_s']);
+      $timeByBudgetAndDate[$limitId][$row['date']] = intval($row['sum_s']);
     }
     ksort($timeByBudgetAndDate, SORT_NUMERIC);
     return $timeByBudgetAndDate;
@@ -835,17 +835,17 @@ class Wasted {
 
     // $minutesSpentByBudgetAndDate may contain a budget ID of NULL to indicate "no budget", which
     // $configs never contains.
-    $budgetIds = array_keys($configs);
+    $limitIds = array_keys($configs);
     if (array_key_exists(null, $timeSpentByBudgetAndDate)) {
-      $budgetIds[] = null;
+      $limitIds[] = null;
     }
     $timeLeftByBudget = array();
-    foreach ($budgetIds as $budgetId) {
-      $config = getOrDefault($configs, $budgetId, array());
-      $timeSpentByDate = getOrDefault($timeSpentByBudgetAndDate, $budgetId, array());
-      $overrides = getOrDefault($overridesByBudget, $budgetId, array());
-      $timeLeftByBudget[$budgetId] = $this->computeTimeLeftToday(
-          $config, $now, $overrides, $timeSpentByDate, $budgetId);
+    foreach ($limitIds as $limitId) {
+      $config = getOrDefault($configs, $limitId, array());
+      $timeSpentByDate = getOrDefault($timeSpentByBudgetAndDate, $limitId, array());
+      $overrides = getOrDefault($overridesByBudget, $limitId, array());
+      $timeLeftByBudget[$limitId] = $this->computeTimeLeftToday(
+          $config, $now, $overrides, $timeSpentByDate, $limitId);
     }
     ksort($timeLeftByBudget, SORT_NUMERIC);
     return $timeLeftByBudget;
@@ -936,14 +936,14 @@ class Wasted {
    *
    * Returns queryOverlappingBudgets().
    */
-  public function setOverrideMinutes($user, $date, $budgetId, $minutes) {
+  public function setOverrideMinutes($user, $date, $limitId, $minutes) {
     DB::insertUpdate('overrides', [
         'user' => $user,
         'date' => $date,
-        'budget_id' => $budgetId,
+        'budget_id' => $limitId,
         'minutes' => $minutes],
         'minutes=|i', $minutes);
-    return $this->queryOverlappingBudgets($budgetId);
+    return $this->queryOverlappingBudgets($limitId);
   }
 
   /**
@@ -951,22 +951,22 @@ class Wasted {
    *
    * Returns queryOverlappingBudgets().
    */
-  public function setOverrideUnlock($user, $date, $budgetId) {
+  public function setOverrideUnlock($user, $date, $limitId) {
     DB::insertUpdate('overrides', [
         'user' => $user,
         'date' => $date,
-        'budget_id' => $budgetId,
+        'budget_id' => $limitId,
         'unlocked' => 1],
         'unlocked=|i', 1);
-    return $this->queryOverlappingBudgets($budgetId, $date);
+    return $this->queryOverlappingBudgets($limitId, $date);
   }
 
   /**
    * Clears all overrides (minutes and unlock) for the specified budget for $date, which is a
    * String in the format 'YYYY-MM-DD'.
    */
-  public function clearOverrides($user, $date, $budgetId) {
-    DB::delete('overrides', 'user=|s AND date=|s AND budget_id=|i', $user, $date, $budgetId);
+  public function clearOverrides($user, $date, $limitId) {
+    DB::delete('overrides', 'user=|s AND date=|s AND budget_id=|i', $user, $date, $limitId);
   }
 
   /**
@@ -976,7 +976,7 @@ class Wasted {
    * If $dateForUnlock (as a string in 'YYYY-MM-DD' format) is specified, the query is restricted to
    * budgets that are locked on that day, taking overrides into consideration.
    */
-  public function queryOverlappingBudgets($budgetId, $dateForUnlock = null) {
+  public function queryOverlappingBudgets($limitId, $dateForUnlock = null) {
     return array_map(
         function($a) { return $a['name']; },
         DB::query('
@@ -1000,7 +1000,7 @@ class Wasted {
                  WHERE user = (SELECT user FROM budgets WHERE id = |i0)
                  AND date = |s1
                  AND unlocked = "1")' : '') . '
-            ORDER BY name', $budgetId, $dateForUnlock));
+            ORDER BY name', $limitId, $dateForUnlock));
 
   }
 

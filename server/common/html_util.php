@@ -76,14 +76,14 @@ function dateSelectorJs() {
           </script>';
 }
 
-function budgetSelector($budgetNames, $selectedBudgetId) {
+function budgetSelector($limitNames, $selectedBudgetId) {
   $select =
       '<label for="idBudget">Limit: </label>
       <select id="idBudget" name="budgetId">';
-  foreach ($budgetNames as $limitId => $budgetName) {
+  foreach ($limitNames as $limitId => $limitName) {
     $selected = $selectedBudgetId == $limitId ? 'selected="selected"' : '';
     $select .=
-        '<option value="' . $limitId . '" ' . $selected . '>' . html($budgetName) . '</option>';
+        '<option value="' . $limitId . '" ' . $selected . '>' . html($limitName) . '</option>';
   }
   $select .= "</select>\n";
   return $select;

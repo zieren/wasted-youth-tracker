@@ -189,8 +189,8 @@ class Wasted {
 
   // ---------- BUDGET/CLASS QUERIES ----------
 
-  public function addLimit($user, $budgetName) {
-    DB::insert('budgets', ['user' => $user, 'name' => $budgetName]);
+  public function addLimit($user, $limitName) {
+    DB::insert('budgets', ['user' => $user, 'name' => $limitName]);
     return intval(DB::insertId());
   }
 

@@ -158,8 +158,8 @@ if (!isset($limitId)) {
   $limitId = 0; // never exists, MySQL index is 1-based
 }
 
-$budgetConfigs = $wasted->getAllBudgetConfigs($user);
-$budgetNames = budgetIdsToNames(array_keys($budgetConfigs), $budgetConfigs);
+$limitConfigs = $wasted->getAllBudgetConfigs($user);
+$limitNames = budgetIdsToNames(array_keys($limitConfigs), $limitConfigs);
 $classes = $wasted->getAllClasses();
 $configs = $wasted->getAllBudgetConfigs($user);
 $classifications = $wasted->getAllClassifications();
@@ -201,7 +201,7 @@ echo '<p>
   <form method="post" action="index.php">
     <input type="hidden" name="user" value="' . $user . '">'
     . dateSelector($dateString, false)
-    . budgetSelector($budgetNames, $limitId) .
+    . budgetSelector($limitNames, $limitId) .
     '<label for="idOverrideMinutes">Minutes: </label>
     <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
     <input type="submit" value="Set minutes" name="setMinutes">
@@ -274,7 +274,7 @@ echoTable(['Limit', 'Class', 'Further limits'], $wasted->getBudgetsToClassesTabl
 echo '<h4>Map class to limit</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
-  . classSelector($classes, true) . '==> ' . budgetSelector($budgetNames, $limitId) . '
+  . classSelector($classes, true) . '==> ' . budgetSelector($limitNames, $limitId) . '
   <input type="submit" value="Add" name="addMapping">
   <input type="submit" value="Remove" name="removeMapping">
 </form>
@@ -320,8 +320,8 @@ echo '<h4>Map class to limit</h4>
 
 echo '<h3>Limits</h3>';
 
-foreach ($budgetConfigs as $id => $config) {
-  echo '<h4>' . html($budgetNames[$id]) . "</h4>\n";
+foreach ($limitConfigs as $id => $config) {
+  echo '<h4>' . html($limitNames[$id]) . "</h4>\n";
   unset($config['name']);
   echoTableAssociative($config);
 }
@@ -329,7 +329,7 @@ echo '
 <h4>Configuration</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
-  . budgetSelector($budgetNames, $limitId) .
+  . budgetSelector($limitNames, $limitId) .
   '<input type="text" name="budgetConfigKey" value="" placeholder="key">
   <input type="text" name="budgetConfigValue" value="" placeholder="value">
   <input type="submit" value="Set config" name="setBudgetConfig">
@@ -340,7 +340,7 @@ echo '
 
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '"> '
-  . budgetSelector($budgetNames, $limitId) .
+  . budgetSelector($limitNames, $limitId) .
   '<input type="submit" value="Remove (incl. config!)" name="removeBudget"
     class="wastedDestructive" disabled>
   <label for="idBudgetName">Name: </label>

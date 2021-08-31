@@ -35,8 +35,8 @@ final class WastedTest extends WastedTestBase {
     $this->mockTime = 1000;
   }
 
-  private function classification($id, $budgets) {
-    $c = ['class_id' => $id, 'budgets' => $budgets];
+  private function classification($id, $limits) {
+    $c = ['class_id' => $id, 'budgets' => $limits];
     return $c;
   }
 
@@ -1148,10 +1148,10 @@ final class WastedTest extends WastedTestBase {
   }
 
   function testBudgetWithUmlauts(): void {
-    $budgetName = 't' . chr(228) .'st';
-    $limitId = $this->wasted->addLimit('u1', $budgetName);
+    $limitName = 't' . chr(228) .'st';
+    $limitId = $this->wasted->addLimit('u1', $limitName);
     $this->assertEquals($this->wasted->getAllBudgetConfigs('u1'),
-        [$limitId => ['name' => $budgetName]]);
+        [$limitId => ['name' => $limitName]]);
   }
 
   function testReclassify(): void {

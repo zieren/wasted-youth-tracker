@@ -388,7 +388,7 @@ class Wasted {
   public function getBudgetsToClassesTable($user) {
     $rows = DB::query(
         'SELECT
-           budgets.name as limit,
+           budgets.name as lim,
            classes.name AS class,
            CASE WHEN n = 1 THEN "" ELSE other_budgets END
          FROM (
@@ -435,12 +435,12 @@ class Wasted {
          ) AS result
          JOIN classes ON class_id = classes.id
          JOIN budgets ON budget_id = budgets.id
-         ORDER BY limit, class',
+         ORDER BY lim, class',
         $user);
     $table = [];
     foreach ($rows as $row) {
       $table[] = [
-          $row['limit'] ?? '',
+          $row['lim'] ?? '',
           $row['class'] ?? '',
           $row['CASE WHEN n = 1 THEN "" ELSE other_budgets END']]; // can't alias CASE
     }

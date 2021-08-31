@@ -80,7 +80,7 @@ function secondsToHHMMSS($seconds) {
 
 /**
  * Maps limit IDs in the input array to names, given the configs obtained from
- * Wasted::getAllBudgetConfigs().
+ * Wasted::getAllLimitConfigs().
  */
 function budgetIdsToNames($ids, $configs) {
   $names = [];
@@ -91,7 +91,7 @@ function budgetIdsToNames($ids, $configs) {
 }
 
 /** Returns a map of limit ID to name. */
-function getBudgetIdToNameMap($configs) {
+function getLimitIdToNameMap($configs) {
   $idToName = ['' => 'no_budget'];
   foreach ($configs as $id => $config) {
     $idToName[$id] = $config['name'];

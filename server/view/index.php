@@ -18,7 +18,7 @@ list($year, $month, $day) = explode('-', $dateString);
 // TODO: Date needs to be pretty for the input (2-digit month/day etc.)
 $users = $wasted->getUsers();
 $user = getOrDefault($_GET, 'user', getOrDefault($users, 0, ''));
-$configs = $wasted->getAllBudgetConfigs($user);
+$configs = $wasted->getAllLimitConfigs($user);
 
 echo '<h2>Links</h2>
   <a href="../admin/index.php?user=' . $user . '">Admin page</a>
@@ -33,22 +33,22 @@ echo
 echo "<h3>Time spent on selected date</h3>";
 $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-$timeSpentByBudgetAndDate = $wasted->queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime);
-$timeSpentByBudget = [];
-foreach ($timeSpentByBudgetAndDate as $limitId=>$timeSpentByDate) {
-  $timeSpentByBudget[$limitId] = getOrDefault($timeSpentByDate, $dateString, 0);
+$timeSpentByLimitAndDate = $wasted->queryTimeSpentByLimitAndDate($user, $fromTime, $toTime);
+$timeSpentByLimit = [];
+foreach ($timeSpentByLimitAndDate as $limitId=>$timeSpentByDate) {
+  $timeSpentByLimit[$limitId] = getOrDefault($timeSpentByDate, $dateString, 0);
 }
 // TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
 // limit at all.
 echoTable(
-    budgetIdsToNames(array_keys($timeSpentByBudget), $configs),
-    [array_map("secondsToHHMMSS", array_values($timeSpentByBudget))]);
+    budgetIdsToNames(array_keys($timeSpentByLimit), $configs),
+    [array_map("secondsToHHMMSS", array_values($timeSpentByLimit))]);
 
 echo "<h3>Time left today</h3>";
-$timeLeftByBudget = $wasted->queryTimeLeftTodayAllBudgets($user);
+$timeLeftByLimit = $wasted->queryTimeLeftTodayAllLimits($user);
 echoTable(
-    budgetIdsToNames(array_keys($timeLeftByBudget), $configs),
-    [array_map("secondsToHHMMSS", array_values($timeLeftByBudget))]);
+    budgetIdsToNames(array_keys($timeLeftByLimit), $configs),
+    [array_map("secondsToHHMMSS", array_values($timeLeftByLimit))]);
 
 echo "<h3>Most Recently Used<h3>";
 $timeSpentPerTitle = $wasted->queryTimeSpentByTitle($user, $fromTime, false);

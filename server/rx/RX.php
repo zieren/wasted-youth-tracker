@@ -68,12 +68,12 @@ class RX {
 
     // Build response.
 
-    // Part 1: Budgets and time left.
+    // Part 1: Limits and time left.
     $response = [];
-    $configs = $wasted->getAllBudgetConfigs($user);
-    $limitIdToName = getBudgetIdToNameMap($configs);
-    $timeLeftByBudget = $wasted->queryTimeLeftTodayAllBudgets($user);
-    foreach ($timeLeftByBudget as $limitId => $timeLeft) {
+    $configs = $wasted->getAllLimitConfigs($user);
+    $limitIdToName = getLimitIdToNameMap($configs);
+    $timeLeftByLimit = $wasted->queryTimeLeftTodayAllLimits($user);
+    foreach ($timeLeftByLimit as $limitId => $timeLeft) {
       $response[] =
           ($limitId ? $limitId : 0) . ':' . $timeLeft . ':' . $limitIdToName[$limitId];
     }

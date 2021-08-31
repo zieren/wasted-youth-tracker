@@ -33,13 +33,13 @@ class RX {
    * The response contains two parts. The first part lists all budgets configured for the user and
    * the remaining time today in seconds.
    *
-   * budgetId ":" timeLeftToday ":" budgetName
+   * limitId ":" timeLeftToday ":" budgetName
    *
    * The second part, separated by a blank line, lists the budgets to which each window title maps,
    * in the order they appear in the request. If multiple budgets match a title, they are separated
    * by commas:
    *
-   * budgetId ( "," budgetId )*
+   * limitId ( "," limitId )*
    *
    * Example response:
    *

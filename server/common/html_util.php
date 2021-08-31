@@ -79,7 +79,7 @@ function dateSelectorJs() {
 function budgetSelector($limitNames, $selectedBudgetId) {
   $select =
       '<label for="idBudget">Limit: </label>
-      <select id="idBudget" name="budgetId">';
+      <select id="idBudget" name="limitId">';
   foreach ($limitNames as $limitId => $limitName) {
     $selected = $selectedBudgetId == $limitId ? 'selected="selected"' : '';
     $select .=

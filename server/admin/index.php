@@ -65,9 +65,9 @@ if (action('setUserConfig')) {
   $wasted->setGlobalConfig(postSanitized('configKey'), postSanitized('configValue'));
 } else if (action('clearGlobalConfig')) {
   $wasted->clearGlobalConfig(postSanitized('configKey'));
-} else if (action('addBudget')) {
+} else if (action('addLimit')) {
   $user = postSanitized('user');
-  $wasted->addBudget($user, postSanitized('budgetName'));
+  $wasted->addLimit($user, postSanitized('budgetName'));
 } else if (action('renameBudget')) {
   $budgetId = postInt('budgetId');
   $wasted->renameBudget($budgetId, postSanitized('budgetName'));
@@ -346,7 +346,7 @@ echo '
   <label for="idBudgetName">Name: </label>
   <input id="idBudgetName" name="budgetName" type="text" value="">
   <input type="submit" value="Rename" name="renameBudget">
-  <input type="submit" value="Add" name="addBudget">
+  <input type="submit" value="Add" name="addLimit">
 </form>
 ';
 

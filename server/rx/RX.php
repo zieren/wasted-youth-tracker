@@ -30,13 +30,13 @@ class RX {
    * Minecraft
    * Calculator
    *
-   * The response contains two parts. The first part lists all budgets configured for the user and
+   * The response contains two parts. The first part lists all limits configured for the user and
    * the remaining time today in seconds.
    *
-   * limitId ":" timeLeftToday ":" budgetName
+   * limitId ":" timeLeftToday ":" limitName
    *
-   * The second part, separated by a blank line, lists the budgets to which each window title maps,
-   * in the order they appear in the request. If multiple budgets match a title, they are separated
+   * The second part, separated by a blank line, lists the limits to which each window title maps,
+   * in the order they appear in the request. If multiple limits match a title, they are separated
    * by commas:
    *
    * limitId ( "," limitId )*
@@ -79,9 +79,9 @@ class RX {
     }
     $response[] = '';
 
-    // Part 2: Window titles to budgets.
+    // Part 2: Window titles to limits.
     foreach ($classifications as &$classification) {
-      $response[] = implode(',', $classification['budgets']);
+      $response[] = implode(',', $classification['limits']);
     }
 
     // Special case: Nothing is running.

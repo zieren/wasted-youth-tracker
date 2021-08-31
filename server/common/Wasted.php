@@ -118,7 +118,7 @@ class Wasted {
         . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
-        'CREATE TABLE IF NOT EXISTS budgets ('
+        'CREATE TABLE IF NOT EXISTS limits ('
         . 'id INT NOT NULL AUTO_INCREMENT, '
         . 'user VARCHAR(32) NOT NULL, '
         . 'name VARCHAR(256) NOT NULL, '
@@ -128,19 +128,19 @@ class Wasted {
     DB::query(
         'CREATE TABLE IF NOT EXISTS mappings ('
         . 'class_id INT NOT NULL, '
-        . 'budget_id INT NOT NULL, '
-        . 'PRIMARY KEY (class_id, budget_id), '
+        . 'limit_id INT NOT NULL, '
+        . 'PRIMARY KEY (class_id, limit_id), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE, '
-        . 'FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE '
+        . 'FOREIGN KEY (limit_id) REFERENCES limits(id) ON DELETE CASCADE '
         . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
-        'CREATE TABLE IF NOT EXISTS budget_config ('
-        . 'budget_id INT NOT NULL, '
+        'CREATE TABLE IF NOT EXISTS limit_config ('
+        . 'limit_id INT NOT NULL, '
         . 'k VARCHAR(100) NOT NULL, '
         . 'v VARCHAR(200) NOT NULL, '
-        . 'PRIMARY KEY (budget_id, k), '
-        . 'FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE '
+        . 'PRIMARY KEY (limit_id, k), '
+        . 'FOREIGN KEY (limit_id) REFERENCES limits(id) ON DELETE CASCADE '
         . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
@@ -162,10 +162,10 @@ class Wasted {
         'CREATE TABLE IF NOT EXISTS overrides ('
         . 'user VARCHAR(32) NOT NULL, '
         . 'date DATE NOT NULL, '
-        . 'budget_id INT NOT NULL, '
+        . 'limit_id INT NOT NULL, '
         . 'minutes INT, '
         . 'unlocked BOOL, '
-        . 'PRIMARY KEY (user, date, budget_id) '
+        . 'PRIMARY KEY (user, date, limit_id) '
         . ') '
         . CREATE_TABLE_SUFFIX);
     $this->insertDefaultRows();
@@ -187,19 +187,19 @@ class Wasted {
     Logger::Instance()->notice('tables pruned up to ' . $date->format(DateTimeInterface::ATOM));
   }
 
-  // ---------- BUDGET/CLASS QUERIES ----------
+  // ---------- LIMIT/CLASS QUERIES ----------
 
   public function addLimit($user, $limitName) {
-    DB::insert('budgets', ['user' => $user, 'name' => $limitName]);
+    DB::insert('limits', ['user' => $user, 'name' => $limitName]);
     return intval(DB::insertId());
   }
 
   public function removeLimit($limitId) {
-    DB::delete('budgets', 'id = |i', $limitId);
+    DB::delete('limits', 'id = |i', $limitId);
   }
 
   public function renameLimit($limitId, $newName) {
-    DB::update('budgets', ['name' => $newName], 'id = |s', $limitId);
+    DB::update('limits', ['name' => $newName], 'id = |s', $limitId);
   }
 
   public function addClass($className) {
@@ -251,16 +251,16 @@ class Wasted {
   }
 
   public function addMapping($classId, $limitId) {
-    DB::insert('mappings', ['class_id' => $classId, 'budget_id' => $limitId]);
+    DB::insert('mappings', ['class_id' => $classId, 'limit_id' => $limitId]);
     return DB::insertId();
   }
 
   public function removeMapping($classId, $limitId) {
-    DB::delete('mappings', 'class_id=|i AND budget_id=|i', $classId, $limitId);
+    DB::delete('mappings', 'class_id=|i AND limit_id=|i', $classId, $limitId);
   }
 
   private function getTotalLimitTriggerName($user) {
-    return 'total_budget_' . hash('crc32', $user);
+    return 'total_limit_' . hash('crc32', $user);
   }
 
   /**
@@ -270,8 +270,8 @@ class Wasted {
   public function setTotalLimit($user, $limitId) {
     $triggerName = $this->getTotalLimitTriggerName($user);
     DB::query(
-        'INSERT IGNORE INTO mappings (budget_id, class_id)
-          SELECT |i AS budget_id, classes.id AS class_id
+        'INSERT IGNORE INTO mappings (limit_id, class_id)
+          SELECT |i AS limit_id, classes.id AS class_id
           FROM classes',
         $limitId);
     DB::query('DROP TRIGGER IF EXISTS ' . $triggerName);
@@ -279,7 +279,7 @@ class Wasted {
         'CREATE TRIGGER ' . $triggerName . ' AFTER INSERT ON classes
           FOR EACH ROW
           INSERT IGNORE INTO mappings
-          SET budget_id = |i, class_id = NEW.id',
+          SET limit_id = |i, class_id = NEW.id',
         $limitId);
   }
 
@@ -291,8 +291,8 @@ class Wasted {
 
   /**
    * Returns an array the size of $titles that contains, at the corresponding position, an array
-   * with keys 'class_id' and 'budgets'. The latter is again an array and contains the list of
-   * limit IDs to which the class_id maps, where 0 indicates "no limit".
+   * with keys 'class_id' and 'limits'. The latter is again an array and contains the list of
+   * limit IDs to which the class_id maps, where 0 indicates "limit to zero".
    */
   public function classify($user, $titles) {
     /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
@@ -307,7 +307,7 @@ class Wasted {
     $classifications = [];
     foreach ($titles as $title) {
       $rows = DB::query(
-          'SELECT classification.id, budget_id FROM (
+          'SELECT classification.id, limit_id FROM (
             SELECT classes.id, classes.name
             FROM classification
             JOIN classes ON classes.id = classification.class_id
@@ -315,12 +315,12 @@ class Wasted {
             ORDER BY priority DESC
             LIMIT 1) AS classification
           LEFT JOIN (
-            SELECT class_id, budget_id
+            SELECT class_id, limit_id
             FROM mappings
-            JOIN budgets ON mappings.budget_id = budgets.id
+            JOIN limits ON mappings.limit_id = limits.id
             WHERE user = |s0
           ) user_mappings ON classification.id = user_mappings.class_id
-          ORDER BY budget_id',
+          ORDER BY limit_id',
           $user, $title);
       if (!$rows) { // This should never happen, the default class catches all.
         $this->throwException('Failed to classify "' . $title . '"');
@@ -328,13 +328,13 @@ class Wasted {
 
       $classification = [];
       $classification['class_id'] = intval($rows[0]['id']);
-      $classification['budgets'] = [];
+      $classification['limits'] = [];
       foreach ($rows as $row) {
         // Limit ID may be null.
-        if ($limitId = $row['budget_id']) {
-          $classification['budgets'][] = intval($limitId);
+        if ($limitId = $row['limit_id']) {
+          $classification['limits'][] = intval($limitId);
         } else {
-          $classification['budgets'][] = 0;
+          $classification['limits'][] = 0;
         }
       }
       $classifications[] = $classification;
@@ -342,27 +342,27 @@ class Wasted {
     return $classifications;
   }
 
-  // TODO: Decide how to treat disabled (non-enabled!?) budgets. Then check callers.
+  // TODO: Decide how to treat disabled (non-enabled!?) limits. Then check callers.
 
   /** Sets the specified limit config. */
   public function setLimitConfig($limitId, $key, $value) {
-    DB::insertUpdate('budget_config', ['budget_id' => $limitId, 'k' => $key, 'v' => $value]);
+    DB::insertUpdate('limit_config', ['limit_id' => $limitId, 'k' => $key, 'v' => $value]);
   }
 
   /** Clears the specified limit config. */
   public function clearLimitConfig($limitId, $key) {
-    DB::delete('budget_config', 'budget_id = |s AND k = |s', $limitId, $key);
+    DB::delete('limit_config', 'limit_id = |s AND k = |s', $limitId, $key);
   }
 
   /**
-   * Returns configs of all budgets of the specified user. Returns a 2D array
+   * Returns configs of all limits for the specified user. Returns a 2D array
    * $configs[$limitId][$key] = $value. The array is sorted by limit ID.
    */
   public function getAllLimitConfigs($user) {
     $rows = DB::query(
         'SELECT id, name, k, v
-          FROM budget_config
-          RIGHT JOIN budgets ON budget_config.budget_id = budgets.id
+          FROM limit_config
+          RIGHT JOIN limits ON limit_config.limit_id = limits.id
           WHERE user = |s
           ORDER BY id, k',
         $user);
@@ -382,59 +382,59 @@ class Wasted {
   }
 
   /**
-   * Returns a table listing all budgets and their classes. For each class the last column lists
-   * all other budgets affecting this class ("" if there are none).
+   * Returns a table listing all limits and their classes. For each class the last column lists
+   * all other limits affecting this class ("" if there are none).
    */
   public function getLimitsToClassesTable($user) {
     $rows = DB::query(
         'SELECT
-           budgets.name as lim,
+           limits.name as lim,
            classes.name AS class,
-           CASE WHEN n = 1 THEN "" ELSE other_budgets END
+           CASE WHEN n = 1 THEN "" ELSE other_limits END
          FROM (
            SELECT
-             budget_id,
+             limit_id,
              class_id,
-             GROUP_CONCAT(other_budget_name ORDER BY other_budget_name SEPARATOR ", ") AS other_budgets,
+             GROUP_CONCAT(other_limit_name ORDER BY other_limit_name SEPARATOR ", ") AS other_limits,
              n
            FROM (
              SELECT
-               budget_id,
+               limit_id,
                user_mappings_extended.class_id,
-               other_budget_id,
-               budgets.name AS other_budget_name,
+               other_limit_id,
+               limits.name AS other_limit_name,
                n
              FROM (
                SELECT
-                 user_mappings.budget_id,
+                 user_mappings.limit_id,
                  user_mappings.class_id,
-                 budgets.id AS other_budget_id
+                 limits.id AS other_limit_id
                FROM (
-                 SELECT budget_id, class_id
+                 SELECT limit_id, class_id
                  FROM mappings
-                 JOIN budgets ON budgets.id = budget_id
+                 JOIN limits ON limits.id = limit_id
                  JOIN classes ON classes.id = class_id
                  WHERE USER = |s0
                ) AS user_mappings
                JOIN mappings ON user_mappings.class_id = mappings.class_id
-               JOIN budgets ON mappings.budget_id = budgets.id
-               WHERE budgets.user = |s0
+               JOIN limits ON mappings.limit_id = limits.id
+               WHERE limits.user = |s0
              ) AS user_mappings_extended
              JOIN (
                SELECT class_id, COUNT(*) AS n
                FROM mappings
-               JOIN budgets ON mappings.budget_id = budgets.id
+               JOIN limits ON mappings.limit_id = limits.id
                WHERE USER = |s0
                GROUP BY class_id
-             ) AS budget_count
-             ON user_mappings_extended.class_id = budget_count.class_id
-             JOIN budgets ON other_budget_id = budgets.id
-             HAVING budget_id != other_budget_id OR n = 1
+             ) AS limit_count
+             ON user_mappings_extended.class_id = limit_count.class_id
+             JOIN limits ON other_limit_id = limits.id
+             HAVING limit_id != other_limit_id OR n = 1
            ) AS user_mappings_non_redundant
-           GROUP BY budget_id, class_id, n
+           GROUP BY limit_id, class_id, n
          ) AS result
          JOIN classes ON class_id = classes.id
-         JOIN budgets ON budget_id = budgets.id
+         JOIN limits ON limit_id = limits.id
          ORDER BY lim, class',
         $user);
     $table = [];
@@ -442,7 +442,7 @@ class Wasted {
       $table[] = [
           $row['lim'] ?? '',
           $row['class'] ?? '',
-          $row['CASE WHEN n = 1 THEN "" ELSE other_budgets END']]; // can't alias CASE
+          $row['CASE WHEN n = 1 THEN "" ELSE other_limits END']]; // can't alias CASE
     }
     return $table;
   }
@@ -684,7 +684,7 @@ class Wasted {
 
   /** Returns all users, i.e. all distinct user keys for which at least one limit is present. */
   public function getUsers() {
-    $rows = DB::query('SELECT DISTINCT user FROM budgets ORDER BY user');
+    $rows = DB::query('SELECT DISTINCT user FROM limits ORDER BY user');
     $users = [];
     foreach ($rows as $row) {
       $users[] = $row['user'];
@@ -696,16 +696,16 @@ class Wasted {
 
   /**
    * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by limit
-   * ID (including NULL for "no limit", if applicable) and date. $toTime may be null to omit the
-   * upper limit.
+   * ID (including NULL for "limit to zero", if applicable) and date. $toTime may be null to omit
+   * the upper limit.
    */
   public function queryTimeSpentByLimitAndDate($user, $fromTime, $toTime = null) {
     $toTimestamp = $toTime ? $toTime->getTimestamp() : 9223372036854775807; // max(BIGINT)
     DB::query('SET @prev_ts = 0'); // TODO: ":=" vs "="
     // TODO: 15 (sample interval) + 10 (latency compensation) magic
     $rows = DB::query('
-        SELECT DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") AS date, budget_id, sum(s) AS sum_s FROM (
-            SELECT ts, budget_id, s FROM (
+        SELECT DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") AS date, limit_id, sum(s) AS sum_s FROM (
+            SELECT ts, limit_id, s FROM (
                 SELECT ts, class_id, s FROM (
                     SELECT
                         IF(@prev_ts = 0, 0, @prev_ts - ts) AS s,
@@ -724,20 +724,20 @@ class Wasted {
                 AND title != ""
             ) classes
             LEFT JOIN (
-                SELECT class_id, budget_id
+                SELECT class_id, limit_id
                 FROM mappings
-                JOIN budgets ON mappings.budget_id = budgets.id
+                JOIN limits ON mappings.limit_id = limits.id
                 WHERE user = |s0
             ) user_mappings
             ON classes.class_id = user_mappings.class_id
-            GROUP BY ts, budget_id
-        ) intervals_per_budget
-        GROUP BY date, budget_id
-        ORDER BY date, budget_id',
+            GROUP BY ts, limit_id
+        ) intervals_per_limit
+        GROUP BY date, limit_id
+        ORDER BY date, limit_id',
         $user, $fromTime->getTimestamp(), $toTimestamp);
     $timeByLimitAndDate = [];
     foreach ($rows as $row) {
-      $limitId = $row['budget_id'];
+      $limitId = $row['limit_id'];
       if (!array_key_exists($limitId, $timeByLimitAndDate)) {
         $timeByLimitAndDate[$limitId] = [];
       }
@@ -819,8 +819,8 @@ class Wasted {
    * configured for the day of the week, and the default daily limit. For the last two, a possible
    * weekly limit is additionally applied.
    *
-   * The special ID null indicating "no limit" is present iff the value is < 0, meaning that time
-   * was spent outside of any limit.
+   * The special ID null indicating "limit to zero" is present iff the value is < 0, meaning that
+   * time was spent outside of any defined limit.
    *
    * The result is sorted by key.
    */
@@ -833,7 +833,7 @@ class Wasted {
     $timeSpentByLimitAndDate =
         $this->queryTimeSpentByLimitAndDate($user, getWeekStart($now), null);
 
-    // $minutesSpentByLimitAndDate may contain a limit ID of NULL to indicate "no limit", which
+    // $minutesSpentByLimitAndDate may contain a limit ID of NULL to indicate "limit to zero", which
     // $configs never contains.
     $limitIds = array_keys($configs);
     if (array_key_exists(null, $timeSpentByLimitAndDate)) {
@@ -897,11 +897,11 @@ class Wasted {
     $timeLeftTodayAllLimits =
         $timeLeftTodayAllLimits ?? $this->queryTimeLeftTodayAllLimits($user);
     $rows = DB::query(
-        'SELECT classes.name, class_id, budget_id FROM budgets
-         JOIN mappings on budgets.id = mappings.budget_id
+        'SELECT classes.name, class_id, limit_id FROM limits
+         JOIN mappings on limits.id = mappings.limit_id
          JOIN classes ON mappings.class_id = classes.id
          WHERE user = |s
-         ORDER BY class_id, budget_id',
+         ORDER BY class_id, limit_id',
         $user);
     $classes = [];
     foreach ($rows as $row) {
@@ -909,7 +909,7 @@ class Wasted {
       if (!array_key_exists($classId, $classes)) {
         $classes[$classId] = [$row['name'], PHP_INT_MAX];
       }
-      $newLimit = $timeLeftTodayAllLimits[$row['budget_id']];
+      $newLimit = $timeLeftTodayAllLimits[$row['limit_id']];
       $classes[$classId][1] = min($classes[$classId][1], $newLimit);
     }
     // Remove classes for which no time is left.
@@ -940,7 +940,7 @@ class Wasted {
     DB::insertUpdate('overrides', [
         'user' => $user,
         'date' => $date,
-        'budget_id' => $limitId,
+        'limit_id' => $limitId,
         'minutes' => $minutes],
         'minutes=|i', $minutes);
     return $this->queryOverlappingLimits($limitId);
@@ -955,7 +955,7 @@ class Wasted {
     DB::insertUpdate('overrides', [
         'user' => $user,
         'date' => $date,
-        'budget_id' => $limitId,
+        'limit_id' => $limitId,
         'unlocked' => 1],
         'unlocked=|i', 1);
     return $this->queryOverlappingLimits($limitId, $date);
@@ -966,38 +966,38 @@ class Wasted {
    * String in the format 'YYYY-MM-DD'.
    */
   public function clearOverrides($user, $date, $limitId) {
-    DB::delete('overrides', 'user=|s AND date=|s AND budget_id=|i', $user, $date, $limitId);
+    DB::delete('overrides', 'user=|s AND date=|s AND limit_id=|i', $user, $date, $limitId);
   }
 
   /**
-   * Returns a list of other budgets (by name) that overlap with this limit. Only budgets of the
+   * Returns a list of other limits (by name) that overlap with this limit. Only limits of the
    * same user are considered.
    *
    * If $dateForUnlock (as a string in 'YYYY-MM-DD' format) is specified, the query is restricted to
-   * budgets that are locked on that day, taking overrides into consideration.
+   * limits that are locked on that day, taking overrides into consideration.
    */
   public function queryOverlappingLimits($limitId, $dateForUnlock = null) {
     return array_map(
         function($a) { return $a['name']; },
         DB::query('
             SELECT name, id FROM (
-              SELECT DISTINCT budget_id FROM (
-                SELECT class_id FROM budgets
-                JOIN mappings ON id = budget_id
+              SELECT DISTINCT limit_id FROM (
+                SELECT class_id FROM limits
+                JOIN mappings ON id = limit_id
                 WHERE id = |i0
               ) AS affected_classes
               JOIN mappings ON affected_classes.class_id = mappings.class_id
-              WHERE budget_id != |i0
-            ) AS overlapping_budgets
-            JOIN budgets ON id = budget_id
+              WHERE limit_id != |i0
+            ) AS overlapping_limits
+            JOIN limits ON id = limit_id
             ' . ($dateForUnlock
-            ? 'JOIN budget_config ON id = budget_config.budget_id' : '') . '
-            WHERE user = (SELECT user FROM budgets WHERE id = |i0)
+            ? 'JOIN limit_config ON id = limit_config.limit_id' : '') . '
+            WHERE user = (SELECT user FROM limits WHERE id = |i0)
             ' . ($dateForUnlock
             ? 'AND k = "require_unlock" AND v = "1"
                AND id NOT IN (
-                 SELECT budget_id FROM overrides
-                 WHERE user = (SELECT user FROM budgets WHERE id = |i0)
+                 SELECT limit_id FROM overrides
+                 WHERE user = (SELECT user FROM limits WHERE id = |i0)
                  AND date = |s1
                  AND unlocked = "1")' : '') . '
             ORDER BY name', $limitId, $dateForUnlock));
@@ -1014,7 +1014,7 @@ class Wasted {
         . ' CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,'
         . ' CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END'
         . ' FROM overrides'
-        . ' JOIN budgets ON budget_id = id'
+        . ' JOIN limits ON limit_id = id'
         . ' WHERE overrides.user = |s0'
         . ' AND date >= |s1'
         . ' ORDER BY date DESC, name',
@@ -1023,14 +1023,14 @@ class Wasted {
 
   /** Returns all overrides as a 2D array keyed first by limit ID, then by override. */
   private function queryOverridesByLimit($user, $now) {
-    $rows = DB::query('SELECT budget_id, minutes, unlocked FROM overrides'
+    $rows = DB::query('SELECT limit_id, minutes, unlocked FROM overrides'
         . ' WHERE user = |s'
         . ' AND date = |s',
         $user, getDateString($now));
     $overridesByLimit = array();
-    // PK is (user, date, budget_id), so there is at most one row per budget_id.
+    // PK is (user, date, limit_id), so there is at most one row per limit_id.
     foreach ($rows as $row) {
-      $overridesByLimit[$row['budget_id']] = array('minutes' => $row['minutes'], 'unlocked' => $row['unlocked']);
+      $overridesByLimit[$row['limit_id']] = array('minutes' => $row['minutes'], 'unlocked' => $row['unlocked']);
     }
     return $overridesByLimit;
   }

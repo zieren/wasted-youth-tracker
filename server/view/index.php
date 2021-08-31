@@ -38,16 +38,16 @@ $timeSpentByLimit = [];
 foreach ($timeSpentByLimitAndDate as $limitId=>$timeSpentByDate) {
   $timeSpentByLimit[$limitId] = getOrDefault($timeSpentByDate, $dateString, 0);
 }
-// TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
+// TODO: Classes can map to limits that are not configured (so not in $configs), or map to no
 // limit at all.
 echoTable(
-    budgetIdsToNames(array_keys($timeSpentByLimit), $configs),
+    limitIdsToNames(array_keys($timeSpentByLimit), $configs),
     [array_map("secondsToHHMMSS", array_values($timeSpentByLimit))]);
 
 echo "<h3>Time left today</h3>";
 $timeLeftByLimit = $wasted->queryTimeLeftTodayAllLimits($user);
 echoTable(
-    budgetIdsToNames(array_keys($timeLeftByLimit), $configs),
+    limitIdsToNames(array_keys($timeLeftByLimit), $configs),
     [array_map("secondsToHHMMSS", array_values($timeLeftByLimit))]);
 
 echo "<h3>Most Recently Used<h3>";

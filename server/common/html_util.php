@@ -76,7 +76,7 @@ function dateSelectorJs() {
           </script>';
 }
 
-function budgetSelector($limitNames, $selectedLimitId) {
+function limitSelector($limitNames, $selectedLimitId) {
   $select =
       '<label for="idLimit">Limit: </label>
       <select id="idLimit" name="limitId">';

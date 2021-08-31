@@ -36,16 +36,16 @@ final class WastedTest extends WastedTestBase {
   }
 
   private function classification($id, $limits) {
-    $c = ['class_id' => $id, 'budgets' => $limits];
+    $c = ['class_id' => $id, 'limits' => $limits];
     return $c;
   }
 
   private function mapping($limitId, $classId) {
-    return ['budget_id' => strval($limitId), 'class_id' => strval($classId)];
+    return ['limit_id' => strval($limitId), 'class_id' => strval($classId)];
   }
 
   private function queryMappings() {
-    return DB::query('SELECT budget_id, class_id FROM mappings ORDER BY budget_id, class_id');
+    return DB::query('SELECT limit_id, class_id FROM mappings ORDER BY limit_id, class_id');
   }
 
   public function testSmokeTest(): void {
@@ -155,7 +155,7 @@ final class WastedTest extends WastedTestBase {
     // Add a second mapping for the same class.
     $this->wasted->addMapping($classId1, $limitId2);
 
-    // Class 1 is now mapped to budgets 1 and 2.
+    // Class 1 is now mapped to limits 1 and 2.
     $classification = $this->wasted->classify('user_1', ['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
         $this->classification(DEFAULT_CLASS_ID, [0]),
@@ -185,7 +185,7 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testTotalTime_SingleWindow_WithLimits(): void {
-    // Set up test budgets.
+    // Set up test limits.
     $limitId1 = $this->wasted->addLimit('user_1', 'b1');
     $limitId2 = $this->wasted->addLimit('user_1', 'b2');
     $classId1 = $this->wasted->addClass('c1');
@@ -236,7 +236,7 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testTotalTime_TwoWindows_WithLimits(): void {
-    // Set up test budgets.
+    // Set up test limits.
     $limitId1 = $this->wasted->addLimit('user_1', 'b1');
     $limitId2 = $this->wasted->addLimit('user_1', 'b2');
     $limitId3 = $this->wasted->addLimit('user_1', 'b3');
@@ -262,7 +262,7 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->queryTimeSpentByLimitAndDate('user_1', $fromTime),
         []);
 
-    // Start with a single window. Will not return anything for unused budgets.
+    // Start with a single window. Will not return anything for unused limits.
     $this->wasted->insertWindowTitles('user_1', ['window 1']);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByLimitAndDate('user_1', $fromTime),
@@ -542,7 +542,7 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testGetAllLimitConfigs(): void {
-    // No budgets configured.
+    // No limits configured.
     $this->assertEquals(
         $this->wasted->getAllLimitConfigs('u'),
         []);
@@ -568,7 +568,7 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testManageLimits(): void {
-    // No budgets set up.
+    // No limits set up.
     $this->assertEquals(
         $this->wasted->getAllLimitConfigs('u1'),
         []);
@@ -712,7 +712,7 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->addMapping($classId, $limitId2);
     $this->wasted->setLimitConfig($limitId2, 'daily_limit_minutes_default', 1);
     $this->mockTime += 1;
-    $classification1['budgets'][] = $limitId2;
+    $classification1['limits'][] = $limitId2;
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 1', 'title 2']),
         [$classification1, $classification2]);
@@ -867,7 +867,7 @@ final class WastedTest extends WastedTestBase {
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 1"),
-        "0:0:no_budget\n\n0");
+        "0:0:limit_to_zero\n\n0");
   }
 
   public function testHandleRequest_withLimits(): void {
@@ -891,17 +891,17 @@ final class WastedTest extends WastedTestBase {
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 1\nfoo"),
-        "0:0:no_budget\n$limitId1:298:b1\n\n$limitId1\n0");
+        "0:0:limit_to_zero\n$limitId1:298:b1\n\n$limitId1\n0");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 1\nfoo"),
-        "0:-1:no_budget\n$limitId1:297:b1\n\n$limitId1\n0");
+        "0:-1:limit_to_zero\n$limitId1:297:b1\n\n$limitId1\n0");
 
     // Flip order.
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\nfoo\ntitle 1"),
-        "0:-2:no_budget\n$limitId1:296:b1\n\n0\n" . $limitId1);
+        "0:-2:limit_to_zero\n$limitId1:296:b1\n\n0\n" . $limitId1);
 
     // Add second limit.
     $classId2 = $this->wasted->addClass('c2');
@@ -914,24 +914,24 @@ final class WastedTest extends WastedTestBase {
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 1\nfoo"),
-        "0:-3:no_budget\n$limitId1:295:b1\n$limitId2:115:b2\n\n$limitId1,$limitId2\n0");
+        "0:-3:limit_to_zero\n$limitId1:295:b1\n$limitId2:115:b2\n\n$limitId1,$limitId2\n0");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 1\ntitle 2"),
-        "0:-4:no_budget\n$limitId1:294:b1\n$limitId2:114:b2\n\n"
+        "0:-4:limit_to_zero\n$limitId1:294:b1\n$limitId2:114:b2\n\n"
         . "$limitId1,$limitId2\n$limitId2");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 2"),
-        "0:-4:no_budget\n$limitId1:293:b1\n$limitId2:113:b2\n\n$limitId2");
+        "0:-4:limit_to_zero\n$limitId1:293:b1\n$limitId2:113:b2\n\n$limitId2");
     $this->mockTime++; // This still counts towards b2.
     $this->assertEquals(
         RX::handleRequest($this->wasted, 'u1'),
-        "0:-4:no_budget\n$limitId1:293:b1\n$limitId2:112:b2\n");
+        "0:-4:limit_to_zero\n$limitId1:293:b1\n$limitId2:112:b2\n");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\ntitle 2"),
-        "0:-4:no_budget\n$limitId1:293:b1\n$limitId2:112:b2\n\n$limitId2");
+        "0:-4:limit_to_zero\n$limitId1:293:b1\n$limitId2:112:b2\n\n$limitId2");
   }
 
   public function testHandleRequest_mappedForOtherUser(): void {
@@ -945,11 +945,11 @@ final class WastedTest extends WastedTestBase {
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u2\ntitle 1"),
-        "0:0:no_budget\n\n0");
+        "0:0:limit_to_zero\n\n0");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u2\ntitle 1"),
-        "0:-1:no_budget\n\n0");
+        "0:-1:limit_to_zero\n\n0");
 
     // Now map same class for user u2.
     $limitId2 = $this->wasted->addLimit('u2', 'b2');
@@ -1245,7 +1245,7 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']),
-        [['class_id' => $classId, 'budgets' => [$limitId]]]);
+        [['class_id' => $classId, 'limits' => [$limitId]]]);
     $this->assertEquals(
         $this->wasted->getAllClassifications(),
         [$classificationId => ['name' => 'c1', 're' => '()', 'priority' => 42]]);
@@ -1257,7 +1257,7 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']),
-        [['class_id' => DEFAULT_CLASS_ID, 'budgets' => [0]]]);
+        [['class_id' => DEFAULT_CLASS_ID, 'limits' => [0]]]);
     $this->assertEquals(
         $this->wasted->getAllClassifications(),
         []);
@@ -1450,7 +1450,7 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->setTotalLimit('u1', $limitId);
     $this->wasted->clearAllForTest();
 
-    $this->assertEquals(count(DB::query('SELECT * FROM budgets')), 0);
+    $this->assertEquals(count(DB::query('SELECT * FROM limits')), 0);
     $this->assertEquals(count(DB::query('SHOW TRIGGERS')), 0);
   }
 
@@ -1583,7 +1583,7 @@ final class WastedTest extends WastedTestBase {
     // Test that priority is considered: "t12" is not a sample for c1, but for c2.
     $this->mockTime++;
     $classification = $this->wasted->insertWindowTitles('u1', ['t12']);
-    $this->assertEquals($classification, [['class_id' => $classId2, 'budgets' => [0]]]);
+    $this->assertEquals($classification, [['class_id' => $classId2, 'limits' => [0]]]);
     $this->assertEquals(
         $this->wasted->getClassesToClassificationTable(), [
             ['c1', '1', 42, 1, 't1'],

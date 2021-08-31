@@ -67,10 +67,10 @@ if (action('setUserConfig')) {
   $wasted->clearGlobalConfig(postSanitized('configKey'));
 } else if (action('addLimit')) {
   $user = postSanitized('user');
-  $wasted->addLimit($user, postSanitized('budgetName'));
+  $wasted->addLimit($user, postSanitized('limitName'));
 } else if (action('renameLimit')) {
   $limitId = postInt('limitId');
-  $wasted->renameLimit($limitId, postSanitized('budgetName'));
+  $wasted->renameLimit($limitId, postSanitized('limitName'));
 } else if (action('addClass')) {
   $wasted->addClass(postSanitized('className'));
 } else if (action('removeLimit')) {
@@ -79,10 +79,10 @@ if (action('setUserConfig')) {
 } else if (action('setLimitConfig')) {
   $limitId = postInt('limitId');
   $wasted->setLimitConfig(
-      $limitId, postSanitized('budgetConfigKey'), postSanitized('budgetConfigValue'));
+      $limitId, postSanitized('limitConfigKey'), postSanitized('limitConfigValue'));
 } else if (action('clearLimitConfig')) {
   $limitId = postInt('limitId');
-  $wasted->clearLimitConfig($limitId, postSanitized('budgetConfigKey'));
+  $wasted->clearLimitConfig($limitId, postSanitized('limitConfigKey'));
 } else if (action('setMinutes')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
@@ -159,7 +159,7 @@ if (!isset($limitId)) {
 }
 
 $limitConfigs = $wasted->getAllLimitConfigs($user);
-$limitNames = budgetIdsToNames(array_keys($limitConfigs), $limitConfigs);
+$limitNames = limitIdsToNames(array_keys($limitConfigs), $limitConfigs);
 $classes = $wasted->getAllClasses();
 $configs = $wasted->getAllLimitConfigs($user);
 $classifications = $wasted->getAllClassifications();
@@ -175,11 +175,11 @@ Credits:
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license';
 if ($considerUnlocking) {
   $limitIdToName = getLimitIdToNameMap($configs);
-  echo '<p class="notice">Further locked budgets affecting classes in "'
+  echo '<p class="notice">Further locked limits affecting classes in "'
       . $limitIdToName[$limitId] . '": <b>' . html(implode($considerUnlocking, ', ')) . '</b>';
 } else if ($furtherLimits) {
   $limitIdToName = getLimitIdToNameMap($configs);
-  echo '<p class="notice">Further budgets affecting classes in "'
+  echo '<p class="notice">Further limits affecting classes in "'
       . $limitIdToName[$limitId] . '": <b>' . html(implode($furtherLimits, ', ')) . '</b>';
 }
 echo '<p>
@@ -201,7 +201,7 @@ echo '<p>
   <form method="post" action="index.php">
     <input type="hidden" name="user" value="' . $user . '">'
     . dateSelector($dateString, false)
-    . budgetSelector($limitNames, $limitId) .
+    . limitSelector($limitNames, $limitId) .
     '<label for="idOverrideMinutes">Minutes: </label>
     <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
     <input type="submit" value="Set minutes" name="setMinutes">
@@ -227,18 +227,18 @@ $timeSpentByLimit = [];
 foreach ($timeSpentByLimitAndDate as $id=>$timeSpentByDate) {
   $timeSpentByLimit[$id] = getOrDefault($timeSpentByDate, $dateString, 0);
 }
-// TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
+// TODO: Classes can map to limits that are not configured (so not in $configs), or map to no
 // limit at all.
 echo '<span class="inlineBlockWithMargin"><h3>Time spent on selected date</h3>';
 echoTable(
-    budgetIdsToNames(array_keys($timeSpentByLimit), $configs),
+    limitIdsToNames(array_keys($timeSpentByLimit), $configs),
     [array_map("secondsToHHMMSS", array_values($timeSpentByLimit))]);
 echo '</span>';
 // --- END duplicate code
 
 echo '<span class="inlineBlock"><h3>Time left today</h3>';
 echoTable(
-    budgetIdsToNames(array_keys($timeLeftByLimit), $configs),
+    limitIdsToNames(array_keys($timeLeftByLimit), $configs),
     [array_map("secondsToHHMMSS", array_values($timeLeftByLimit))]);
 echo '</span>';
 
@@ -274,7 +274,7 @@ echoTable(['Limit', 'Class', 'Further limits'], $wasted->getLimitsToClassesTable
 echo '<h4>Map class to limit</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
-  . classSelector($classes, true) . '==> ' . budgetSelector($limitNames, $limitId) . '
+  . classSelector($classes, true) . '==> ' . limitSelector($limitNames, $limitId) . '
   <input type="submit" value="Add" name="addMapping">
   <input type="submit" value="Remove" name="removeMapping">
 </form>
@@ -329,9 +329,9 @@ echo '
 <h4>Configuration</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
-  . budgetSelector($limitNames, $limitId) .
-  '<input type="text" name="budgetConfigKey" value="" placeholder="key">
-  <input type="text" name="budgetConfigValue" value="" placeholder="value">
+  . limitSelector($limitNames, $limitId) .
+  '<input type="text" name="limitConfigKey" value="" placeholder="key">
+  <input type="text" name="limitConfigValue" value="" placeholder="value">
   <input type="submit" value="Set config" name="setLimitConfig">
   <input type="submit" value="Clear config" name="clearLimitConfig">
   <input type="submit" value="Set total limit" name="setTotalLimit">
@@ -340,11 +340,11 @@ echo '
 
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '"> '
-  . budgetSelector($limitNames, $limitId) .
+  . limitSelector($limitNames, $limitId) .
   '<input type="submit" value="Remove (incl. config!)" name="removeLimit"
     class="wastedDestructive" disabled>
   <label for="idLimitName">Name: </label>
-  <input id="idLimitName" name="budgetName" type="text" value="">
+  <input id="idLimitName" name="limitName" type="text" value="">
   <input type="submit" value="Rename" name="renameLimit">
   <input type="submit" value="Add" name="addLimit">
 </form>

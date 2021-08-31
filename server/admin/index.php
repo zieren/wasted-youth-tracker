@@ -228,7 +228,7 @@ foreach ($timeSpentByBudgetAndDate as $id=>$timeSpentByDate) {
   $timeSpentByBudget[$id] = getOrDefault($timeSpentByDate, $dateString, 0);
 }
 // TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
-// budget at all.
+// limit at all.
 echo '<span class="inlineBlockWithMargin"><h3>Time spent on selected date</h3>';
 echoTable(
     budgetIdsToNames(array_keys($timeSpentByBudget), $configs),
@@ -334,8 +334,8 @@ echo '
   <input type="text" name="budgetConfigValue" value="" placeholder="value">
   <input type="submit" value="Set config" name="setBudgetConfig">
   <input type="submit" value="Clear config" name="clearBudgetConfig">
-  <input type="submit" value="Set total budget" name="setTotalBudget">
-  <input type="submit" value="Unset total budget" name="unsetTotalBudget">
+  <input type="submit" value="Set total limit" name="setTotalBudget">
+  <input type="submit" value="Unset total limit" name="unsetTotalBudget">
 </form>
 
 <form method="post" action="index.php">

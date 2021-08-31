@@ -79,7 +79,7 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 11]]);
 
-    // Switch window (no effect, same budget).
+    // Switch window (no effect, same limit).
     $this->mockTime += 7;
     $this->wasted->insertWindowTitles('user_1', ['window 2']);
     $this->assertEquals(
@@ -101,7 +101,7 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         ['' => ['1970-01-01' => 0]]);
 
-    // Advance 5 seconds. Still two windows, but same budget, so total time is 5 seconds.
+    // Advance 5 seconds. Still two windows, but same limit, so total time is 5 seconds.
     $this->mockTime += 5;
     $this->wasted->insertWindowTitles('user_1', ['window 1', 'window 2']);
     $this->assertEquals(
@@ -144,7 +144,7 @@ final class WastedTest extends WastedTestBase {
 
     $this->wasted->addMapping($classId1, $limitId1);
 
-    // Class 1 mapped to budget 1, other classes are not assigned to any budget.
+    // Class 1 mapped to limit 1, other classes are not assigned to any limit.
     $classification = $this->wasted->classify('user_1', ['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
         $this->classification(DEFAULT_CLASS_ID, [0]),
@@ -166,7 +166,7 @@ final class WastedTest extends WastedTestBase {
     // Add a mapping for the default class.
     $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId2);
 
-    // Default class is now mapped to budget 2.
+    // Default class is now mapped to limit 2.
     $classification = $this->wasted->classify('user_1', ['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
         $this->classification(DEFAULT_CLASS_ID, [$limitId2]),
@@ -224,7 +224,7 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->queryTimeSpentByBudgetAndDate('user_1', $fromTime),
         [$limitId1 => ['1970-01-01' => 11]]);
 
-    // Switch window. First interval still counts towards previous window/budget.
+    // Switch window. First interval still counts towards previous window/limit.
     $this->mockTime += 7;
     $this->wasted->insertWindowTitles('user_1', ['window 2']);
     $this->assertEquals(
@@ -549,7 +549,7 @@ final class WastedTest extends WastedTestBase {
 
     $limitId = $this->wasted->addLimit('u', 'b');
 
-    // A mapping is not required for the budget to be returned for the user.
+    // A mapping is not required for the limit to be returned for the user.
     $this->assertEquals(
         $this->wasted->getAllBudgetConfigs('u'),
         [$limitId => ['name' => 'b']]);
@@ -572,7 +572,7 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals(
         $this->wasted->getAllBudgetConfigs('u1'),
         []);
-    // Add a budget but no maping yet.
+    // Add a limit but no maping yet.
     $limitId1 = $this->wasted->addLimit('u1', 'b1');
     // Not returned when user does not match.
     $this->assertEquals(
@@ -604,13 +604,13 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->getAllBudgetConfigs('u1'),
         [$limitId1 => ['name' => 'b1']]);
 
-    // Add budget config.
+    // Add limit config.
     $this->wasted->setBudgetConfig($limitId1, 'foo', 'bar');
     $this->assertEqualsIgnoreOrder(
         $this->wasted->getAllBudgetConfigs('u1'),
         [$limitId1 => ['name' => 'b1', 'foo' => 'bar']]);
 
-    // Remove budget, this cascades to mappings and config.
+    // Remove limit, this cascades to mappings and config.
     $this->wasted->removeBudget($limitId1);
     $this->assertEquals(
         $this->wasted->getAllBudgetConfigs('u1'),
@@ -643,7 +643,7 @@ final class WastedTest extends WastedTestBase {
     $limitId = $this->wasted->addLimit('u2', 'b1');
     $this->wasted->addMapping($classId, $limitId);
 
-    // No budget is mapped for user u1. The window is classified, but no budget is associated.
+    // No limit is mapped for user u1. The window is classified, but no limit is associated.
 
     $this->assertEquals(
         $this->wasted->classify('u1', ['title 1']),
@@ -690,7 +690,7 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
         [$limitId1 => 105]);
 
-    // Add a window that maps to no budget.
+    // Add a window that maps to no limit.
     $this->mockTime += 15;
     $classification2 = $this->classification(DEFAULT_CLASS_ID, [0]);
     $this->assertEqualsIgnoreOrder(
@@ -707,7 +707,7 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->queryTimeLeftTodayAllBudgets('u1'),
         [null => -15, $limitId1 => 75]);
 
-    // Add a second budget for title 1 with only 1 minute.
+    // Add a second limit for title 1 with only 1 minute.
     $limitId2 = $this->wasted->addLimit('u1', 'b2');
     $this->wasted->addMapping($classId, $limitId2);
     $this->wasted->setBudgetConfig($limitId2, 'daily_limit_minutes_default', 1);
@@ -903,7 +903,7 @@ final class WastedTest extends WastedTestBase {
         RX::handleRequest($this->wasted, "u1\nfoo\ntitle 1"),
         "0:-2:no_budget\n$limitId1:296:b1\n\n0\n" . $limitId1);
 
-    // Add second budget.
+    // Add second limit.
     $classId2 = $this->wasted->addClass('c2');
     $this->wasted->addClassification($classId2, 10, '2$');
     $limitId2 = $this->wasted->addLimit('u1', 'b2');
@@ -1038,7 +1038,7 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->queryTimeSpentByBudgetAndDate('u1', $fromTime),
         ['' => ['1970-01-01' => 1]]);
 
-    // Add a title that matches the budget, but don't elapse time for it yet. This will extend the
+    // Add a title that matches the limit, but don't elapse time for it yet. This will extend the
     // title from the previous call.
     $classification2and1 = [
         $this->classification(DEFAULT_CLASS_ID, [0]),
@@ -1394,7 +1394,7 @@ final class WastedTest extends WastedTestBase {
             $this->mapping($limitId2, $classId7),
             ]);
 
-    // Removing a total budget will make the trigger fail from now on. But if a trigger fails alone
+    // Removing a total limit will make the trigger fail from now on. But if a trigger fails alone
     // in the forest and nobody is there to hear it, does it make a sound? No!
     $this->wasted->removeBudget($limitId1);
     $classId8 = $this->wasted->addClass('c8');
@@ -1406,7 +1406,7 @@ final class WastedTest extends WastedTestBase {
             $this->mapping($limitId2, $classId8),
             ]);
 
-    // Remove the total budget setting.
+    // Remove the total limit setting.
     $this->wasted->unsetTotalBudget('u1');
     $this->wasted->addClass('c9');
     $this->assertEquals(
@@ -1672,21 +1672,21 @@ final class WastedTest extends WastedTestBase {
     $classId1 = $this->wasted->addClass('c1');
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), []);
 
-    // Simple case: one class, one budget.
+    // Simple case: one class, one limit.
     $this->wasted->addMapping($classId1, $limitId1);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), ['c1 (0:03:00)']);
 
-    // Add another budget that requires unlocking. No change for now.
+    // Add another limit that requires unlocking. No change for now.
     $limitId2 = $this->wasted->addLimit('u1', 'b2');
     $this->wasted->setBudgetConfig($limitId2, 'daily_limit_minutes_default', 2);
     $this->wasted->setBudgetConfig($limitId2, 'require_unlock', 1);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), ['c1 (0:03:00)']);
 
-    // Map the class to the new budget too. This removes the class from the response.
+    // Map the class to the new limit too. This removes the class from the response.
     $this->wasted->addMapping($classId1, $limitId2);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), []);
 
-    // Unlock the locked budget. It restricts the first budget.
+    // Unlock the locked limit. It restricts the first limit.
     $this->wasted->setOverrideUnlock('u1', $this->dateString(), $limitId2);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), ['c1 (0:02:00)']);
 

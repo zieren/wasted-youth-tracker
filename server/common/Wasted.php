@@ -264,8 +264,8 @@ class Wasted {
   }
 
   /**
-   * Maps all existing classes to the specified budget and installs a trigger that adds each newly
-   * added class to this budget.
+   * Maps all existing classes to the specified limit and installs a trigger that adds each newly
+   * added class to this limit.
    */
   public function setTotalBudget($user, $limitId) {
     $triggerName = $this->getTotalBudgetTriggerName($user);
@@ -283,7 +283,7 @@ class Wasted {
         $limitId);
   }
 
-  /** Removes the total budget (if any) for the user. */
+  /** Removes the total limit (if any) for the user. */
   public function unsetTotalBudget($user) {
     $triggerName = $this->getTotalBudgetTriggerName($user);
     DB::query('DROP TRIGGER IF EXISTS ' . $triggerName);
@@ -292,7 +292,7 @@ class Wasted {
   /**
    * Returns an array the size of $titles that contains, at the corresponding position, an array
    * with keys 'class_id' and 'budgets'. The latter is again an array and contains the list of
-   * budget IDs to which the class_id maps, where 0 indicates "no budget".
+   * limit IDs to which the class_id maps, where 0 indicates "no limit".
    */
   public function classify($user, $titles) {
     /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
@@ -344,19 +344,19 @@ class Wasted {
 
   // TODO: Decide how to treat disabled (non-enabled!?) budgets. Then check callers.
 
-  /** Sets the specified budget config. */
+  /** Sets the specified limit config. */
   public function setBudgetConfig($limitId, $key, $value) {
     DB::insertUpdate('budget_config', ['budget_id' => $limitId, 'k' => $key, 'v' => $value]);
   }
 
-  /** Clears the specified budget config. */
+  /** Clears the specified limit config. */
   public function clearBudgetConfig($limitId, $key) {
     DB::delete('budget_config', 'budget_id = |s AND k = |s', $limitId, $key);
   }
 
   /**
    * Returns configs of all budgets of the specified user. Returns a 2D array
-   * $configs[$limitId][$key] = $value. The array is sorted by budget ID.
+   * $configs[$limitId][$key] = $value. The array is sorted by limit ID.
    */
   public function getAllBudgetConfigs($user) {
     $rows = DB::query(
@@ -388,7 +388,7 @@ class Wasted {
   public function getBudgetsToClassesTable($user) {
     $rows = DB::query(
         'SELECT
-           budgets.name as budget,
+           budgets.name as limit,
            classes.name AS class,
            CASE WHEN n = 1 THEN "" ELSE other_budgets END
          FROM (
@@ -435,12 +435,12 @@ class Wasted {
          ) AS result
          JOIN classes ON class_id = classes.id
          JOIN budgets ON budget_id = budgets.id
-         ORDER BY budget, class',
+         ORDER BY limit, class',
         $user);
     $table = [];
     foreach ($rows as $row) {
       $table[] = [
-          $row['budget'] ?? '',
+          $row['limit'] ?? '',
           $row['class'] ?? '',
           $row['CASE WHEN n = 1 THEN "" ELSE other_budgets END']]; // can't alias CASE
     }
@@ -682,7 +682,7 @@ class Wasted {
     return $config;
   }
 
-  /** Returns all users, i.e. all distinct user keys for which at least one budget is present. */
+  /** Returns all users, i.e. all distinct user keys for which at least one limit is present. */
   public function getUsers() {
     $rows = DB::query('SELECT DISTINCT user FROM budgets ORDER BY user');
     $users = [];
@@ -695,8 +695,8 @@ class Wasted {
   // ---------- TIME SPENT/LEFT QUERIES ----------
 
   /**
-   * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by budget
-   * ID (including NULL for "no budget", if applicable) and date. $toTime may be null to omit the
+   * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by limit
+   * ID (including NULL for "no limit", if applicable) and date. $toTime may be null to omit the
    * upper limit.
    */
   public function queryTimeSpentByBudgetAndDate($user, $fromTime, $toTime = null) {
@@ -791,7 +791,7 @@ class Wasted {
   }
 
   /**
-   * Returns the time spent by window title and budget name, starting at $fromTime and ending 1d
+   * Returns the time spent by window title and limit name, starting at $fromTime and ending 1d
    * (i.e. usually 24h) later. $date should therefore usually have a time of 0:00. Records are
    * ordered by the amount of time ($orderBySum = true) or else by recency.
    *
@@ -814,13 +814,13 @@ class Wasted {
   }
 
   /**
-   * Returns the time (in seconds) left today, in an array keyed by budget ID. In order of
+   * Returns the time (in seconds) left today, in an array keyed by limit ID. In order of
    * decreasing priority, this considers the unlock requirement, an override limit, the limit
    * configured for the day of the week, and the default daily limit. For the last two, a possible
    * weekly limit is additionally applied.
    *
-   * The special ID null indicating "no budget" is present iff the value is < 0, meaning that time
-   * was spent outside of any budget.
+   * The special ID null indicating "no limit" is present iff the value is < 0, meaning that time
+   * was spent outside of any limit.
    *
    * The result is sorted by key.
    */
@@ -833,7 +833,7 @@ class Wasted {
     $timeSpentByBudgetAndDate =
         $this->queryTimeSpentByBudgetAndDate($user, getWeekStart($now), null);
 
-    // $minutesSpentByBudgetAndDate may contain a budget ID of NULL to indicate "no budget", which
+    // $minutesSpentByBudgetAndDate may contain a limit ID of NULL to indicate "no limit", which
     // $configs never contains.
     $limitIds = array_keys($configs);
     if (array_key_exists(null, $timeSpentByBudgetAndDate)) {
@@ -889,8 +889,8 @@ class Wasted {
    * Returns a list of strings describing all available classes
    * TODO
    *  class names and seconds left for that class. This considers the most
-   * restrictive budget and assumes that no time is spent on any other class (which might count
-   * towards a shared budget and thus reduce time for other classes). Classes with zero time are
+   * restrictive limit and assumes that no time is spent on any other class (which might count
+   * towards a shared limit and thus reduce time for other classes). Classes with zero time are
    * omitted.
    */
   public function queryClassesAvailableTodayTable($user, $timeLeftTodayAllBudgets = null) {
@@ -932,7 +932,7 @@ class Wasted {
   // ---------- OVERRIDE QUERIES ----------
 
   /**
-   * Overrides the budget minutes limit for $date, which is a String in the format 'YYYY-MM-DD'.
+   * Overrides the limit minutes limit for $date, which is a String in the format 'YYYY-MM-DD'.
    *
    * Returns queryOverlappingBudgets().
    */
@@ -947,7 +947,7 @@ class Wasted {
   }
 
   /**
-   * Unlocks the specified budget for $date, which is a String in the format 'YYYY-MM-DD'.
+   * Unlocks the specified limit for $date, which is a String in the format 'YYYY-MM-DD'.
    *
    * Returns queryOverlappingBudgets().
    */
@@ -962,7 +962,7 @@ class Wasted {
   }
 
   /**
-   * Clears all overrides (minutes and unlock) for the specified budget for $date, which is a
+   * Clears all overrides (minutes and unlock) for the specified limit for $date, which is a
    * String in the format 'YYYY-MM-DD'.
    */
   public function clearOverrides($user, $date, $limitId) {
@@ -970,7 +970,7 @@ class Wasted {
   }
 
   /**
-   * Returns a list of other budgets (by name) that overlap with this budget. Only budgets of the
+   * Returns a list of other budgets (by name) that overlap with this limit. Only budgets of the
    * same user are considered.
    *
    * If $dateForUnlock (as a string in 'YYYY-MM-DD' format) is specified, the query is restricted to
@@ -1021,7 +1021,7 @@ class Wasted {
         $user, $fromDate->format('Y-m-d'));
   }
 
-  /** Returns all overrides as a 2D array keyed first by budget ID, then by override. */
+  /** Returns all overrides as a 2D array keyed first by limit ID, then by override. */
   private function queryOverridesByBudget($user, $now) {
     $rows = DB::query('SELECT budget_id, minutes, unlocked FROM overrides'
         . ' WHERE user = |s'

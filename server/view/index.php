@@ -39,7 +39,7 @@ foreach ($timeSpentByBudgetAndDate as $limitId=>$timeSpentByDate) {
   $timeSpentByBudget[$limitId] = getOrDefault($timeSpentByDate, $dateString, 0);
 }
 // TODO: Classes can map to budgets that are not configured (so not in $configs), or map to no
-// budget at all.
+// limit at all.
 echoTable(
     budgetIdsToNames(array_keys($timeSpentByBudget), $configs),
     [array_map("secondsToHHMMSS", array_values($timeSpentByBudget))]);

@@ -8,7 +8,7 @@
  *
  * Theoretically the classification could change between calls, resulting in the same title at the
  * same timestamp with different classifications. This is highly unlikely though, and would only
- * result in an accounting inaccuracy: Both titles would count towards their budget with the
+ * result in an accounting inaccuracy: Both titles would count towards their limit with the
  * interval since the previous timestamp, when in fact one of the intervals was really zero.
  */
 class RX {

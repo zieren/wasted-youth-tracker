@@ -82,8 +82,6 @@ function secondsToHHMMSS($seconds) {
 /**
  * Maps limit IDs in the input array to names, given the configs obtained from
  * Wasted::getAllLimitConfigs().
- *
- * TODO: Replace use of this function with getLimitIdToNameMap() below.
  */
 function limitIdsToNames($ids, $configs) {
   $names = [];

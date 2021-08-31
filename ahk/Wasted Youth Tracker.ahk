@@ -7,6 +7,8 @@ IniRead, HTTP_USER, %INI_FILE%, server, username
 IniRead, HTTP_PASS, %INI_FILE%, server, password
 IniRead, USER, %INI_FILE%, account, user
 
+OnError("LogError") ; The handler logs some of the config read above.
+
 ; Shared variables should be safe since AutoHotkey simulates concurrency
 ; using a single thread: https://www.autohotkey.com/docs/misc/Threads.htm
 
@@ -430,6 +432,24 @@ ShowStatus() {
   Critical, On
   ShowMessages(DoTheThing(true), false)
   Critical, Off
+}
+
+LogError(exception) {
+  FormatTime, t, Time, yyyyMMdd HHmmss
+  msg := exception.Message
+  if (exception.Extra) {
+    msg .= " (" exception.Extra ")"
+  }
+  filename := A_Temp "\wasted.log"
+  FileGetSize, filesize, % filename, M
+  if (filesize > 10) {
+    FileDelete % filename
+  }
+  FileAppend % t " " USER " " exception.Line " " msg "`n", % filename
+  ShowMessages(["Please get your parents to look at this error:", msg, "Full details logged to " filename])
+  ; TODO: Surface this on the server.
+  ; No ExitApp: Leave the script running because it may help figure out the error.
+  return 1
 }
 
 DebugShowStatus() {

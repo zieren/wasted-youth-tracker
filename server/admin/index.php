@@ -69,49 +69,49 @@ if (action('setUserConfig')) {
   $user = postSanitized('user');
   $wasted->addLimit($user, postSanitized('budgetName'));
 } else if (action('renameBudget')) {
-  $limitId = postInt('budgetId');
+  $limitId = postInt('limitId');
   $wasted->renameBudget($limitId, postSanitized('budgetName'));
 } else if (action('addClass')) {
   $wasted->addClass(postSanitized('className'));
 } else if (action('removeBudget')) {
-  $limitId = postInt('budgetId');
+  $limitId = postInt('limitId');
   $wasted->removeBudget($limitId);
 } else if (action('setBudgetConfig')) {
-  $limitId = postInt('budgetId');
+  $limitId = postInt('limitId');
   $wasted->setBudgetConfig(
       $limitId, postSanitized('budgetConfigKey'), postSanitized('budgetConfigValue'));
 } else if (action('clearBudgetConfig')) {
-  $limitId = postInt('budgetId');
+  $limitId = postInt('limitId');
   $wasted->clearBudgetConfig($limitId, postSanitized('budgetConfigKey'));
 } else if (action('setMinutes')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
-  $limitId = postInt('budgetId');
+  $limitId = postInt('limitId');
   $furtherBudgets =
       $wasted->setOverrideMinutes($user, $dateString, $limitId, postInt('overrideMinutes', 0));
 } else if (action('unlock')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
-  $limitId = postInt('budgetId');
+  $limitId = postInt('limitId');
   $considerUnlocking = $wasted->setOverrideUnlock($user, $dateString, $limitId);
 } else if (action('clearOverrides')) {
   $user = postSanitized('user');
   $dateString = postSanitized('date');
-  $limitId = postInt('budgetId');
+  $limitId = postInt('limitId');
   $wasted->clearOverrides($user, $dateString, $limitId);
 } else if (action('addMapping')) {
   $user = postSanitized('user');
-  $limitId = postInt('budgetId');
+  $limitId = postInt('limitId');
   $classId = postInt('classId');
   $wasted->addMapping($classId, $limitId);
 } else if (action('removeMapping')) {
   $user = postSanitized('user');
-  $limitId = postInt('budgetId');
+  $limitId = postInt('limitId');
   $classId = postInt('classId');
   $wasted->removeMapping($classId, $limitId);
 } else if (action('setTotalBudget')) {
   $user = postSanitized('user');
-  $limitId = postInt('budgetId');
+  $limitId = postInt('limitId');
   $wasted->setTotalBudget($user, $limitId);
 } else if (action('unsetTotalBudget')) {
   $user = postSanitized('user');

@@ -55,6 +55,9 @@ checkRequirements();
 $wasted = Wasted::create(true /* create missing tables */);
 $now = new DateTime();
 
+$considerUnlocking = false;
+$furtherLimits = false;
+
 if (action('setUserConfig')) {
   $user = postSanitized('configUser');
   $wasted->setUserConfig($user, postSanitized('configKey'), postSanitized('configValue'));
@@ -137,13 +140,11 @@ if (action('setUserConfig')) {
   $days = postInt('reclassificationDays');
   $fromTime = (clone $now)->sub(new DateInterval('P' . $days . 'D'));
   $wasted->reclassify($fromTime);
-
-// TODO: Implement.
 } else if (action('prune')) {
-  $dateString = postSanitized('datePrune');
-  $dateTime = DateTime::createFromFormat("Y-m-d", $dateString);
+  // Need to postfix 00:00:00 to not get current time of day.
+  $dateTime = DateTime::createFromFormat('Y-m-d H:i:s', postSanitized('datePrune') . ' 00:00:00');
   $wasted->pruneTables($dateTime);
-  echo '<b>Tables pruned before ' . getDateString($dateTime) . '</b></hr>';
+  echo '<b class="notice">Deleted data before ' . getDateString($dateTime) . '</b></hr>';
 }
 
 $users = $wasted->getUsers();
@@ -367,13 +368,15 @@ echo '<h3>Update config</h3>
   <input type="submit" name="clearGlobalConfig" value="Clear Global Config">
 </form>
 
-<hr />
+<hr />';
 
-<h2>Manage Database</h2>
-PRUNE data and logs before
+$pruneFromDate = (clone $now)->sub(new DateInterval('P4W'));
+
+echo '<h2>Manage Database</h2>
 <form method="post">
-  <input type="date" name="datePrune" value="' . date('Y-m-d') . '">
-  <input class="wastedDestructive" type="submit" value="PRUNE" name="prune" disabled />
+  Delete activity (of all users!) and server logs older than
+  <input type="date" name="datePrune" value="' . $pruneFromDate->format('Y-m-d') . '">
+  <input class="wastedDestructive" type="submit" value="DELETE" name="prune" disabled />
 </form>
 ';
 ?>

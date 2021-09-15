@@ -180,11 +180,28 @@ class Wasted {
         're' => '()']); // RE can't be ''
   }
 
-  /** Delete all records prior to DateTime $date. */
+  /** Delete all activity of all users, and all server log files, prior to DateTime $date. */
   public function pruneTables($date) {
-    $this->throwException("pruneTables() not implemented");
-    // TODO: Update for new tables.
-    Logger::Instance()->notice('tables pruned up to ' . $date->format(DateTimeInterface::ATOM));
+    $pruneTimestamp = $date->getTimestamp();
+    Logger::Instance()->notice('prune timestamp: '.$pruneTimestamp);
+    DB::delete('activity', 'ts < |i', $pruneTimestamp);
+    Logger::Instance()->notice('tables pruned up to '.$date->format(DateTimeInterface::ATOM));
+
+    // Delete log files. This depends on KLogger's default log file name pattern.
+    $logfiles = scandir(LOG_DIR);
+    $matches = null;
+    foreach ($logfiles as $f) {
+      if (preg_match(LOG_PATTERN, $f, $matches)) {
+        $fileDate = new DateTime();
+        $fileDate->setTimestamp(strtotime($matches[1]));
+        // Be conservative: We assume 00:00:00 on the file date, but write until 24h later.
+        $fileDate->add(new DateInterval('P1D'));
+        if ($fileDate->getTimestamp() < $pruneTimestamp) {
+          unlink(LOG_DIR.'/'.$f);
+          Logger::Instance()->notice('log file deleted: '.$f);
+        }
+      }
+    }
   }
 
   // ---------- LIMIT/CLASS QUERIES ----------
@@ -589,7 +606,7 @@ class Wasted {
   // ---------- WRITE ACTIVITY QUERIES ----------
 
   /**
-   * Records the specified window titles. Return value is that of classify().
+   * Records the specified window titles (array). Return value is that of classify().
    *
    * If no windows are open, $titles should be an empty array. In this case the timestamp is
    * recorded for the computation of the previous interval.

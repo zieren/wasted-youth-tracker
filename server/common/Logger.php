@@ -8,7 +8,7 @@ final class Logger {
 
   public static function Instance(): Katzgrau\KLogger\Logger {
     if (!self::$instance) {
-      self::$instance = new Katzgrau\KLogger\Logger('../logs');
+      self::$instance = new Katzgrau\KLogger\Logger(LOG_DIR);
     }
     return self::$instance;
   }

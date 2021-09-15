@@ -1783,6 +1783,39 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals($this->wasted->queryOverlappingLimits($limitId3, $date), []);
     $this->assertEquals($this->wasted->queryOverlappingLimits($limitId4, $date), []);
   }
+
+  public function testPruneTables(): void {
+    $fromTime = $this->newDateTime();
+    $classId = $this->wasted->addClass('c2');
+    $this->wasted->addClassification($classId, 0, '2$');
+    $limitId = $this->wasted->addLimit('u1', 'l2');
+    $this->wasted->addMapping($classId, $limitId);
+
+    $this->wasted->insertWindowTitles('u1', ['t1', 't2']);
+    $this->mockTime++;
+    $this->wasted->insertWindowTitles('u1', ['t1', 't2', 't3']);
+    $this->mockTime++;
+    $this->wasted->insertWindowTitles('u1', ['t2', 't3']);
+
+    $this->assertEquals(
+        $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime),
+        ['' => ['1970-01-01' => 2], $limitId => ['1970-01-01' => 2]]);
+
+    $this->wasted->pruneTables($fromTime);
+
+    // No change.
+    $this->assertEquals(
+        $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime),
+        ['' => ['1970-01-01' => 2], $limitId => ['1970-01-01' => 2]]);
+
+    $fromTime->add(new DateInterval('PT1S'));
+    $this->wasted->pruneTables($fromTime);
+
+    // 1 second chopped off.
+    $this->assertEquals(
+        $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime),
+        ['' => ['1970-01-01' => 1], $limitId => ['1970-01-01' => 1]]);
+  }
 }
 
 (new WastedTest())->run();

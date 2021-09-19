@@ -15,7 +15,7 @@ OnError("LogErrorHandler") ; The handler logs some of the config read above.
 ; Track last successful request to server. If this exceeds the configured
 ; threshold, we assume the network is down and will doom everything because
 ; we can no longer enforce limits.
-global LAST_SUCCESSFUL_REQUEST := 0 ; epoch seconds
+global LAST_SUCCESSFUL_REQUEST := EpochSeconds() ; allow offline grace period on startup
 ; Track windows for which a "please close" message was already shown.
 ; There's no set type, so use an associative array.
 global DOOMED_WINDOWS := {}
@@ -45,12 +45,9 @@ CFG[IGNORE_PROCESSES]["LogiOverlay.exe"] := 1 ; Logitech mouse/trackball driver
 ; Processes that don't (always) have windows but should be included, e.g. audio players.
 global WATCH_PROCESSES := "watch_processes"
 CFG[WATCH_PROCESSES] := {}
-; Offline time after which we warn the user.
-global OFFLINE_WARN_SECONDS := "offline_warn_seconds"
-CFG[OFFLINE_WARN_SECONDS] := 60
-; Offline time after which we close everything.
-global OFFLINE_CLOSE_SECONDS := "offline_close_seconds"
-CFG[OFFLINE_CLOSE_SECONDS] := 2 * 60
+; Allowed offline grace period. After this, all programs are closed.
+global OFFLINE_GRACE_PERIOD_SECONDS := "offline_grace_period_seconds"
+CFG[OFFLINE_GRACE_PERIOD_SECONDS] := 60
 ; For debugging: Don't actually close windows.
 global DISABLE_ENFORCEMENT := "disable_enforcement"
 CFG[DISABLE_ENFORCEMENT] := 0
@@ -294,23 +291,19 @@ CheckStatus200(request) {
 }
 
 HandleOffline(exception, windows) {
+  ; Server may be temporarily unavailable, so initially we only log silently.
   errorMessage := LogError(exception, false)
-  now = EpochSeconds()
-  offlineWarnSecondsLeft := OFFLINE_WARN_SECONDS - (now - LAST_SUCCESSFUL_REQUEST)
-  offlineCloseSecondsLeft := OFFLINE_CLOSE_SECONDS - (now - LAST_SUCCESSFUL_REQUEST)
+  offlineSeconds := EpochSeconds() - LAST_SUCCESSFUL_REQUEST
   messages := []
-  if (offlineCloseSecondsLeft < 0) {
+  if (offlineSeconds > CFG[OFFLINE_GRACE_PERIOD_SECONDS]) {
     for title, window in windows {
       ; Specifying the title here is slightly counterproductive because it allows to evade
-      ; termination by e.g. switching between browser tabs. The allowed offline period is likely
+      ; termination by e.g. switching between browser tabs. The offline grace period is likely
       ; larger than the regular sample interval, so this could be worthwhile. However, without a
       ; network connection the browser (which is the primary means of exploit) is not too useful.
-      ; All in all, this case seems too obscure to special case it in the code.
+      ; All in all, this case seems too obscure to special case it.
       DoomWindow(window, title, messages, "No uplink to the mothership. Please close '" title "'")
     }
-    messages.Push("", "Error: " errorMessage)
-  } else if (offlineWarnSecondsLeft < 0) {
-    messages.Push("No uplink to the mothership. Will close everything in " FormatSeconds(offlineCloseSecondsLeft))
     messages.Push("", "Error: " errorMessage)
   }
   return messages

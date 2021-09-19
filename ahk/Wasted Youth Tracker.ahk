@@ -7,7 +7,7 @@ IniRead, HTTP_USER, %INI_FILE%, server, username
 IniRead, HTTP_PASS, %INI_FILE%, server, password
 IniRead, USER, %INI_FILE%, account, user
 
-OnError("LogError") ; The handler logs some of the config read above.
+OnError("LogErrorHandler") ; The handler logs some of the config read above.
 
 ; Shared variables should be safe since AutoHotkey simulates concurrency
 ; using a single thread: https://www.autohotkey.com/docs/misc/Threads.htm
@@ -230,9 +230,10 @@ DoTheThing(reportStatus) {
   request := CreateRequest()
   try {
     OpenRequest("POST", request, "rx/").send(USER windowList)
+    CheckStatus200(request)
     LAST_SUCCESSFUL_REQUEST := EpochSeconds()
-  } catch {
-    return HandleOffline(windows)
+  } catch exception {
+    return HandleOffline(exception, windows)
   }
 
   ; Parse response. Format is described in RX.php.
@@ -286,11 +287,19 @@ OpenRequest(method, request, path) {
   return request
 }
 
-HandleOffline(windows) {
-  offlineWarnSecondsLeft := OFFLINE_WARN_SECONDS - (EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
-  offlineCloseSecondsLeft := OFFLINE_CLOSE_SECONDS - (EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
+CheckStatus200(request) {
+  if (request.status != 200) {
+    throw Exception("HTTP " request.status ": " request.statusText)
+  }
+}
+
+HandleOffline(exception, windows) {
+  errorMessage := LogError(exception, false)
+  now = EpochSeconds()
+  offlineWarnSecondsLeft := OFFLINE_WARN_SECONDS - (now - LAST_SUCCESSFUL_REQUEST)
+  offlineCloseSecondsLeft := OFFLINE_CLOSE_SECONDS - (now - LAST_SUCCESSFUL_REQUEST)
+  messages := []
   if (offlineCloseSecondsLeft < 0) {
-    messages := []
     for title, window in windows {
       ; Specifying the title here is slightly counterproductive because it allows to evade
       ; termination by e.g. switching between browser tabs. The allowed offline period is likely
@@ -299,11 +308,12 @@ HandleOffline(windows) {
       ; All in all, this case seems too obscure to special case it in the code.
       DoomWindow(window, title, messages, "No uplink to the mothership. Please close '" title "'")
     }
-    return messages
+    messages.Push("", "Error: " errorMessage)
+  } else if (offlineWarnSecondsLeft < 0) {
+    messages.Push("No uplink to the mothership. Will close everything in " FormatSeconds(offlineCloseSecondsLeft))
+    messages.Push("", "Error: " errorMessage)
   }
-  if (offlineWarnSecondsLeft < 0) {
-    return ["No uplink to the mothership. Will close everything in " FormatSeconds(offlineCloseSecondsLeft)]
-  }
+  return messages
 }
 
 ProcessTitleResponse(line, windows, title, limits, titlesByLimit, messages) {
@@ -378,16 +388,19 @@ AddStatusReport(limits, titlesByLimit, messages) {
 }
 
 ReadConfig() {
-  responseLines := ["Not the Mama!"]
+  responseLines := ["Not the Mama!"] ; invalid
   path := "cfg/?user=" USER
   try {
     request := CreateRequest()
     OpenRequest("GET", request, path).send()
+    CheckStatus200(request)
     responseLines := StrSplit(request.responseText, "`n")
-  } catch {
+  } catch exception {
+    LogError(exception, false)
     ; handled below
   }
   ; This also handles request failure.
+  ; TODO: Improve this. Show error message from LogError.
   if (responseLines[1] != "-*- cfg -*-" || Mod(responseLines.Length(), 2) != 1) {
     ShowMessage("Failed to read config from " URL "/" path)
     return
@@ -434,7 +447,14 @@ ShowStatus() {
   Critical, Off
 }
 
-LogError(exception) {
+LogErrorHandler(exception) {
+  LogError(exception, true)
+  ; No ExitApp: Leave the script running because it may help figure out the error.
+  return 1
+}
+
+; Logs the exception to a file and optionally to the UI. Returns a short error message.
+LogError(exception, showMessage) {
   FormatTime, t, Time, yyyyMMdd HHmmss
   msg := exception.Message
   if (exception.Extra) {
@@ -446,10 +466,11 @@ LogError(exception) {
     FileDelete % filename
   }
   FileAppend % t " " USER " " exception.Line " " msg "`n", % filename
-  ShowMessages(["Please get your parents to look at this error:", msg, "Full details logged to " filename])
+  if (showMessage) {
+    ShowMessages(["Please get your parents to look at this error:", msg, "Full details logged to " filename])
+  }
   ; TODO: Surface this on the server.
-  ; No ExitApp: Leave the script running because it may help figure out the error.
-  return 1
+  return msg
 }
 
 DebugShowStatus() {

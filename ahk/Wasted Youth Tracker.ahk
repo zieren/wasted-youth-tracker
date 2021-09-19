@@ -388,20 +388,18 @@ ReadConfig() {
     OpenRequest("GET", request, path).send()
     CheckStatus200(request)
     responseLines := StrSplit(request.responseText, "`n")
+    if (Mod(responseLines.Length(), 2) != 0) {
+      throw Exception("Failed to read config from " URL "/" path " (failed to parse response)")
+    }
   } catch exception {
-    LogError(exception, false)
-    ; handled below
-  }
-  ; This also handles request failure.
-  ; TODO: Improve this. Show error message from LogError.
-  if (responseLines[1] != "-*- cfg -*-" || Mod(responseLines.Length(), 2) != 1) {
-    ShowMessage("Failed to read config from " URL "/" path)
+    LogError(exception, true)
     return
   }
+
   msgs := []
-  Loop % (responseLines.Length() - 1) / 2 {
-    k := responseLines[A_Index * 2]
-    v := responseLines[A_Index * 2 + 1]
+  Loop % responseLines.Length() / 2 {
+    k := responseLines[A_Index * 2 - 1]
+    v := responseLines[A_Index * 2]
     if (InStr(k, "watch_process") = 1) {
       i := RegExMatch(v, "=[^=]+$")
       if (i > 0) {

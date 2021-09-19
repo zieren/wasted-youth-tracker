@@ -1,7 +1,5 @@
 <?php
 
-// TODO: Make sure warnings and errors are surfaced appropriately. Catch exceptions.
-
 /** Provides the user config to the client. */
 class Config {
   /**
@@ -15,11 +13,11 @@ class Config {
    */
   public static function handleRequest(Wasted $wasted, string $user): string {
     $config = $wasted->getClientConfig($user);
-    // Prefix response with a marker to simplify error (e.g. 404) detection on the client.
-    $response = '-*- cfg -*-';
+    $response = [];
     foreach ($config as $k => $v) {
-      $response .= "\n" . $k . "\n" . $v;
+      $response[] = $k;
+      $response[] = $v;
     }
-    return $response;
+    return implode("\n", $response);
   }
 }

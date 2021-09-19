@@ -1627,34 +1627,31 @@ final class WastedTest extends WastedTestBase {
 
   public function testClientConfig(): void {
     $this->assertEquals([], $this->wasted->getClientConfig('u1'));
-    $this->assertEquals('-*- cfg -*-', Config::handleRequest($this->wasted, 'u1'));
+    $this->assertEquals('', Config::handleRequest($this->wasted, 'u1'));
 
     $this->wasted->setGlobalConfig('key', 'global');
     $this->wasted->setUserConfig('u1', 'key2', 'user');
     $this->wasted->setUserConfig('u2', 'ignored', 'ignored');
-    $this->assertEquals(['key' => 'global', 'key2' => 'user'], $this->wasted->getClientConfig('u1'));
     $this->assertEquals(
-        "-*- cfg -*-\nkey\nglobal\nkey2\nuser",
-        Config::handleRequest($this->wasted, 'u1'));
+        ['key' => 'global', 'key2' => 'user'], $this->wasted->getClientConfig('u1'));
+    $this->assertEquals(
+        "key\nglobal\nkey2\nuser", Config::handleRequest($this->wasted, 'u1'));
 
     $this->wasted->setUserConfig('u1', 'key', 'user override');
     $this->assertEquals(
-        ['key' => 'user override', 'key2' => 'user'],
-        $this->wasted->getClientConfig('u1'));
+        ['key' => 'user override', 'key2' => 'user'], $this->wasted->getClientConfig('u1'));
     $this->assertEquals(
-        "-*- cfg -*-\nkey\nuser override\nkey2\nuser",
+        "key\nuser override\nkey2\nuser",
         Config::handleRequest($this->wasted, 'u1'));
   }
 
   public function testClientConfig_sortAlphabetically(): void {
-    $this->assertEquals('-*- cfg -*-', Config::handleRequest($this->wasted, 'u1'));
     $this->wasted->setUserConfig('u1', 'foo', 'bar');
-    $this->assertEquals("-*- cfg -*-\nfoo\nbar", Config::handleRequest($this->wasted, 'u1'));
+    $this->assertEquals("foo\nbar", Config::handleRequest($this->wasted, 'u1'));
 
     $this->wasted->setUserConfig('u1', 'a', 'b');
     $this->wasted->setUserConfig('u1', 'y', 'z');
-    $this->assertEquals(
-        "-*- cfg -*-\na\nb\nfoo\nbar\ny\nz", Config::handleRequest($this->wasted, 'u1'));
+    $this->assertEquals("a\nb\nfoo\nbar\ny\nz", Config::handleRequest($this->wasted, 'u1'));
   }
 
   public function testQueryAvailableClasses(): void {

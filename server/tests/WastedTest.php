@@ -87,6 +87,19 @@ final class WastedTest extends WastedTestBase {
         ['' => ['1970-01-01' => 18]]);
   }
 
+  public function testTotalTime_singleObservation(): void {
+    $fromTime = $this->newDateTime();
+    $this->wasted->insertWindowTitles('user_1', ['window 1']);
+    $this->assertEquals(
+        $this->wasted->queryTimeSpentByLimitAndDate('user_1', $fromTime),
+        ['' => ['1970-01-01' => 0]]);
+    $this->mockTime += 5;
+    $this->wasted->insertWindowTitles('user_1', []);
+    $this->assertEquals(
+        $this->wasted->queryTimeSpentByLimitAndDate('user_1', $fromTime),
+        ['' => ['1970-01-01' => 5]]);
+  }
+
   public function testTotalTime_TwoWindows_NoLimit(): void {
     $fromTime = $this->newDateTime();
 

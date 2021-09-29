@@ -313,15 +313,19 @@ class Wasted {
    * limit IDs to which the class_id maps, where 0 indicates "limit to zero".
    */
   public function classify($user, $titles) {
-    /* TODO: This requires more fiddling, cf. https://dba.stackexchange.com/questions/24327/
-      foreach ($titlesEsc as $i => $titleEsc) {
-        if ($i == 0) {
-          $q1 = 'SELECT "' . $titleEsc . '" AS title';
-        } else {
-          $q1 .= ' UNION ALL SELECT "' . $titleEsc . '"';
-        }
+    /* We would need to select the highest priority for each title. I don't know how to do that
+     * in a way that is ultimately more elegant than repeated queries. Some background:
+     * cf. https://dba.stackexchange.com/questions/24327/
+    $query = 'SELECT title FROM (';
+    foreach (array_keys($titles) as $i) {
+      if ($query) {
+        $query .= ' UNION ALL ';
       }
-     */
+      $query .= 'SELECT |s_'.$i.' AS title';
+    }
+    $query .= ') titles ';
+    */
+
     $classifications = [];
     foreach ($titles as $title) {
       $rows = DB::query(

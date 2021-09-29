@@ -23,12 +23,13 @@ DB::$error_handler = 'logDbQueryError';
 DB::$param_char = '|';
 
 function logDbQuery($params) {
-  Logger::Instance()->debug('DB query: ' . str_replace("\r\n", '', $params['query']));
+  Logger::Instance()->debug(
+      'DB query ['.$params['runtime'].'ms]: '.str_replace("\r\n", '', $params['query']));
 }
 
 function logDbQueryError($params) {
-  Logger::Instance()->error('DB query: ' . str_replace("\r\n", '', $params['query']));
-  Logger::Instance()->error('DB error: ' . $params['error']);
+  Logger::Instance()->error('DB query: '.str_replace("\r\n", '', $params['query']));
+  Logger::Instance()->error('DB error: '.$params['error']);
 }
 
 class Wasted {

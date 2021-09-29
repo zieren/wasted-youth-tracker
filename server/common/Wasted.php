@@ -483,8 +483,8 @@ class Wasted {
           LEFT JOIN classification ON classes.id = classification.class_id
           LEFT JOIN (
             SELECT DISTINCT title, class_id FROM activity WHERE title != ""
-          ) t1
-          ON t1.class_id = classification.class_id
+          ) samples
+          ON samples.class_id = classification.class_id
           WHERE classes.id != |i0
           GROUP BY id, name, re, priority
           ORDER BY name, priority DESC',

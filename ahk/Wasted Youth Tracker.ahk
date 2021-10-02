@@ -16,6 +16,8 @@ OnError("LogErrorHandler") ; The handler logs some of the config read above.
 ; threshold, we assume the network is down and will doom everything because
 ; we can no longer enforce limits.
 global LAST_SUCCESSFUL_REQUEST := EpochSeconds() ; allow offline grace period on startup
+; Purely informational metric for server processing time. Shown in debug window.
+global LAST_REQUEST_DURATION_MS := 0
 ; Track windows for which a "please close" message was already shown.
 ; There's no set type, so use an associative array.
 global DOOMED_WINDOWS := {}
@@ -226,8 +228,10 @@ DoTheThing(reportStatus) {
   ; https://docs.microsoft.com/en-us/previous-versions/windows/desktop/ms759148(v=vs.85)
   request := CreateRequest()
   try {
+    requestStart := A_TickCount
     OpenRequest("POST", request, "rx/").send(USER windowList)
     CheckStatus200(request)
+    LAST_REQUEST_DURATION_MS := A_TickCount - requestStart
     LAST_SUCCESSFUL_REQUEST := EpochSeconds()
   } catch exception {
     return HandleOffline(exception, windows)
@@ -496,6 +500,7 @@ DebugShowStatus() {
   }
   t := FormatSeconds(EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
   msgs.Push("", "Last successful request: " t " ago")
+  msgs.Push("Duration [ms]: " LAST_REQUEST_DURATION_MS)
 
   ShowMessages(msgs, false)
 }

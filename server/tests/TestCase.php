@@ -91,8 +91,9 @@ abstract class TestCase {
     Logger::Instance()->info('----- setUpTestCase');
     $this->setUpTestCase();
 
-    $tests = array_filter(get_class_methods(get_class($this)), function($k) {
-      return !substr_compare($k, "test", 0, 4);
+    $filter = '/'.(filter_input(INPUT_GET, 'filter', FILTER_SANITIZE_STRING) ?? '').'/';
+    $tests = array_filter(get_class_methods(get_class($this)), function($k) use ($filter) {
+      return !substr_compare($k, "test", 0, 4) && preg_match($filter, $k);
     });
     foreach ($tests as $this->test) {
       $method = new ReflectionMethod(get_class($this), $this->test);

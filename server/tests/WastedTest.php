@@ -1354,7 +1354,7 @@ final class WastedTest extends WastedTestBase {
             $this->mapping($limitId1, $classId5),
             ]);
 
-    DB::query('TRUNCATE TABLE mappings');
+    DB::query('DELETE FROM mappings');
     $this->assertEquals(
         $this->queryMappings(),
         []);

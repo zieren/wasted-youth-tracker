@@ -99,12 +99,12 @@ abstract class TestCase {
       $method = new ReflectionMethod(get_class($this), $this->test);
       try {
         Logger::Instance()->info('----- ' . $this->test);
+        error_clear_last();
         $this->setUp();
         $method->invoke($this);
         $this->tearDown();
         if (error_get_last()) {
           $message = 'Silent error: ' . dumpArrayToString(error_get_last());
-          error_clear_last();
           throw new Exception($message);
         }
         $this->passedTests += 1;

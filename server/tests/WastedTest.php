@@ -851,15 +851,20 @@ final class WastedTest extends WastedTestBase {
         ['' => ['1970-01-01' => 8]]);
   }
 
-  public function testSameTitle(): void {
+  public function testDuplicateTitle(): void {
     $fromTime = $this->newDateTime();
-    $this->wasted->insertWindowTitles('u1', ['Calculator', 'Calculator']);
+    $this->wasted->insertWindowTitles('u1', ['cALCULATOR', 'Calculator']);
     $this->mockTime++;
     $this->wasted->insertWindowTitles('u1', ['Calculator', 'Calculator']);
     $lastSeen = $this->dateTimeString();
+    $timeSpentByTitle = $this->wasted->queryTimeSpentByTitle('u1', $fromTime);
+    // We can pick any of the matching titles.
     $this->assertEquals(
-        $this->wasted->queryTimeSpentByTitle('u1', $fromTime), [
-        [$lastSeen, 1, DEFAULT_CLASS_NAME, 'Calculator']]);
+        true,
+        $timeSpentByTitle[0][3] == 'Calculator' || $timeSpentByTitle[0][3] == 'cALCULATOR');
+    unset($timeSpentByTitle[0][3]);
+    $this->assertEquals(
+        $timeSpentByTitle, [[$lastSeen, 1, DEFAULT_CLASS_NAME]]);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime),
         ['' => ['1970-01-01' => 1]]);
@@ -1025,7 +1030,7 @@ final class WastedTest extends WastedTestBase {
         [$limitId => 42 * 60]);
   }
 
-  public function testConcurrentRequests(): void {
+  public function testConcurrentRequestsAndChangedClassification(): void {
     $fromTime = $this->newDateTime();
 
     $classId1 = $this->wasted->addClass('c1');
@@ -1086,16 +1091,17 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
         $this->classification($classId2, [$limitId2])]); // changed to c2, which maps to b2
-    // ... but records retain the old one.
+    // ... but records retain the old one. ö nö
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
         '' => ['1970-01-01' => 1],
-        $limitId1 => ['1970-01-01' => 0]]);
+        $limitId1 => ['1970-01-01' => 0],
+        $limitId2 => ['1970-01-01' => 0]]);
+    // This was the last time we saw the c1 classification.
+    $lastC1DateTimeString = $this->dateTimeString();
 
     // Accumulate time.
     $this->mockTime++;
-    // Only now; previous requests had the same timestamp.
-    $lastC1DateTimeString = $this->dateTimeString();
     // From now on we accumulate time with the new classification.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']), [
@@ -1106,20 +1112,17 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
         $this->classification($classId2, [$limitId2])]);
-    // One more second to ensure order in the assertion below.
-    $this->mockTime++;
-    $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']);
 
     // Check results.
     $this->assertEquals(
         $this->wasted->queryTimeSpentByTitle('u1', $fromTime), [
-        [$this->dateTimeString(), 4, DEFAULT_CLASS_NAME, 'title 2'],
+        [$this->dateTimeString(), 3, DEFAULT_CLASS_NAME, 'title 2'],
         [$this->dateTimeString(), 2, 'c2', 'title 1'],
-        [$lastC1DateTimeString, 1, 'c1', 'title 1']]);
+        [$lastC1DateTimeString, 0, 'c1', 'title 1']]); // no time actually elapsed for c1
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
-        '' => ['1970-01-01' => 4],
-        $limitId1 => ['1970-01-01' => 1],
+        '' => ['1970-01-01' => 3],
+        $limitId1 => ['1970-01-01' => 0],
         $limitId2 => ['1970-01-01' => 2]]);
   }
 
@@ -1174,7 +1177,7 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->insertWindowTitles('u1', ['w1', 'w2']);
     $this->wasted->insertWindowTitles('u2', ['w1', 'w2']);
     $this->mockTime++;
-    $fromTime2 = $this->newDateTime();
+    $this->newDateTime();
     $this->wasted->insertWindowTitles('u1', ['w1', 'w2']);
     $this->wasted->insertWindowTitles('u2', ['w1', 'w2']);
     $this->mockTime++;
@@ -1242,13 +1245,23 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
         $limitId1 => [$date => 3]]);
 
-    // Reclassify only a subset.
-    $this->wasted->addClassification($classId2, 667, '()');
-    $this->wasted->reclassify($fromTime2);
+    // Reclassify only a subset. Note that above we have interrupted the flow via "".
+    $this->wasted->insertWindowTitles('u1', ['w3', 'w2']);
+    $fromTime2 = $this->newDateTime();
+    $this->onFailMessage('fromTime2='.$fromTime2->getTimestamp());
+    $this->mockTime++;
+    $this->wasted->insertWindowTitles('u1', ['w3', 'w2']);
+    $this->wasted->addClassification($classId2, 667, '()'); // match everything
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
-        $limitId1 => [$date => 1],
-        $limitId2 => [$date => 2]]);
+        $limitId1 => [$date => 4]]);
+
+    $this->wasted->reclassify($fromTime2);
+    $this->onFailMessage('fromTime2='.$fromTime2->getTimestamp());
+    $this->assertEqualsIgnoreOrder(
+        $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
+        $limitId1 => [$date => 3],
+        $limitId2 => [$date => 1]]);
   }
 
   public function testRemoveClass(): void {
@@ -1487,8 +1500,10 @@ final class WastedTest extends WastedTestBase {
         [[$this->dateTimeString(), 0, 'c2', 't']]);
   }
 
-  public function testChangeClassification(): void {
+  public function testChangeClassificationAndReclassify(): void {
     $fromTime = $this->newDateTime();
+    // Reclassification excludes the specified limit, so advance by 1s.
+    $this->mockTime++;
     $classId = $this->wasted->addClass('c1');
     $classificationId = $this->wasted->addClassification($classId, 0, 'nope');
     $this->assertEquals(
@@ -1836,9 +1851,35 @@ final class WastedTest extends WastedTestBase {
 
     $b = &getOrCreate(getOrCreate($a, 'k2', []), 'kk', 23);
     $b++;
-    ;
     $this->assertEqualsIgnoreOrder($a, ['k' => 43, 'k2' => ['kk' => 24]]);
   }
+
+  public function testSpanMultipleDays(): void {
+    $classId1 = $this->wasted->addClass('c1');
+    $classId2 = $this->wasted->addClass('c2');
+    $this->wasted->addClassification($classId1, 0, '1$');
+    $this->wasted->addClassification($classId2, 0, '2$');
+    $limitId1 = $this->wasted->addLimit('u1', 'l1');
+    $limitId2 = $this->wasted->addLimit('u1', 'l2');
+    $this->wasted->addMapping($classId1, $limitId1);
+    $this->wasted->addMapping($classId2, $limitId2);
+
+    $fromTime = new DateTime('1974-09-29 23:59:50');
+    $this->mockTime = $fromTime->getTimestamp();
+    $this->wasted->insertWindowTitles('u1', ['t1', 't3']);
+    $this->mockTime += 5; // 59:59:55
+    $this->wasted->insertWindowTitles('u1', ['t2', 't3']);
+    $this->mockTime += 16; // 00:00:11
+    $this->wasted->insertWindowTitles('u1', ['t1', 't2', 't3']);
+
+    $this->assertEquals(
+        $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
+            '' => ['1974-09-29' => 10, '1974-09-30' => 11],
+            $limitId1 => ['1974-09-29' => 5, '1974-09-30' => 0],
+            $limitId2 => ['1974-09-29' => 5, '1974-09-30' => 11]]);
+  }
+
+  // TODO: Add tests for new schema.
 
 }
 

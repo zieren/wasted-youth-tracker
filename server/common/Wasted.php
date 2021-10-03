@@ -20,7 +20,6 @@ define('CREATE_TABLE_SUFFIX', 'CHARACTER SET ' . CHARSET_AND_COLLATION . ' ');
 
 DB::$success_handler = 'logDbQuery';
 DB::$error_handler = 'logDbQueryError';
-DB::$param_char = '|';
 
 function logDbQuery($params) {
   Logger::Instance()->debug(
@@ -52,7 +51,7 @@ class Wasted {
     }
     DB::query('SET FOREIGN_KEY_CHECKS = 0');
     $rows = DB::query(
-        'SELECT table_name FROM information_schema.tables WHERE table_schema = |s', DB::$dbName);
+        'SELECT table_name FROM information_schema.tables WHERE table_schema = %s', DB::$dbName);
     foreach ($rows as $row) {
       DB::query('DELETE FROM `' . $row['table_name'] . '`');
     }
@@ -101,10 +100,12 @@ class Wasted {
     DB::query(
         'CREATE TABLE IF NOT EXISTS activity ('
         . 'user VARCHAR(32) NOT NULL, '
-        . 'ts BIGINT NOT NULL, '
+        . 'seq INT UNSIGNED NOT NULL, '
+        . 'from_ts BIGINT NOT NULL, '
+        . 'to_ts BIGINT NOT NULL, '
         . 'class_id INT NOT NULL, '
         . 'title VARCHAR(256) NOT NULL, '
-        . 'PRIMARY KEY (user, ts, title), '
+        . 'PRIMARY KEY (user, seq, from_ts, title), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id) '
         . ') '
         . CREATE_TABLE_SUFFIX);
@@ -185,7 +186,7 @@ class Wasted {
   public function pruneTables($date) {
     $pruneTimestamp = $date->getTimestamp();
     Logger::Instance()->notice('prune timestamp: '.$pruneTimestamp);
-    DB::delete('activity', 'ts < |i', $pruneTimestamp);
+    DB::delete('activity', 'to_ts < %i', $pruneTimestamp);
     Logger::Instance()->notice('tables pruned up to '.$date->format(DateTimeInterface::ATOM));
 
     // Delete log files. This depends on KLogger's default log file name pattern.
@@ -213,11 +214,11 @@ class Wasted {
   }
 
   public function removeLimit($limitId) {
-    DB::delete('limits', 'id = |i', $limitId);
+    DB::delete('limits', 'id = %i', $limitId);
   }
 
   public function renameLimit($limitId, $newName) {
-    DB::update('limits', ['name' => $newName], 'id = |s', $limitId);
+    DB::update('limits', ['name' => $newName], 'id = %s', $limitId);
   }
 
   public function addClass($className) {
@@ -231,15 +232,15 @@ class Wasted {
     }
     // Delete classifications first to avoid new titles (and their classification) racing for
     // insertion against the class deletion.
-    DB::delete('classification', 'class_id = |i', $classId);
+    DB::delete('classification', 'class_id = %i', $classId);
 
     $this->reclassifyForRemoval($classId);
-    DB::delete('classes', 'id = |i', $classId);
+    DB::delete('classes', 'id = %i', $classId);
   }
 
   public function renameClass($classId, $newName) {
     // There should be no harm in renaming the default class.
-    DB::update('classes', ['name' => $newName], 'id = |s', $classId);
+    DB::update('classes', ['name' => $newName], 'id = %s', $classId);
   }
 
   public function addClassification($classId, $priority, $regEx) {
@@ -255,7 +256,7 @@ class Wasted {
     if ($classificationId == DEFAULT_CLASSIFICATION_ID) {
       $this->throwException('Cannot delete default classification');
     }
-    DB::delete('classification', 'id = |i', $classificationId);
+    DB::delete('classification', 'id = %i', $classificationId);
   }
 
   public function changeClassification($classificationId, $newRegEx, $newPriority) {
@@ -265,7 +266,7 @@ class Wasted {
     DB::update(
         'classification',
         ['re' => $newRegEx, 'priority' => $newPriority],
-        'id = |s', $classificationId);
+        'id = %s', $classificationId);
   }
 
   public function addMapping($classId, $limitId) {
@@ -274,7 +275,7 @@ class Wasted {
   }
 
   public function removeMapping($classId, $limitId) {
-    DB::delete('mappings', 'class_id=|i AND limit_id=|i', $classId, $limitId);
+    DB::delete('mappings', 'class_id=%i AND limit_id=%i', $classId, $limitId);
   }
 
   private function getTotalLimitTriggerName($user) {
@@ -289,7 +290,7 @@ class Wasted {
     $triggerName = $this->getTotalLimitTriggerName($user);
     DB::query(
         'INSERT IGNORE INTO mappings (limit_id, class_id)
-          SELECT |i AS limit_id, classes.id AS class_id
+          SELECT %i AS limit_id, classes.id AS class_id
           FROM classes',
         $limitId);
     DB::query('DROP TRIGGER IF EXISTS ' . $triggerName);
@@ -297,7 +298,7 @@ class Wasted {
         'CREATE TRIGGER ' . $triggerName . ' AFTER INSERT ON classes
           FOR EACH ROW
           INSERT IGNORE INTO mappings
-          SET limit_id = |i, class_id = NEW.id',
+          SET limit_id = %i, class_id = NEW.id',
         $limitId);
   }
 
@@ -321,7 +322,7 @@ class Wasted {
       if ($query) {
         $query .= ' UNION ALL ';
       }
-      $query .= 'SELECT |s_'.$i.' AS title';
+      $query .= 'SELECT %s_'.$i.' AS title';
     }
     $query .= ') titles ';
     */
@@ -333,14 +334,14 @@ class Wasted {
             SELECT classes.id, classes.name
             FROM classification
             JOIN classes ON classes.id = classification.class_id
-            WHERE |s1 REGEXP re
+            WHERE %s1 REGEXP re
             ORDER BY priority DESC
             LIMIT 1) AS classification
           LEFT JOIN (
             SELECT class_id, limit_id
             FROM mappings
             JOIN limits ON mappings.limit_id = limits.id
-            WHERE user = |s0
+            WHERE user = %s0
           ) user_mappings ON classification.id = user_mappings.class_id
           ORDER BY limit_id',
           $user, $title);
@@ -373,7 +374,7 @@ class Wasted {
 
   /** Clears the specified limit config. */
   public function clearLimitConfig($limitId, $key) {
-    DB::delete('limit_config', 'limit_id = |s AND k = |s', $limitId, $key);
+    DB::delete('limit_config', 'limit_id = %s AND k = %s', $limitId, $key);
   }
 
   /**
@@ -385,7 +386,7 @@ class Wasted {
         'SELECT id, name, k, v
           FROM limit_config
           RIGHT JOIN limits ON limit_config.limit_id = limits.id
-          WHERE user = |s
+          WHERE user = %s
           ORDER BY id, k',
         $user);
     $configs = [];
@@ -436,17 +437,17 @@ class Wasted {
                  FROM mappings
                  JOIN limits ON limits.id = limit_id
                  JOIN classes ON classes.id = class_id
-                 WHERE USER = |s0
+                 WHERE USER = %s0
                ) AS user_mappings
                JOIN mappings ON user_mappings.class_id = mappings.class_id
                JOIN limits ON mappings.limit_id = limits.id
-               WHERE limits.user = |s0
+               WHERE limits.user = %s0
              ) AS user_mappings_extended
              JOIN (
                SELECT class_id, COUNT(*) AS n
                FROM mappings
                JOIN limits ON mappings.limit_id = limits.id
-               WHERE USER = |s0
+               WHERE USER = %s0
                GROUP BY class_id
              ) AS limit_count
              ON user_mappings_extended.class_id = limit_count.class_id
@@ -490,7 +491,7 @@ class Wasted {
             SELECT DISTINCT title, class_id FROM activity WHERE title != ""
           ) samples
           ON samples.class_id = classification.class_id
-          WHERE classes.id != |i0
+          WHERE classes.id != %i0
           GROUP BY id, name, re, priority
           ORDER BY name, priority DESC',
         DEFAULT_CLASS_ID);
@@ -524,7 +525,7 @@ class Wasted {
         'SELECT classification.id, name, re, priority
           FROM classification
           JOIN classes on classification.class_id = classes.id
-          WHERE classes.id != |i
+          WHERE classes.id != %i
           ORDER BY name',
         DEFAULT_CLASS_ID);
     $table = [];
@@ -540,37 +541,24 @@ class Wasted {
   /** Reclassify all activity for all users, starting at the specified time. */
   public function reclassify($fromTime) {
     DB::query('SET @prev_title = ""');
-    DB::query(
-        'REPLACE INTO activity (user, ts, class_id, title)
-          SELECT user, ts, reclassification.class_id, activity.title FROM (
-            SELECT
-              title,
-              class_id,
-              IF (@prev_title = title, 0, 1) AS first,
-              @prev_title := title
-              FROM (
-                SELECT title, classification.class_id, priority
-                FROM (
-                  SELECT DISTINCT title FROM activity
-                  WHERE title != ""
-                  AND ts >= |i0
-                ) distinct_titles
-                JOIN classification ON title REGEXP re
-                ORDER BY title, priority DESC
-              ) reclassification_all_prios
-              HAVING first = 1
-            ) reclassification
-          JOIN activity ON reclassification.title = activity.title
-          WHERE ts >= |i0',
-        $fromTime->getTimestamp());
+    DB::query($this->reclassifyQuery(false), $fromTime->getTimestamp());
   }
 
   /** Reclassify all activity for all users to prepare removal of the specified class. */
   public function reclassifyForRemoval($classToRemove) {
     DB::query('SET @prev_title = ""');
-    DB::query(
-        'REPLACE INTO activity (user, ts, class_id, title)
-          SELECT user, ts, reclassification.class_id, activity.title FROM (
+    DB::query($this->reclassifyQuery(true), $classToRemove);
+  }
+
+  private function reclassifyQuery($forRemoval) {
+    // Activity to reclassify.
+    $conditionActivity = $forRemoval ? 'activity.class_id = %i0' : 'to_ts > %i0';
+    // Classes available for reclassification.
+    $conditionClassification = $forRemoval ? 'classification.class_id != %i0' : 'true';
+    return '
+        REPLACE INTO activity (user, seq, from_ts, to_ts, class_id, title)
+          SELECT user, seq, from_ts, to_ts, reclassification.class_id, activity.title
+          FROM (
             SELECT
               title,
               class_id,
@@ -581,17 +569,16 @@ class Wasted {
                 FROM (
                   SELECT DISTINCT title FROM activity
                   WHERE title != ""
-                  AND class_id = |i0
+                  AND '.$conditionActivity.'
                 ) distinct_titles
                 JOIN classification ON title REGEXP re
-                WHERE classification.class_id != |i0
+                WHERE '.$conditionClassification.'
                 ORDER BY title, priority DESC
               ) reclassification_all_prios
               HAVING first = 1
             ) reclassification
           JOIN activity ON reclassification.title = activity.title
-          WHERE activity.class_id = |i0',
-        $classToRemove);
+          WHERE '.$conditionActivity;
   }
 
   /**
@@ -613,37 +600,126 @@ class Wasted {
   /**
    * Records the specified window titles (array). Return value is that of classify().
    *
+   * We assume only one client. The client never performs concurrent requests ("Critical, On" in AHK
+   * code), so we can assume requests are serialized. However, a request may arrive within the same
+   * epoch second as the previous request.
+   *
    * If no windows are open, $titles should be an empty array. In this case the timestamp is
    * recorded for the computation of the previous interval.
    */
   public function insertWindowTitles($user, $titles) {
     $ts = $this->time();
 
-    // Special case: No titles at all. We only record a timestamp.
-    if (!$titles) {
-      DB::insertIgnore('activity', [
-          'ts' => $ts,
-          'user' => $user,
-          'title' => '', // Below we map actually empty titles to something else.
-          'class_id' => DEFAULT_CLASS_ID]);
-      return [];
+    // The below code expects that $titles does not contain duplicates. Rather than filter
+    // duplicates in PHP, use the database's case sensitivity and language setting (ground truth).
+    if (count($titles) > 1) {
+      $s = [];
+      foreach ($titles as $i => $title) {
+        $s[] = "SELECT %s_$i AS t";
+      }
+      $rows = DB::query(implode(' UNION ', $s), $titles);
+      $t = [];
+      foreach ($rows as $row) {
+        $t[] = $row['t'];
+      }
+      $titles = $t;
     }
 
-    $classifications = $this->classify($user, $titles);
-    $rows = [];
-    foreach ($titles as $i => $title) {
-      $rows[] = [
-          'ts' => $ts,
-          'user' => $user,
-          // An empty title is not counted and only serves to close the interval. In the unlikely
-          // event a window actually has no title, substitute something non-empty.
-          'title' => $title ? $title : '(no title)',
-          'class_id' => $classifications[$i]['class_id']];
+    // Find next sequence number. The sequence number imposes order even when multiple requests are
+    // received within the same epoch second.
+    $seq = 0;
+    $rows = DB::query('SELECT MAX(seq) AS seq FROM activity WHERE user = %s0', $user);
+    if ($rows) {
+      $seq = intval($rows[0]['seq']) + 1;
     }
-    // Ignore duplicates. This is a rather theoretical case of racing requests while classification
-    // rules are updated.
-    DB::insertIgnore('activity', $rows);
-    return $classifications;
+    $previousSeq = $seq - 1;
+
+    // Query latest report, if within continuation period.
+    $rows = DB::query('
+        SELECT from_ts, title, class_id
+        FROM activity
+        WHERE user = %s
+        AND seq = %i
+        AND to_ts >= %i',
+        $user, $previousSeq, $ts - 25); // TODO: magic 25=15+10
+    // Find potentially continued titles and their from_ts.
+    $activeTitlesToFromTs = [];
+    foreach ($rows as $row) {
+      // Including the class ID in the key means we'll start a new interval if classification
+      // changed.
+      $activeTitlesToFromTs[$row['class_id'].':'.$row['title']] = $row['from_ts'];
+    }
+
+    // We use a pseudo-title of '' to indicate that nothing was running. In the unlikely event a
+    // window actually has an empty title, change that to avoid a clash.
+    if (!$titles) {
+      $titles = [''];
+      $classifications = [['class_id' => DEFAULT_CLASS_ID]]; // info on limits is not used
+      $classificationsToReturn = [];
+    } else {
+      $classifications = $this->classify($user, $titles); // no harm classifying the original ''
+      $classificationsToReturn = &$classifications;
+      foreach ($titles as $i => $title) {
+        if (!$title) {
+          $titles[$i] = '(no title)';
+        }
+      }
+    }
+
+    // ö: Can we change some of the loop code to direct MySQL code?
+
+    $newActivities = [];
+    foreach ($titles as $i => $title) {
+      $k = $classifications[$i]['class_id'].':'.$title;
+      if (array_key_exists($k, $activeTitlesToFromTs)) {
+        // Previous activity continues: Update seq and to_ts.
+        // ö Faster when assembling updates as a string separated by ";"?
+        DB::query('
+            UPDATE activity
+            SET seq = %i, to_ts = %i
+            WHERE user = %s
+            AND seq = %i
+            AND from_ts = %i
+            AND title = %s',
+            $seq, $ts,
+            $user,
+            $previousSeq,
+            $activeTitlesToFromTs[$k],
+            $title);
+        unset($activeTitlesToFromTs[$k]);
+      } else {
+        // New activity starts.
+        $newActivities[] = [
+          'user' => $user,
+          'seq' => $seq,
+          'from_ts' => $ts,
+          'to_ts' => $ts,
+          'title' => $title,
+          'class_id' => $classifications[$i]['class_id']];
+      }
+    }
+    // Update titles from last observation that are now gone: Set to_ts to now() but keep seq, so
+    // they are effectively concluded. If they were observed again next time, new intervals would be
+    // started.
+    foreach ($activeTitlesToFromTs as $key => $fromTs) {
+      $title = explode(':', $key, 2)[1]; // strip leading class ID
+      DB::query('
+          UPDATE activity
+          SET to_ts = %i
+          WHERE user = %s
+          AND seq = %i
+          AND from_ts = %i
+          AND title = %s',
+          $ts,
+          $user,
+          $previousSeq,
+          $fromTs,
+          $title);
+    }
+    if ($newActivities) {
+      DB::insert('activity', $newActivities);
+    }
+    return $classificationsToReturn;
   }
 
   // ---------- CONFIG QUERIES ----------
@@ -661,19 +737,19 @@ class Wasted {
 
   /** Deletes the specified user config value. */
   public function clearUserConfig($user, $key) {
-    DB::delete('user_config', 'user = |s AND k = |s', $user, $key);
+    DB::delete('user_config', 'user = %s AND k = %s', $user, $key);
   }
 
   /** Deletes the specified global config value. */
   public function clearGlobalConfig($key) {
-    DB::delete('global_config', 'k = |s', $key);
+    DB::delete('global_config', 'k = %s', $key);
   }
 
   // TODO: Consider caching the config(s).
 
   /** Returns user config. */
   public function getUserConfig($user) {
-    return Wasted::parseKvRows(DB::query('SELECT k, v FROM user_config WHERE user = |s', $user));
+    return Wasted::parseKvRows(DB::query('SELECT k, v FROM user_config WHERE user = %s', $user));
   }
 
   /** Returns the global config. */
@@ -689,9 +765,9 @@ class Wasted {
     return Wasted::parseKvRows(DB::query(
         'SELECT k, v FROM ('
         . '  SELECT k, v FROM global_config'
-        . '  WHERE k NOT IN (SELECT k FROM user_config WHERE user = |s0)'
+        . '  WHERE k NOT IN (SELECT k FROM user_config WHERE user = %s0)'
         . '  UNION ALL'
-        . '  SELECT k, v FROM user_config WHERE user = |s0'
+        . '  SELECT k, v FROM user_config WHERE user = %s0'
         . ') AS t1 ORDER BY k',
         $user));
   }
@@ -722,94 +798,145 @@ class Wasted {
    * the upper limit.
    */
   public function queryTimeSpentByLimitAndDate($user, $fromTime, $toTime = null) {
-    $toTimestamp = $toTime ? $toTime->getTimestamp() : 9223372036854775807; // max(BIGINT)
-    DB::query('SET @prev_ts = 0'); // TODO: ":=" vs "="
-    // TODO: 15 (sample interval) + 10 (latency compensation) magic
+    $fromTimestamp = $fromTime->getTimestamp();
+    $toTimestamp = $toTime ? $toTime->getTimestamp() : MYSQL_SIGNED_BIGINT_MAX;
     $rows = DB::query('
-        SELECT DATE_FORMAT(FROM_UNIXTIME(ts), "%Y-%m-%d") AS date, limit_id, sum(s) AS sum_s FROM (
-            SELECT ts, limit_id, s FROM (
-                SELECT ts, class_id, s FROM (
-                    SELECT
-                        IF(@prev_ts = 0, 0, @prev_ts - ts) AS s,
-                        @prev_ts := ts AS ts_key
-                    FROM (
-                        SELECT DISTINCT (ts) FROM activity
-                        WHERE user = |s0
-                        AND ts >= |i1 AND ts < |i2
-                        ORDER BY ts DESC
-                    ) distinct_ts_desc
-                ) ts_to_interval
-                JOIN activity ON ts_key = ts
-                WHERE user = |s0
-                AND ts >= |i1 AND ts < |i2
-                AND s <= 25
-                AND title != ""
-            ) classes
-            LEFT JOIN (
-                SELECT class_id, limit_id
-                FROM mappings
-                JOIN limits ON mappings.limit_id = limits.id
-                WHERE user = |s0
-            ) user_mappings
-            ON classes.class_id = user_mappings.class_id
-            GROUP BY ts, limit_id
-        ) intervals_per_limit
-        GROUP BY date, limit_id
-        ORDER BY date, limit_id',
-        $user, $fromTime->getTimestamp(), $toTimestamp);
-    $timeByLimitAndDate = [];
-    foreach ($rows as $row) {
-      $limitId = $row['limit_id'];
-      if (!array_key_exists($limitId, $timeByLimitAndDate)) {
-        $timeByLimitAndDate[$limitId] = [];
-      }
-      $timeByLimitAndDate[$limitId][$row['date']] = intval($row['sum_s']);
+        SELECT
+          limit_id,
+          GREATEST(%i1, from_ts) AS from_ts,
+          LEAST(%i2, to_ts) AS to_ts
+        FROM activity
+        LEFT JOIN (
+          SELECT class_id, limit_id
+          FROM mappings
+          JOIN limits ON mappings.limit_id = limits.id
+          WHERE user = %s0
+        ) user_mappings
+        ON activity.class_id = user_mappings.class_id
+        WHERE user = %s0
+        AND title != ""
+        AND (
+          (%i1 <= from_ts AND from_ts < %i2)
+          OR
+          (%i1 <= to_ts AND to_ts < %i2)
+          OR
+          (from_ts < %i1 AND %i2 <= to_ts)
+        )
+        ORDER BY from_ts, to_ts',
+        $user, $fromTimestamp, $toTimestamp);
+
+    if (!$rows) {
+      return [];
     }
-    ksort($timeByLimitAndDate, SORT_NUMERIC);
+
+    // Compute time per limit per day. First collect all relevant timestamps.
+    // $timestamps contains each relevant timestamp as a key mapped to an array of events. This
+    // array contains the following keys/values:
+    // 'starting' => array of all limit IDs that start at this timestamp
+    // 'ending' => array of all limit IDs that end at this timestamp
+    // 'day' => string denoting the previous day, i.e. an exclusive end marker for that day
+    $timestamps = [];
+    // Used as a set to collect all observed limits
+    $limitIds = [];
+    $minTs = $rows[0]['from_ts'];
+    $maxTs = $minTs;
+    foreach ($rows as $row) {
+      $fromTs = $row['from_ts'];
+      $toTs = $row['to_ts'];
+      $limitId = $row['limit_id'];
+      getOrCreate(getOrCreate($timestamps, $fromTs, []), 'starting', [])[] = $limitId;
+      getOrCreate(getOrCreate($timestamps, $toTs, []), 'ending', [])[] = $limitId;
+      $maxTs = max($maxTs, $toTs);
+      $limitIds[$limitId] = 1;
+    }
+
+    // Insert timestamps for each new day, with the string representation of the previous day. At
+    // this timestamp we need to store the accumulated times for that previous day.
+    $dateTime = (new DateTime())->setTimestamp($minTs);
+    $dateTime->setTime(0, 0);
+    do {
+      $dateString = getDateString($dateTime);
+      $dateTime->add(new DateInterval('P1D'));
+      $ts = $dateTime->getTimestamp();
+      getOrCreate($timestamps, $ts, [])['day'] = $dateString;
+    } while ($ts < $maxTs);
+
+    // Accumulate time per limit per day.
+    ksort($timestamps);
+    $timeByLimitAndDate = [];
+    $limitCount = []; // number of active intervals, keyed by limit ID
+    $limitStart = []; // start time of earliest active interval, keyed by limit ID
+    $limitTime = []; // accumulated time on current day, keyed by limit ID
+    foreach ($timestamps as $ts => $events) {
+      foreach (getOrDefault($events, 'starting', []) as $limitId) {
+        $n = &getOrCreate($limitCount, $limitId, 0);
+        if ($n == 0) {
+          $limitStart[$limitId] = $ts;
+        }
+        $n++;
+      }
+
+      foreach (getOrDefault($events, 'ending', []) as $limitId) {
+        $n = &$limitCount[$limitId];
+        if (!$n) {
+          $this->throwException('Invalid: Limit interval ending before it started');
+        }
+        $n--;
+        if ($n == 0) {
+          $t = &getOrCreate($limitTime, $limitId, 0);
+          $t += $ts - $limitStart[$limitId];
+        }
+      }
+
+      if (isset($events['day'])) {
+        $dateString = $events['day'];
+        foreach (array_keys($limitIds) as $limitId) {
+          if (getOrDefault($limitCount, $limitId, 0)) {
+            // Limit is active: Accumulate time until end of day, then reset start time.
+            $t = &getOrCreate($limitTime, $limitId, 0);
+            $t += $ts - $limitStart[$limitId];
+            $limitStart[$limitId] = $ts;
+          }
+          // Record accumulated time for this limit on this day.
+          getOrCreate($timeByLimitAndDate, $limitId, [])[$dateString] = $limitTime[$limitId];
+          $limitTime[$limitId] = 0;
+        }
+      }
+    }
+
+    ksort($timeByLimitAndDate);
     return $timeByLimitAndDate;
   }
 
-  // TODO: 15 (sample interval) + 10 (latency compensation) magic. The 15s is now a config value!
   private function queryTimeSpentByTitleInternal(
-      $user, $fromTimestamp, $toTimestamp, $orderBySum, $topN = 0) {
-    DB::query('SET @prev_ts = 0');
-    $outerSelect = $topN
-        ? 'SELECT title, sum_s, ts_last_seen '
-        : 'SELECT title, name, sum_s, ts_last_seen ';
-    $filter = $topN ? 'WHERE class_id = ' . DEFAULT_CLASS_ID . ' ' : ' ';
-    $orderBy = $orderBySum ? 'ORDER BY sum_s DESC, title ' : 'ORDER BY ts_last_seen DESC, title ';
-    $limit = $topN ? 'LIMIT |i3 ' : ' ';
-    $query =
-        $outerSelect .
-        'FROM (
-            SELECT title, class_id, SUM(s) AS sum_s, ts_last_seen FROM (
-                SELECT DISTINCT title, class_id, s, ts + s as ts_last_seen FROM (
-                    SELECT
-                        IF(@prev_ts = 0, 0, @prev_ts - ts) AS s,
-                        @prev_ts := ts AS ts_key
-                    FROM (
-                        SELECT DISTINCT (ts) FROM activity
-                        WHERE user = |s0
-                        AND ts >= |i1 AND ts < |i2
-                        ORDER BY ts DESC
-                    ) distinct_ts_desc
-                ) ts_to_interval
-                JOIN activity ON ts_key = ts
-                WHERE user = |s0
-                AND ts >= |i1 AND ts < |i2
-                AND s <= 25
-                AND title != ""
-                ORDER BY ts_last_seen DESC
-            ) with_ts_last_seen_desc
-            GROUP BY title, class_id
-        ) grouped
-        JOIN classes ON class_id = id '
-        . $filter
-        . $orderBy
-        . $limit;
-    return $topN
-        ? DB::query($query, $user, $fromTimestamp, $toTimestamp, $topN)
-        : DB::query($query, $user, $fromTimestamp, $toTimestamp);
+      $user, $fromTimestamp, $toTimestamp, $orderBySum, $topUnclassified = 0) {
+    $orderBy = $orderBySum
+        ? 'ORDER BY sum_s DESC, title'
+        : 'ORDER BY ts_last_seen DESC, title';
+    $limit = $topUnclassified ? "LIMIT $topUnclassified" : '';
+    $filter = $topUnclassified ? 'AND class_id = '.DEFAULT_CLASS_ID : '';
+    return DB::query("
+        SELECT
+          title,
+          name,
+          SUM(LEAST(%i2, to_ts) - GREATEST(%i1, from_ts)) AS sum_s,
+          MAX(LEAST(%i2, to_ts)) AS ts_last_seen
+        FROM activity
+        JOIN classes ON class_id = id
+        WHERE user = %s0
+        AND title != ''
+        $filter
+        AND (
+          (%i1 <= from_ts AND from_ts < %i2)
+          OR
+          (%i1 <= to_ts AND to_ts < %i2)
+          OR
+          (from_ts < %i1 AND %i2 <= to_ts)
+        )
+        GROUP BY title, name
+        $orderBy
+        $limit",
+        $user, $fromTimestamp, $toTimestamp);
   }
 
   /**
@@ -909,7 +1036,7 @@ class Wasted {
 
   /**
    * Returns a list of strings describing all available classes
-   * TODO
+   * TODO ö
    *  class names and seconds left for that class. This considers the most
    * restrictive limit and assumes that no time is spent on any other class (which might count
    * towards a shared limit and thus reduce time for other classes). Classes with zero time are
@@ -922,7 +1049,7 @@ class Wasted {
         'SELECT classes.name, class_id, limit_id FROM limits
          JOIN mappings on limits.id = mappings.limit_id
          JOIN classes ON mappings.class_id = classes.id
-         WHERE user = |s
+         WHERE user = %s
          ORDER BY class_id, limit_id',
         $user);
     $classes = [];
@@ -964,7 +1091,7 @@ class Wasted {
         'date' => $date,
         'limit_id' => $limitId,
         'minutes' => $minutes],
-        'minutes=|i', $minutes);
+        'minutes=%i', $minutes);
     return $this->queryOverlappingLimits($limitId);
   }
 
@@ -979,7 +1106,7 @@ class Wasted {
         'date' => $date,
         'limit_id' => $limitId,
         'unlocked' => 1],
-        'unlocked=|i', 1);
+        'unlocked=%i', 1);
     return $this->queryOverlappingLimits($limitId, $date);
   }
 
@@ -988,7 +1115,7 @@ class Wasted {
    * String in the format 'YYYY-MM-DD'.
    */
   public function clearOverrides($user, $date, $limitId) {
-    DB::delete('overrides', 'user=|s AND date=|s AND limit_id=|i', $user, $date, $limitId);
+    DB::delete('overrides', 'user=%s AND date=%s AND limit_id=%i', $user, $date, $limitId);
   }
 
   /**
@@ -1006,21 +1133,21 @@ class Wasted {
               SELECT DISTINCT limit_id FROM (
                 SELECT class_id FROM limits
                 JOIN mappings ON id = limit_id
-                WHERE id = |i0
+                WHERE id = %i0
               ) AS affected_classes
               JOIN mappings ON affected_classes.class_id = mappings.class_id
-              WHERE limit_id != |i0
+              WHERE limit_id != %i0
             ) AS overlapping_limits
             JOIN limits ON id = limit_id
             ' . ($dateForUnlock
             ? 'JOIN limit_config ON id = limit_config.limit_id' : '') . '
-            WHERE user = (SELECT user FROM limits WHERE id = |i0)
+            WHERE user = (SELECT user FROM limits WHERE id = %i0)
             ' . ($dateForUnlock
             ? 'AND k = "require_unlock" AND v = "1"
                AND id NOT IN (
                  SELECT limit_id FROM overrides
-                 WHERE user = (SELECT user FROM limits WHERE id = |i0)
-                 AND date = |s1
+                 WHERE user = (SELECT user FROM limits WHERE id = %i0)
+                 AND date = %s1
                  AND unlocked = "1")' : '') . '
             ORDER BY name', $limitId, $dateForUnlock));
 
@@ -1037,8 +1164,8 @@ class Wasted {
         . ' CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END'
         . ' FROM overrides'
         . ' JOIN limits ON limit_id = id'
-        . ' WHERE overrides.user = |s0'
-        . ' AND date >= |s1'
+        . ' WHERE overrides.user = %s0'
+        . ' AND date >= %s1'
         . ' ORDER BY date DESC, name',
         $user, $fromDate->format('Y-m-d'));
   }
@@ -1046,8 +1173,8 @@ class Wasted {
   /** Returns all overrides as a 2D array keyed first by limit ID, then by override. */
   private function queryOverridesByLimit($user, $now) {
     $rows = DB::query('SELECT limit_id, minutes, unlocked FROM overrides'
-        . ' WHERE user = |s'
-        . ' AND date = |s',
+        . ' WHERE user = %s'
+        . ' AND date = %s',
         $user, getDateString($now));
     $overridesByLimit = array();
     // PK is (user, date, limit_id), so there is at most one row per limit_id.
@@ -1067,9 +1194,9 @@ class Wasted {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     $rows = DB::query(
         'SELECT ts, name, title FROM activity JOIN classes ON class_id = id
-          WHERE user = |s
-          AND ts >= |i
-          AND ts < |i
+          WHERE user = %s
+          AND ts >= %i
+          AND ts < %i
           ORDER BY ts DESC',
         $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
     foreach ($rows as $row) {

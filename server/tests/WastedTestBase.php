@@ -27,10 +27,13 @@ class WastedTestBase extends TestCase {
     DB::$error_handler = 'logDbQueryErrorInTest';
   }
 
+  protected function setUp(): void {
+    WastedTestBase::$lastDbError = null;
+  }
+
   protected function tearDown(): void {
     if (WastedTestBase::$lastDbError) {
       $message = "DB error: " . dumpArrayToString(WastedTestBase::$lastDbError);
-      WastedTestBase::$lastDbError = null;
       throw new Exception($message);
     }
   }

@@ -29,6 +29,7 @@ final class WastedTest extends WastedTestBase {
   }
 
   protected function setUp(): void {
+    parent::setUp();
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::WARNING);
     $this->wasted->clearAllForTest();
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);

@@ -62,7 +62,7 @@ abstract class TestCase {
     }
 
     ob_start();
-    echo 'Line ' . $line . ': Equality assertion failed:'
+    echo "Line $line: Equality assertion failed:"
         . '<table><tr><td style="vertical-align: top;"><pre>';
     var_dump($actual);
     echo '</pre></td><td style="background-color: lightgreen; vertical-align: top;"><pre>';
@@ -93,7 +93,7 @@ abstract class TestCase {
 
     $filter = '/'.(filter_input(INPUT_GET, 'filter', FILTER_SANITIZE_STRING) ?? '').'/';
     $tests = array_filter(get_class_methods(get_class($this)), function($k) use ($filter) {
-      return !substr_compare($k, "test", 0, 4) && preg_match($filter, $k);
+      return !substr_compare($k, 'test', 0, 4) && preg_match($filter, $k);
     });
     foreach ($tests as $this->test) {
       $method = new ReflectionMethod(get_class($this), $this->test);
@@ -103,7 +103,7 @@ abstract class TestCase {
         $method->invoke($this);
         $this->tearDown();
         if (error_get_last()) {
-          $message = "Silent error: " . dumpArrayToString(error_get_last());
+          $message = 'Silent error: ' . dumpArrayToString(error_get_last());
           error_clear_last();
           throw new Exception($message);
         }
@@ -120,7 +120,7 @@ abstract class TestCase {
         if (isset($this->onFailMessage[$test])) {
           $message = '[' . $this->onFailMessage[$test] . '] ' . $message;
         }
-        echo '<b>' . $test . ':</b> ' . $message . '<hr>';
+        echo "<b><a href=\"?filter=^$test$\">$test:</a></b> $message<hr>";
       }
     } else {
       echo '<b style="background-color: lightgreen">ALL TESTS PASSED</b><hr>';

@@ -510,8 +510,8 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByTitle('user_1', $fromTime), [
-            [$window1LastSeen, 10, DEFAULT_CLASS_NAME, 'window 1'],
-            [$this->dateTimeString(), 5, DEFAULT_CLASS_NAME, '(no title)']]);
+        [$window1LastSeen, 10, DEFAULT_CLASS_NAME, 'window 1'],
+        [$this->dateTimeString(), 5, DEFAULT_CLASS_NAME, '(no title)']]);
   }
 
   public function testWeeklyLimit(): void {
@@ -599,13 +599,13 @@ final class WastedTest extends WastedTestBase {
     // Add a mapping.
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']), [
-            $this->classification(DEFAULT_CLASS_ID, [0])
-            ]);
+        $this->classification(DEFAULT_CLASS_ID, [0])
+    ]);
     $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId1);
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']), [
-            $this->classification(DEFAULT_CLASS_ID, [$limitId1])
-            ]);
+        $this->classification(DEFAULT_CLASS_ID, [$limitId1])
+    ]);
 
     // Same behavior:
     // Not returned when user does not match.
@@ -630,8 +630,8 @@ final class WastedTest extends WastedTestBase {
         []);
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']), [
-            $this->classification(DEFAULT_CLASS_ID, [0])
-            ]);
+        $this->classification(DEFAULT_CLASS_ID, [0])
+    ]);
   }
 
   public function testTimeLeftTodayAllLimits_negative(): void {
@@ -743,7 +743,7 @@ final class WastedTest extends WastedTestBase {
     // Single window.
     $this->assertEquals(
         $this->wasted->insertWindowTitles('u1', ['title 2']), [
-            $this->classification($classId2, [0])]);
+        $this->classification($classId2, [0])]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1'),
         [null => 0]);
@@ -751,8 +751,8 @@ final class WastedTest extends WastedTestBase {
     // Two windows.
     $this->assertEquals(
         $this->wasted->insertWindowTitles('u1', ['title 1', 'title 2']), [
-            $this->classification($classId1, [0]),
-            $this->classification($classId2, [0])]);
+        $this->classification($classId1, [0]),
+        $this->classification($classId2, [0])]);
 
     // No window at all.
     $this->assertEquals(
@@ -773,7 +773,7 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEquals(
         $this->wasted->insertWindowTitles('u1', ['window 1']), [
-            $this->classification($classId, [$limitId])]);
+        $this->classification($classId, [$limitId])]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1'),
         [$limitId => 0]);
@@ -781,7 +781,7 @@ final class WastedTest extends WastedTestBase {
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['window 1']), [
-            $this->classification($classId, [$limitId])]);
+        $this->classification($classId, [$limitId])]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1'),
         [$limitId => -1]);
@@ -842,9 +842,9 @@ final class WastedTest extends WastedTestBase {
     // "No windows" events are handled correctly for both listing titles and computing time spent.
     $this->assertEquals(
         $this->wasted->queryTimeSpentByTitle('u1', $fromTime), [
-            [$lastSeenWindow1, 4, 'c1', 'window 1'],
-            [$lastSeenWindow3, 3, DEFAULT_CLASS_NAME, 'window 3'],
-            [$lastSeenWindow2, 2, DEFAULT_CLASS_NAME, 'window 2']]);
+        [$lastSeenWindow1, 4, 'c1', 'window 1'],
+        [$lastSeenWindow3, 3, DEFAULT_CLASS_NAME, 'window 3'],
+        [$lastSeenWindow2, 2, DEFAULT_CLASS_NAME, 'window 2']]);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime),
         ['' => ['1970-01-01' => 8]]);
@@ -858,7 +858,7 @@ final class WastedTest extends WastedTestBase {
     $lastSeen = $this->dateTimeString();
     $this->assertEquals(
         $this->wasted->queryTimeSpentByTitle('u1', $fromTime), [
-            [$lastSeen, 1, DEFAULT_CLASS_NAME, 'Calculator']]);
+        [$lastSeen, 1, DEFAULT_CLASS_NAME, 'Calculator']]);
     $this->assertEquals(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime),
         ['' => ['1970-01-01' => 1]]);
@@ -1112,9 +1112,9 @@ final class WastedTest extends WastedTestBase {
     // Check results.
     $this->assertEquals(
         $this->wasted->queryTimeSpentByTitle('u1', $fromTime), [
-            [$this->dateTimeString(), 4, DEFAULT_CLASS_NAME, 'title 2'],
-            [$this->dateTimeString(), 2, 'c2', 'title 1'],
-            [$lastC1DateTimeString, 1, 'c1', 'title 1']]);
+        [$this->dateTimeString(), 4, DEFAULT_CLASS_NAME, 'title 2'],
+        [$this->dateTimeString(), 2, 'c2', 'title 1'],
+        [$lastC1DateTimeString, 1, 'c1', 'title 1']]);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
         '' => ['1970-01-01' => 4],
@@ -1133,7 +1133,7 @@ final class WastedTest extends WastedTestBase {
     // This file uses utf8. Insert an 'ä' (&auml;) character in latin1 encoding.
     // https://cs.stanford.edu/people/miles/iso8859.html
     $this->assertEqualsIgnoreOrder(
-        $this->wasted->insertWindowTitles('u1', ['t' . chr(228) .'st']),
+        $this->wasted->insertWindowTitles('u1', ['t' . chr(228) . 'st']),
         [$this->classification($classId, [0])]);
 
     // Test second classification rule for the word 'süß'.
@@ -1161,7 +1161,7 @@ final class WastedTest extends WastedTestBase {
   }
 
   function testLimitWithUmlauts(): void {
-    $limitName = 't' . chr(228) .'st';
+    $limitName = 't' . chr(228) . 'st';
     $limitId = $this->wasted->addLimit('u1', $limitName);
     $this->assertEquals($this->wasted->getAllLimitConfigs('u1'),
         [$limitId => ['name' => $limitName]]);
@@ -1200,8 +1200,8 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
-            '' => [$date => 2],
-            $limitId1 => [$date => 2]]);
+        '' => [$date => 2],
+        $limitId1 => [$date => 2]]);
 
     // Add classification for w2.
     $classId2 = $this->wasted->addClass('c2');
@@ -1213,8 +1213,8 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
-            $limitId1 => [$date => 2],
-            $limitId2 => [$date => 2]]);
+        $limitId1 => [$date => 2],
+        $limitId2 => [$date => 2]]);
 
     // Check u2 to ensure reclassification works across users.
     $limitId1_2 = $this->wasted->addLimit('u2', 'b1');
@@ -1223,8 +1223,8 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->addMapping($classId2, $limitId2_2);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u2', $fromTime), [
-            $limitId1_2 => [$date => 2],
-            $limitId2_2 => [$date => 2]]);
+        $limitId1_2 => [$date => 2],
+        $limitId2_2 => [$date => 2]]);
 
     // Attempt to mess with the "" placeholder title.
     $this->mockTime++;
@@ -1233,21 +1233,21 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->insertWindowTitles('u1', []);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
-            $limitId1 => [$date => 3],
-            $limitId2 => [$date => 3]]);
+        $limitId1 => [$date => 3],
+        $limitId2 => [$date => 3]]);
     $this->wasted->addClassification($classId1, 666, '()');
     $this->wasted->reclassify($fromTime);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
-            $limitId1 => [$date => 3]]);
+        $limitId1 => [$date => 3]]);
 
     // Reclassify only a subset.
     $this->wasted->addClassification($classId2, 667, '()');
     $this->wasted->reclassify($fromTime2);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
-            $limitId1 => [$date => 1],
-            $limitId2 => [$date => 2]]);
+        $limitId1 => [$date => 1],
+        $limitId2 => [$date => 2]]);
   }
 
   public function testRemoveClass(): void {
@@ -1295,32 +1295,32 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->insertWindowTitles('u1', ['t3']);
 
     $this->assertEquals(
-        $this->wasted->queryTimeSpentByTitle('u1', $fromTime),  [
-            [$fromTime1String, 1, 'c1', 't1'],
-            [$fromTime2String, 1, 'c2', 't2'],
-            [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3']
-        ]);
+        $this->wasted->queryTimeSpentByTitle('u1', $fromTime), [
+        [$fromTime1String, 1, 'c1', 't1'],
+        [$fromTime2String, 1, 'c2', 't2'],
+        [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3']
+    ]);
     $this->assertEquals(
         $this->wasted->getAllClassifications(), [
-            $classificationId1 => ['name' => 'c1', 're' => '1$', 'priority' => 0],
-            $classificationId2 => ['name' => 'c2', 're' => '2$', 'priority' => 0]
-        ]);
+        $classificationId1 => ['name' => 'c1', 're' => '1$', 'priority' => 0],
+        $classificationId2 => ['name' => 'c2', 're' => '2$', 'priority' => 0]
+    ]);
 
     $classId3 = $this->wasted->addClass('c3');
     $classificationId3 = $this->wasted->addClassification($classId3, -42, '2$');
     $this->wasted->removeClass($classId2);
 
     $this->assertEquals(
-        $this->wasted->queryTimeSpentByTitle('u1', $fromTime),  [
-            [$fromTime1String, 1, 'c1', 't1'],
-            [$fromTime2String, 1, 'c3', 't2'],
-            [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3']
-        ]);
+        $this->wasted->queryTimeSpentByTitle('u1', $fromTime), [
+        [$fromTime1String, 1, 'c1', 't1'],
+        [$fromTime2String, 1, 'c3', 't2'],
+        [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3']
+    ]);
     $this->assertEquals(
         $this->wasted->getAllClassifications(), [
-            $classificationId1 => ['name' => 'c1', 're' => '1$', 'priority' => 0],
-            $classificationId3 => ['name' => 'c3', 're' => '2$', 'priority' => -42]
-        ]);
+        $classificationId1 => ['name' => 'c1', 're' => '1$', 'priority' => 0],
+        $classificationId3 => ['name' => 'c3', 're' => '2$', 'priority' => -42]
+    ]);
   }
 
   public function testTotalLimit(): void {
@@ -1337,22 +1337,22 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->setTotalLimit('u1', $limitId1);
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($limitId1, DEFAULT_CLASS_ID),
-            $this->mapping($limitId1, $classId1),
-            $this->mapping($limitId1, $classId2),
-            $this->mapping($limitId1, $classId3),
-            $this->mapping($limitId1, $classId4),
-            ]);
+        $this->mapping($limitId1, DEFAULT_CLASS_ID),
+        $this->mapping($limitId1, $classId1),
+        $this->mapping($limitId1, $classId2),
+        $this->mapping($limitId1, $classId3),
+        $this->mapping($limitId1, $classId4),
+    ]);
     $classId5 = $this->wasted->addClass('c5');
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($limitId1, DEFAULT_CLASS_ID),
-            $this->mapping($limitId1, $classId1),
-            $this->mapping($limitId1, $classId2),
-            $this->mapping($limitId1, $classId3),
-            $this->mapping($limitId1, $classId4),
-            $this->mapping($limitId1, $classId5),
-            ]);
+        $this->mapping($limitId1, DEFAULT_CLASS_ID),
+        $this->mapping($limitId1, $classId1),
+        $this->mapping($limitId1, $classId2),
+        $this->mapping($limitId1, $classId3),
+        $this->mapping($limitId1, $classId4),
+        $this->mapping($limitId1, $classId5),
+    ]);
 
     DB::query('DELETE FROM mappings');
     $this->assertEquals(
@@ -1361,24 +1361,24 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->setTotalLimit('u1', $limitId2);
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($limitId2, DEFAULT_CLASS_ID),
-            $this->mapping($limitId2, $classId1),
-            $this->mapping($limitId2, $classId2),
-            $this->mapping($limitId2, $classId3),
-            $this->mapping($limitId2, $classId4),
-            $this->mapping($limitId2, $classId5),
-            ]);
+        $this->mapping($limitId2, DEFAULT_CLASS_ID),
+        $this->mapping($limitId2, $classId1),
+        $this->mapping($limitId2, $classId2),
+        $this->mapping($limitId2, $classId3),
+        $this->mapping($limitId2, $classId4),
+        $this->mapping($limitId2, $classId5),
+    ]);
     $classId6 = $this->wasted->addClass('c6');
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($limitId2, DEFAULT_CLASS_ID),
-            $this->mapping($limitId2, $classId1),
-            $this->mapping($limitId2, $classId2),
-            $this->mapping($limitId2, $classId3),
-            $this->mapping($limitId2, $classId4),
-            $this->mapping($limitId2, $classId5),
-            $this->mapping($limitId2, $classId6),
-            ]);
+        $this->mapping($limitId2, DEFAULT_CLASS_ID),
+        $this->mapping($limitId2, $classId1),
+        $this->mapping($limitId2, $classId2),
+        $this->mapping($limitId2, $classId3),
+        $this->mapping($limitId2, $classId4),
+        $this->mapping($limitId2, $classId5),
+        $this->mapping($limitId2, $classId6),
+    ]);
 
     $this->wasted->removeClass($classId2);
     $this->wasted->removeClass($classId3);
@@ -1390,22 +1390,22 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($limitId1, DEFAULT_CLASS_ID),
-            $this->mapping($limitId1, $classId1),
-            $this->mapping($limitId2, DEFAULT_CLASS_ID),
-            $this->mapping($limitId2, $classId1),
-            ]);
+        $this->mapping($limitId1, DEFAULT_CLASS_ID),
+        $this->mapping($limitId1, $classId1),
+        $this->mapping($limitId2, DEFAULT_CLASS_ID),
+        $this->mapping($limitId2, $classId1),
+    ]);
 
     $classId7 = $this->wasted->addClass('c7');
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($limitId1, DEFAULT_CLASS_ID),
-            $this->mapping($limitId1, $classId1),
-            $this->mapping($limitId1, $classId7),
-            $this->mapping($limitId2, DEFAULT_CLASS_ID),
-            $this->mapping($limitId2, $classId1),
-            $this->mapping($limitId2, $classId7),
-            ]);
+        $this->mapping($limitId1, DEFAULT_CLASS_ID),
+        $this->mapping($limitId1, $classId1),
+        $this->mapping($limitId1, $classId7),
+        $this->mapping($limitId2, DEFAULT_CLASS_ID),
+        $this->mapping($limitId2, $classId1),
+        $this->mapping($limitId2, $classId7),
+    ]);
 
     // Removing a total limit will make the trigger fail from now on. But if a trigger fails alone
     // in the forest and nobody is there to hear it, does it make a sound? No!
@@ -1413,22 +1413,22 @@ final class WastedTest extends WastedTestBase {
     $classId8 = $this->wasted->addClass('c8');
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($limitId2, DEFAULT_CLASS_ID),
-            $this->mapping($limitId2, $classId1),
-            $this->mapping($limitId2, $classId7),
-            $this->mapping($limitId2, $classId8),
-            ]);
+        $this->mapping($limitId2, DEFAULT_CLASS_ID),
+        $this->mapping($limitId2, $classId1),
+        $this->mapping($limitId2, $classId7),
+        $this->mapping($limitId2, $classId8),
+    ]);
 
     // Remove the total limit setting.
     $this->wasted->unsetTotalLimit('u1');
     $this->wasted->addClass('c9');
     $this->assertEquals(
         $this->queryMappings(), [
-            $this->mapping($limitId2, DEFAULT_CLASS_ID),
-            $this->mapping($limitId2, $classId1),
-            $this->mapping($limitId2, $classId7),
-            $this->mapping($limitId2, $classId8),
-            ]);
+        $this->mapping($limitId2, DEFAULT_CLASS_ID),
+        $this->mapping($limitId2, $classId1),
+        $this->mapping($limitId2, $classId7),
+        $this->mapping($limitId2, $classId8),
+    ]);
   }
 
   public function testRemoveDefaultClass(): void {
@@ -1473,7 +1473,6 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals(
         $this->wasted->getAllLimitConfigs('u1'),
         [$limitId => ['name' => 'b2']]);
-
   }
 
   public function testRenameClass(): void {
@@ -1567,13 +1566,13 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEquals(
         $this->wasted->getLimitsToClassesTable('u1'), [
-            ['b2', 'c2', ''],
-            ['b2', 'c3', 'b3, b4'],
-            ['b3', 'c3', 'b2, b4'],
-            ['b4', 'c3', 'b2, b3'],
-            ['b4', 'c4', 'b5'],
-            ['b5', 'c4', 'b4']
-        ]);
+        ['b2', 'c2', ''],
+        ['b2', 'c3', 'b3, b4'],
+        ['b3', 'c3', 'b2, b4'],
+        ['b4', 'c3', 'b2, b3'],
+        ['b4', 'c4', 'b5'],
+        ['b5', 'c4', 'b4']
+    ]);
   }
 
   public function testClassesToClassificationTable(): void {
@@ -1590,18 +1589,18 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->insertWindowTitles('u1', ['t22', 't3', 't4']);
     $this->assertEquals(
         $this->wasted->getClassesToClassificationTable(), [
-            ['c1', '1', 42, 1, 't1'],
-            ['c2', '2', 43, 2, "t2\nt22"]
-        ]);
+        ['c1', '1', 42, 1, 't1'],
+        ['c2', '2', 43, 2, "t2\nt22"]
+    ]);
     // Test that priority is considered: "t12" is not a sample for c1, but for c2.
     $this->mockTime++;
     $classification = $this->wasted->insertWindowTitles('u1', ['t12']);
     $this->assertEquals($classification, [['class_id' => $classId2, 'limits' => [0]]]);
     $this->assertEquals(
         $this->wasted->getClassesToClassificationTable(), [
-            ['c1', '1', 42, 1, 't1'],
-            ['c2', '2', 43, 3, "t12\nt2\nt22"]
-        ]);
+        ['c1', '1', 42, 1, 't1'],
+        ['c2', '2', 43, 3, "t12\nt2\nt22"]
+    ]);
     // Test that samples are cropped to 1024 characters. Titles are VARCHAR(256).
     $this->mockTime++;
     $one255 = str_repeat('1', 255);
@@ -1610,9 +1609,9 @@ final class WastedTest extends WastedTestBase {
     $samples = substr(implode("\n", $titles), 0, 1021) . '...';
     $this->assertEquals(
         $this->wasted->getClassesToClassificationTable(), [
-            ['c1', '1', 42, 6, $samples],
-            ['c2', '2', 43, 3, "t12\nt2\nt22"]
-        ]);
+        ['c1', '1', 42, 6, $samples],
+        ['c2', '2', 43, 3, "t12\nt2\nt22"]
+    ]);
   }
 
   public function testUserConfig(): void {
@@ -1826,6 +1825,20 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime),
         ['' => ['1970-01-01' => 1], $limitId => ['1970-01-01' => 1]]);
   }
+
+  public function testGetOrCreate(): void {
+    $a = [];
+    $v = &getOrCreate($a, 'k', 42);
+    $this->assertEquals($a, ['k' => 42]);
+    $v++;
+    $this->assertEquals($a, ['k' => 43]);
+
+    $b = &getOrCreate(getOrCreate($a, 'k2', []), 'kk', 23);
+    $b++;
+    ;
+    $this->assertEqualsIgnoreOrder($a, ['k' => 43, 'k2' => ['kk' => 24]]);
+  }
+
 }
 
 (new WastedTest())->run();

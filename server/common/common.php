@@ -34,12 +34,25 @@ function wastedFatalErrorHandler() {
 
 register_shutdown_function('wastedFatalErrorHandler');
 
+// TODO: Check for missed use cases for these helpers. isset() is reportedly much faster.
+
 /** Returns the mapped value (possibly null) if $key exists, else $default. */
 function getOrDefault($array, $key, $default = null) {
   if (array_key_exists($key, $array)) {
     return $array[$key];
   }
   return $default;
+}
+
+/**
+ * Returns a reference to the mapped value (possibly null) for $key, setting $default if $key is
+ * unmapped.
+ */
+function &getOrCreate(&$array, $key, $default) {
+  if (!array_key_exists($key, $array)) {
+    $array[$key] = $default;
+  }
+  return $array[$key];
 }
 
 /** Calls var_dump to convert the specified array into a string. */

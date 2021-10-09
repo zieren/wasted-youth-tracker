@@ -36,7 +36,7 @@ final class WastedTest extends WastedTestBase {
     $this->mockTime = 1000;
   }
 
-  private function classification($id, $limits) {
+  private static function classification($id, $limits) {
     $c = ['class_id' => $id, 'limits' => $limits];
     return $c;
   }
@@ -161,9 +161,9 @@ final class WastedTest extends WastedTestBase {
     // Class 1 mapped to limit 1, other classes are not assigned to any limit.
     $classification = $this->wasted->classify('user_1', ['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
-        $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId1, [$limitId1]),
-        $this->classification($classId2, [0]),
+        self::classification(DEFAULT_CLASS_ID, [0]),
+        self::classification($classId1, [$limitId1]),
+        self::classification($classId2, [0]),
     ]);
 
     // Add a second mapping for the same class.
@@ -172,9 +172,9 @@ final class WastedTest extends WastedTestBase {
     // Class 1 is now mapped to limits 1 and 2.
     $classification = $this->wasted->classify('user_1', ['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
-        $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId1, [$limitId1, $limitId2]),
-        $this->classification($classId2, [0]),
+        self::classification(DEFAULT_CLASS_ID, [0]),
+        self::classification($classId1, [$limitId1, $limitId2]),
+        self::classification($classId2, [0]),
     ]);
 
     // Add a mapping for the default class.
@@ -183,18 +183,18 @@ final class WastedTest extends WastedTestBase {
     // Default class is now mapped to limit 2.
     $classification = $this->wasted->classify('user_1', ['window 0', 'window 1', 'window 2']);
     $this->assertEquals($classification, [
-        $this->classification(DEFAULT_CLASS_ID, [$limitId2]),
-        $this->classification($classId1, [$limitId1, $limitId2]),
-        $this->classification($classId2, [0]),
+        self::classification(DEFAULT_CLASS_ID, [$limitId2]),
+        self::classification($classId1, [$limitId1, $limitId2]),
+        self::classification($classId2, [0]),
     ]);
 
     // Remove mapping.
     $this->assertEquals($this->wasted->classify('user_1', ['window 1']), [
-        $this->classification($classId1, [$limitId1, $limitId2]),
+        self::classification($classId1, [$limitId1, $limitId2]),
     ]);
     $this->wasted->removeMapping($classId1, $limitId1);
     $this->assertEquals($this->wasted->classify('user_1', ['window 1']), [
-        $this->classification($classId1, [$limitId2]),
+        self::classification($classId1, [$limitId2]),
     ]);
   }
 
@@ -600,12 +600,12 @@ final class WastedTest extends WastedTestBase {
     // Add a mapping.
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']), [
-        $this->classification(DEFAULT_CLASS_ID, [0])
+        self::classification(DEFAULT_CLASS_ID, [0])
     ]);
     $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId1);
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']), [
-        $this->classification(DEFAULT_CLASS_ID, [$limitId1])
+        self::classification(DEFAULT_CLASS_ID, [$limitId1])
     ]);
 
     // Same behavior:
@@ -631,7 +631,7 @@ final class WastedTest extends WastedTestBase {
         []);
     $this->assertEquals(
         $this->wasted->classify('u1', ['foo']), [
-        $this->classification(DEFAULT_CLASS_ID, [0])
+        self::classification(DEFAULT_CLASS_ID, [0])
     ]);
   }
 
@@ -650,7 +650,7 @@ final class WastedTest extends WastedTestBase {
   public function testClassificationWithLimit_multipleUsers(): void {
     $this->assertEquals(
         $this->wasted->classify('u1', ['title 1']),
-        [$this->classification(DEFAULT_CLASS_ID, [0])]);
+        [self::classification(DEFAULT_CLASS_ID, [0])]);
 
     $classId = $this->wasted->addClass('c1');
     $this->wasted->addClassification($classId, 42, '1$');
@@ -661,7 +661,7 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEquals(
         $this->wasted->classify('u1', ['title 1']),
-        [$this->classification($classId, [0])]);
+        [self::classification($classId, [0])]);
   }
 
   public function testTimeLeftTodayAllLimits_consumeTimeAndClassify(): void {
@@ -687,7 +687,7 @@ final class WastedTest extends WastedTestBase {
         [$limitId1 => 120]);
 
     // Start consuming time.
-    $classification1 = $this->classification($classId, [$limitId1]);
+    $classification1 = self::classification($classId, [$limitId1]);
 
     $this->assertEquals(
         $this->wasted->insertWindowTitles('u1', ['title 1']),
@@ -706,7 +706,7 @@ final class WastedTest extends WastedTestBase {
 
     // Add a window that maps to no limit.
     $this->mockTime += 15;
-    $classification2 = $this->classification(DEFAULT_CLASS_ID, [0]);
+    $classification2 = self::classification(DEFAULT_CLASS_ID, [0]);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 1', 'title 2']),
         [$classification1, $classification2]);
@@ -744,7 +744,7 @@ final class WastedTest extends WastedTestBase {
     // Single window.
     $this->assertEquals(
         $this->wasted->insertWindowTitles('u1', ['title 2']), [
-        $this->classification($classId2, [0])]);
+        self::classification($classId2, [0])]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1'),
         [null => 0]);
@@ -752,8 +752,8 @@ final class WastedTest extends WastedTestBase {
     // Two windows.
     $this->assertEquals(
         $this->wasted->insertWindowTitles('u1', ['title 1', 'title 2']), [
-        $this->classification($classId1, [0]),
-        $this->classification($classId2, [0])]);
+        self::classification($classId1, [0]),
+        self::classification($classId2, [0])]);
 
     // No window at all.
     $this->assertEquals(
@@ -774,7 +774,7 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEquals(
         $this->wasted->insertWindowTitles('u1', ['window 1']), [
-        $this->classification($classId, [$limitId])]);
+        self::classification($classId, [$limitId])]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1'),
         [$limitId => 0]);
@@ -782,7 +782,7 @@ final class WastedTest extends WastedTestBase {
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['window 1']), [
-        $this->classification($classId, [$limitId])]);
+        self::classification($classId, [$limitId])]);
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1'),
         [$limitId => -1]);
@@ -1051,11 +1051,11 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2']),
-        [$this->classification(DEFAULT_CLASS_ID, [0])]);
+        [self::classification(DEFAULT_CLASS_ID, [0])]);
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2']),
-        [$this->classification(DEFAULT_CLASS_ID, [0])]);
+        [self::classification(DEFAULT_CLASS_ID, [0])]);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime),
         ['' => ['1970-01-01' => 1]]);
@@ -1063,7 +1063,7 @@ final class WastedTest extends WastedTestBase {
     // Repeating the last call is idempotent.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2']),
-        [$this->classification(DEFAULT_CLASS_ID, [0])]);
+        [self::classification(DEFAULT_CLASS_ID, [0])]);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime),
         ['' => ['1970-01-01' => 1]]);
@@ -1071,8 +1071,8 @@ final class WastedTest extends WastedTestBase {
     // Add a title that matches the limit, but don't elapse time for it yet. This will extend the
     // title from the previous call.
     $classification2and1 = [
-        $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId1, [$limitId1])];
+        self::classification(DEFAULT_CLASS_ID, [0]),
+        self::classification($classId1, [$limitId1])];
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']),
         $classification2and1);
@@ -1100,8 +1100,8 @@ final class WastedTest extends WastedTestBase {
     // Request returns the updated classification.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']), [
-        $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId2, [$limitId2])]); // changed to c2, which maps to b2
+        self::classification(DEFAULT_CLASS_ID, [0]),
+        self::classification($classId2, [$limitId2])]); // changed to c2, which maps to b2
     // Records are updated.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
@@ -1113,13 +1113,13 @@ final class WastedTest extends WastedTestBase {
     // From now on we accumulate time with the new classification.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']), [
-        $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId2, [$limitId2])]);
+        self::classification(DEFAULT_CLASS_ID, [0]),
+        self::classification($classId2, [$limitId2])]);
     $this->mockTime++;
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']), [
-        $this->classification(DEFAULT_CLASS_ID, [0]),
-        $this->classification($classId2, [$limitId2])]);
+        self::classification(DEFAULT_CLASS_ID, [0]),
+        self::classification($classId2, [$limitId2])]);
 
     // Check results.
     $this->assertEquals(
@@ -1151,7 +1151,7 @@ final class WastedTest extends WastedTestBase {
     // Time does not need to elapse.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['t1']), [
-        $this->classification($classId, [$limitId])]);
+        self::classification($classId, [$limitId])]);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
         '' => ['1970-01-01' => 1], // concluded record is not updated
@@ -1197,12 +1197,12 @@ final class WastedTest extends WastedTestBase {
     // https://cs.stanford.edu/people/miles/iso8859.html
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['t' . chr(228) . 'st']),
-        [$this->classification($classId, [0])]);
+        [self::classification($classId, [0])]);
 
     // Test second classification rule for the word 'süß'.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['x s' . chr(252) . chr(223) . ' x']),
-        [$this->classification($classId, [0])]);
+        [self::classification($classId, [0])]);
   }
 
   function testGetUsers(): void {
@@ -1936,6 +1936,65 @@ final class WastedTest extends WastedTestBase {
             '' => ['1974-09-29' => 10, '1974-09-30' => 11],
             $limitId1 => ['1974-09-29' => 5, '1974-09-30' => 0],
             $limitId2 => ['1974-09-29' => 5, '1974-09-30' => 11]]);
+  }
+
+  private static function timeSpent($title, $sumS, $tsLastSeen) {
+    return [
+        'title' => $title,
+        'name' => DEFAULT_CLASS_NAME,
+        'sum_s' => strval($sumS),
+        'ts_last_seen' => strval($tsLastSeen)];
+  }
+
+  public function testOverlaps(): void {
+    $fromTs = $this->mockTime;
+    $this->wasted->insertWindowTitles('u1', ['t1']);
+    $this->mockTime += 10;
+    $this->wasted->insertWindowTitles('u1', ['t1']);
+
+    // [from, to, time, last seen]
+    $tests = [
+        // t0 matches
+        [0, 10, 10, 10],
+        [0, 9, 9, 9],
+        [0, 11, 10, 10],
+
+        // t1 matches
+        [-1, 10, 10, 10],
+        [1, 10, 9, 10],
+
+        // start enclosed
+        [-2, 5, 5, 5],
+        [-2, 10, 10, 10],
+        [-2, 15, 10, 10],
+
+        // end enclosed
+        [2, 9, 7, 9],
+        [2, 10, 8, 10],
+        [2, 11, 8, 10],
+
+        // both enclosed
+        [-3, 13, 10, 10],
+
+        // no overlap
+        [-4, -2],
+        [12, 14],
+    ];
+    foreach ($tests as $t) {
+      $this->onFailMessage(implode(', ', $t));
+      $expectation = count($t) == 4 ? [self::timeSpent('t1', $t[2], $fromTs + $t[3])] : [];
+      $this->assertEquals(
+          $this->wasted->queryTimeSpentByTitleInternal(
+              'u1', $fromTs + $t[0], $fromTs + $t[1], false),
+              $expectation);
+
+      $t0 = (new DateTime())->setTimestamp($fromTs + $t[0]);
+      $t1 = (new DateTime())->setTimestamp($fromTs + $t[1]);
+      $expectation = count($t) == 4 ? ['' => ['1970-01-01' => $t[2]]] : [];
+      $this->assertEquals(
+          $this->wasted->queryTimeSpentByLimitAndDate('u1', $t0, $t1),
+          $expectation);
+      }
   }
 
 }

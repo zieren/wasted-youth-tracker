@@ -808,7 +808,7 @@ class Wasted {
         AND (
           (%i1 <= from_ts AND from_ts < %i2)
           OR
-          (%i1 <= to_ts AND to_ts < %i2)
+          (%i1 < to_ts AND to_ts <= %i2)
           OR
           (from_ts < %i1 AND %i2 <= to_ts)
         )
@@ -898,7 +898,7 @@ class Wasted {
     return $timeByLimitAndDate;
   }
 
-  private function queryTimeSpentByTitleInternal(
+  public function queryTimeSpentByTitleInternal(
       $user, $fromTimestamp, $toTimestamp, $orderBySum, $topUnclassified = 0) {
     $orderBy = $orderBySum
         ? 'ORDER BY sum_s DESC, title'
@@ -919,7 +919,7 @@ class Wasted {
         AND (
           (%i1 <= from_ts AND from_ts < %i2)
           OR
-          (%i1 <= to_ts AND to_ts < %i2)
+          (%i1 < to_ts AND to_ts <= %i2)
           OR
           (from_ts < %i1 AND %i2 <= to_ts)
         )
@@ -927,6 +927,7 @@ class Wasted {
         $orderBy
         $limit",
         $user, $fromTimestamp, $toTimestamp);
+    // TODO: Check interval maths above
   }
 
   /**

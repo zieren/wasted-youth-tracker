@@ -2,7 +2,7 @@
 
 // Internal constants.
 define('PHP_MIN_VERSION', '7.3');
-define('WASTED_SERVER_HEADING', 'Wasted Youth Tracker 0.0.0-4');
+define('WASTED_SERVER_HEADING', 'Wasted Youth Tracker 0.0.0-5');
 define('DEFAULT_CLASS_NAME', 'default_class');
 define('LIMIT_TO_ZERO_NAME', 'limit_to_zero');
 define('DEFAULT_CLASS_ID', 1);

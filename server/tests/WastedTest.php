@@ -851,6 +851,17 @@ final class WastedTest extends WastedTestBase {
         ['' => ['1970-01-01' => 8]]);
   }
 
+  public function testCaseHandling(): void {
+    $fromTime = $this->newDateTime();
+    // First title capitalization persists.
+    $this->wasted->insertWindowTitles('u1', ['TITLE']);
+    $this->mockTime++;
+    $this->wasted->insertWindowTitles('u1', ['Title']);
+    $this->assertEquals(
+        $this->wasted->queryTimeSpentByTitle('u1', $fromTime), [
+        [$this->dateTimeString(), 1, DEFAULT_CLASS_NAME, 'TITLE']]);
+  }
+
   public function testDuplicateTitle(): void {
     $fromTime = $this->newDateTime();
     $this->wasted->insertWindowTitles('u1', ['cALCULATOR', 'Calculator']);
@@ -1081,24 +1092,21 @@ final class WastedTest extends WastedTestBase {
         $timeSpent2and1);
 
     // Changing the classification rules between concurrent requests causes the second activity
-    // record to collide with the first (because class_id is not part of the PK) and be ignored.
+    // record to replace with the first (because class_id is not part of the PK).
     $classId2 = $this->wasted->addClass('c2');
     $this->wasted->addClassification($classId2, 10 /* higher priority */, '1$');
     $limitId2 = $this->wasted->addLimit('u1', 'b2');
     $this->wasted->addMapping($classId2, $limitId2);
-    // Request does return the updated classification...
+    // Request returns the updated classification.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->insertWindowTitles('u1', ['title 2', 'title 1']), [
         $this->classification(DEFAULT_CLASS_ID, [0]),
         $this->classification($classId2, [$limitId2])]); // changed to c2, which maps to b2
-    // ... but records retain the old one. ö nö
+    // Records are updated.
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
         '' => ['1970-01-01' => 1],
-        $limitId1 => ['1970-01-01' => 0],
         $limitId2 => ['1970-01-01' => 0]]);
-    // This was the last time we saw the c1 classification.
-    $lastC1DateTimeString = $this->dateTimeString();
 
     // Accumulate time.
     $this->mockTime++;
@@ -1117,13 +1125,64 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals(
         $this->wasted->queryTimeSpentByTitle('u1', $fromTime), [
         [$this->dateTimeString(), 3, DEFAULT_CLASS_NAME, 'title 2'],
-        [$this->dateTimeString(), 2, 'c2', 'title 1'],
-        [$lastC1DateTimeString, 0, 'c1', 'title 1']]); // no time actually elapsed for c1
+        [$this->dateTimeString(), 2, 'c2', 'title 1']]);
     $this->assertEqualsIgnoreOrder(
         $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
         '' => ['1970-01-01' => 3],
-        $limitId1 => ['1970-01-01' => 0],
         $limitId2 => ['1970-01-01' => 2]]);
+  }
+
+  function testUpdateClassification_noTimeElapsed(): void {
+    // Classification is updated when a title is continued, but not after it is concluded.
+    $fromTime = $this->newDateTime();
+    $this->wasted->insertWindowTitles('u1', ['t1', 't2']);
+    $this->mockTime++;
+    $this->wasted->insertWindowTitles('u1', ['t1', 't2']);
+
+    $classId = $this->wasted->addClass('c1');
+    $this->wasted->addClassification($classId, 0, '1$');
+    $limitId = $this->wasted->addLimit('u1', 'l1');
+    $this->wasted->addMapping($classId, $limitId);
+
+    $this->assertEqualsIgnoreOrder(
+        $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
+        '' => ['1970-01-01' => 1]]);
+
+    // Time does not need to elapse.
+    $this->assertEqualsIgnoreOrder(
+        $this->wasted->insertWindowTitles('u1', ['t1']), [
+        $this->classification($classId, [$limitId])]);
+    $this->assertEqualsIgnoreOrder(
+        $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
+        '' => ['1970-01-01' => 1], // concluded record is not updated
+        $limitId => ['1970-01-01' => 1]]);
+  }
+
+  function testUpdateClassification_timeElapsed(): void {
+    // Classification is updated when a title is continued, but not after it is concluded.
+    $fromTime = $this->newDateTime();
+    $this->wasted->insertWindowTitles('u1', ['t1', 't2']);
+    $this->mockTime++;
+    $this->wasted->insertWindowTitles('u1', ['t1', 't2']);
+
+    $classId = $this->wasted->addClass('c1');
+    $this->wasted->addClassification($classId, 0, '1$');
+    $limitId = $this->wasted->addLimit('u1', 'l1');
+    $this->wasted->addMapping($classId, $limitId);
+
+    $this->assertEqualsIgnoreOrder(
+        $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
+        '' => ['1970-01-01' => 1]]);
+
+    // Time may elapse.
+    $this->mockTime++;
+    $this->wasted->insertWindowTitles('u1', ['t1']);
+    $this->mockTime++;
+    $this->wasted->insertWindowTitles('u1', ['t1']);
+    $this->assertEqualsIgnoreOrder(
+        $this->wasted->queryTimeSpentByLimitAndDate('u1', $fromTime), [
+        '' => ['1970-01-01' => 2], // concluded record is not updated
+        $limitId => ['1970-01-01' => 3]]);
   }
 
   function testUmlauts(): void {
@@ -1878,8 +1937,6 @@ final class WastedTest extends WastedTestBase {
             $limitId1 => ['1974-09-29' => 5, '1974-09-30' => 0],
             $limitId2 => ['1974-09-29' => 5, '1974-09-30' => 11]]);
   }
-
-  // TODO: Add tests for new schema.
 
 }
 

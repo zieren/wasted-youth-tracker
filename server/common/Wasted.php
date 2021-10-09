@@ -33,6 +33,8 @@ function logDbQueryError($params) {
 
 class Wasted {
 
+  private static $NO_TITLES_PSEUDO_CLASSIFICATION = [['class_id' => DEFAULT_CLASS_ID]];
+
   /** Creates a new instance for use in production, using parameters from config.php. */
   public static function create($createMissingTables = false): Wasted {
     return new Wasted(
@@ -105,7 +107,7 @@ class Wasted {
         . 'to_ts BIGINT NOT NULL, '
         . 'class_id INT NOT NULL, '
         . 'title VARCHAR(256) NOT NULL, '
-        . 'PRIMARY KEY (user, seq, from_ts, title), '
+        . 'PRIMARY KEY (user, title, from_ts), '
         . 'FOREIGN KEY (class_id) REFERENCES classes(id) '
         . ') '
         . CREATE_TABLE_SUFFIX);
@@ -365,8 +367,6 @@ class Wasted {
     return $classifications;
   }
 
-  // TODO: Decide how to treat disabled (non-enabled!?) limits. Then check callers.
-
   /** Sets the specified limit config. */
   public function setLimitConfig($limitId, $key, $value) {
     DB::insertUpdate('limit_config', ['limit_id' => $limitId, 'k' => $key, 'v' => $value]);
@@ -610,19 +610,33 @@ class Wasted {
   public function insertWindowTitles($user, $titles) {
     $ts = $this->time();
 
-    // The below code expects that $titles does not contain duplicates. Rather than filter
-    // duplicates in PHP, use the database's case sensitivity and language setting (ground truth).
-    if (count($titles) > 1) {
-      $s = [];
+    // We use a pseudo-title of '' to indicate that nothing was running. In the unlikely event a
+    // window actually has an empty title, change that to avoid a clash.
+    if (!$titles) {
+      $titles = [''];
+      $classifications = self::$NO_TITLES_PSEUDO_CLASSIFICATION; // info on limits is not used
+    } else {
+      $classifications = $this->classify($user, $titles); // no harm classifying the original ''
       foreach ($titles as $i => $title) {
-        $s[] = "SELECT %s_$i AS t";
+        if (!$title) {
+          $titles[$i] = '(no title)';
+        }
       }
-      $rows = DB::query(implode(' UNION ', $s), $titles);
-      $t = [];
-      foreach ($rows as $row) {
-        $t[] = $row['t'];
-      }
-      $titles = $t;
+    }
+
+    // Map title to current classification. Note that everything is case insensitive:
+    // - Regular expression matching
+    // - The DB returns e.g. 'Foo' for "title IN ('foo')"
+    // Therefore we normalize keys in this map and add the original to the value.
+    $classificationsMap = [];
+    $newTitles = [];
+    foreach ($classifications as $i => $classification) {
+      $title = $titles[$i];
+      $titleLowerCase = strtolower($title);
+      $classificationsMap[$titleLowerCase] =
+          ['class_id' => $classification['class_id'], 'title' => $title];
+      // We will remove continued titles from this so the newly started titles remain.
+      $newTitles[$titleLowerCase] = $title;
     }
 
     // Find next sequence number. The sequence number imposes order even when multiple requests are
@@ -634,96 +648,72 @@ class Wasted {
     }
     $previousSeq = $seq - 1;
 
-    // Query latest report, if within continuation period.
+    // Update continued titles, i.e. recent titles included in $titles. We need the from_ts for
+    // each, as it is part of the PK. Titles that we don't find remain in $newTitles and are
+    // inserted later.
     $rows = DB::query('
-        SELECT from_ts, title, class_id
+        SELECT title, from_ts
         FROM activity
         WHERE user = %s
         AND seq = %i
+        AND to_ts >= %i
+        AND title IN %ls',
+        $user,
+        $previousSeq,
+        $ts - 25, // TODO: magic 25=15+10
+        $titles);
+    if ($rows) {
+      $updates = [];
+      foreach ($rows as $i => $row) {
+        $title = $row['title'];
+        $titleLowerCase = strtolower($title);
+        $updates[] = [
+            'user' => $user,
+            'title' => $title,
+            'from_ts' => $row['from_ts'],
+            'to_ts' => $ts,
+            'seq' => $seq,
+            // Classification may have changed:
+            'class_id' => $classificationsMap[$titleLowerCase]['class_id']
+            ];
+        unset($newTitles[$titleLowerCase]);
+      }
+      DB::replace('activity', $updates);
+    }
+
+    // Update concluded titles. Since we have already updated 'seq' for all continued titles above,
+    // anything at $previousSeq must be concluded (i.e. 'NOT IN $titles' is not needed).
+    DB::query('
+        UPDATE activity
+        SET to_ts = %i
+        WHERE user = %s
+        AND seq = %i
         AND to_ts >= %i',
-        $user, $previousSeq, $ts - 25); // TODO: magic 25=15+10
-    // Find potentially continued titles and their from_ts.
-    $activeTitlesToFromTs = [];
-    foreach ($rows as $row) {
-      // Including the class ID in the key means we'll start a new interval if classification
-      // changed.
-      $activeTitlesToFromTs[$row['class_id'].':'.$row['title']] = $row['from_ts'];
-    }
+        $ts,
+        $user,
+        $previousSeq,
+        $ts - 25); // TODO: magic 25=15+10
 
-    // We use a pseudo-title of '' to indicate that nothing was running. In the unlikely event a
-    // window actually has an empty title, change that to avoid a clash.
-    if (!$titles) {
-      $titles = [''];
-      $classifications = [['class_id' => DEFAULT_CLASS_ID]]; // info on limits is not used
-      $classificationsToReturn = [];
-    } else {
-      $classifications = $this->classify($user, $titles); // no harm classifying the original ''
-      $classificationsToReturn = &$classifications;
-      foreach ($titles as $i => $title) {
-        if (!$title) {
-          $titles[$i] = '(no title)';
-        }
+    // Insert new titles.
+    if ($newTitles) {
+      $updates = [];
+      foreach ($newTitles as $titleLowerCase => $title) {
+        $updates[] = [
+            'user' => $user,
+            'title' => $title,
+            'from_ts' => $ts,
+            'to_ts' => $ts,
+            'seq' => $seq,
+            'class_id' => $classificationsMap[$titleLowerCase]['class_id']
+            ];
       }
+      DB::insert('activity', $updates);
     }
 
-    // ö: Can we change some of the loop code to direct MySQL code?
-
-    $newActivities = [];
-    foreach ($titles as $i => $title) {
-      $k = $classifications[$i]['class_id'].':'.$title;
-      if (array_key_exists($k, $activeTitlesToFromTs)) {
-        // Previous activity continues: Update seq and to_ts.
-        // ö Faster when assembling updates as a string separated by ";"?
-        DB::query('
-            UPDATE activity
-            SET seq = %i, to_ts = %i
-            WHERE user = %s
-            AND seq = %i
-            AND from_ts = %i
-            AND title = %s',
-            $seq, $ts,
-            $user,
-            $previousSeq,
-            $activeTitlesToFromTs[$k],
-            $title);
-        unset($activeTitlesToFromTs[$k]);
-      } else {
-        // New activity starts.
-        $newActivities[] = [
-          'user' => $user,
-          'seq' => $seq,
-          'from_ts' => $ts,
-          'to_ts' => $ts,
-          'title' => $title,
-          'class_id' => $classifications[$i]['class_id']];
-      }
-    }
-    // Update titles from last observation that are now gone: Set to_ts to now() but keep seq, so
-    // they are effectively concluded. If they were observed again next time, new intervals would be
-    // started.
-    foreach ($activeTitlesToFromTs as $key => $fromTs) {
-      $title = explode(':', $key, 2)[1]; // strip leading class ID
-      DB::query('
-          UPDATE activity
-          SET to_ts = %i
-          WHERE user = %s
-          AND seq = %i
-          AND from_ts = %i
-          AND title = %s',
-          $ts,
-          $user,
-          $previousSeq,
-          $fromTs,
-          $title);
-    }
-    if ($newActivities) {
-      DB::insert('activity', $newActivities);
-    }
-    return $classificationsToReturn;
+    return $classifications === self::$NO_TITLES_PSEUDO_CLASSIFICATION ? [] : $classifications;
   }
 
   // ---------- CONFIG QUERIES ----------
-  // TODO: Reject invalid values like '"'.
 
   /** Updates the specified user config value. */
   public function setUserConfig($user, $key, $value) {
@@ -1035,12 +1025,10 @@ class Wasted {
   }
 
   /**
-   * Returns a list of strings describing all available classes
-   * TODO ö
-   *  class names and seconds left for that class. This considers the most
-   * restrictive limit and assumes that no time is spent on any other class (which might count
-   * towards a shared limit and thus reduce time for other classes). Classes with zero time are
-   * omitted.
+   * Returns a list of strings describing all available classes by name and seconds left today.
+   * This considers the most restrictive limit and assumes that no time is spent on any other class
+   * (which might count towards a shared limit and thus reduce time for other classes). Classes with
+   * zero time are omitted.
    */
   public function queryClassesAvailableTodayTable($user, $timeLeftTodayAllLimits = null) {
     $timeLeftTodayAllLimits =

@@ -752,13 +752,11 @@ class Wasted {
    * the user specific config.
    */
   public function getClientConfig($user) {
-    return Wasted::parseKvRows(DB::query(
-        'SELECT k, v FROM ('
-        . '  SELECT k, v FROM global_config'
-        . '  WHERE k NOT IN (SELECT k FROM user_config WHERE user = %s0)'
-        . '  UNION ALL'
-        . '  SELECT k, v FROM user_config WHERE user = %s0'
-        . ') AS t1 ORDER BY k',
+    return Wasted::parseKvRows(DB::query('
+        SELECT k, v FROM global_config
+        WHERE k NOT IN (SELECT k FROM user_config WHERE user = %s0)
+        UNION
+        SELECT k, v FROM user_config WHERE user = %s0',
         $user));
   }
 

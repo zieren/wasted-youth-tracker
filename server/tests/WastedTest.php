@@ -1719,15 +1719,15 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->setGlobalConfig('key', 'global');
     $this->wasted->setUserConfig('u1', 'key2', 'user');
     $this->wasted->setUserConfig('u2', 'ignored', 'ignored');
-    $this->assertEquals(
+    $this->assertEqualsIgnoreOrder(
         ['key' => 'global', 'key2' => 'user'], $this->wasted->getClientConfig('u1'));
-    $this->assertEquals(
+    $this->assertEqualsIgnoreOrder(
         "key\nglobal\nkey2\nuser", Config::handleRequest($this->wasted, 'u1'));
 
     $this->wasted->setUserConfig('u1', 'key', 'user override');
-    $this->assertEquals(
+    $this->assertEqualsIgnoreOrder(
         ['key' => 'user override', 'key2' => 'user'], $this->wasted->getClientConfig('u1'));
-    $this->assertEquals(
+    $this->assertEqualsIgnoreOrder(
         "key\nuser override\nkey2\nuser",
         Config::handleRequest($this->wasted, 'u1'));
   }

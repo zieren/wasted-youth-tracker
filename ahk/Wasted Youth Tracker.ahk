@@ -30,7 +30,7 @@ global WARNED_LIMITS := {}
 global CFG := {}
 ; Contact the server every x seconds.
 global SAMPLE_INTERVAL_SECONDS := "sample_interval_seconds"
-CFG[SAMPLE_INTERVAL_SECONDS] := 15
+CFG[SAMPLE_INTERVAL_SECONDS] := 15 ; KEEP THE DEFAULT IN SYNC WITH THE SERVER!!!
 ; Time the user has to manually close a window for which time has expired.
 ; After this time the script attempts to close the window.
 global GRACE_PERIOD_SECONDS := "grace_period_seconds"

@@ -1997,6 +1997,37 @@ final class WastedTest extends WastedTestBase {
       }
   }
 
+  public function testSampleInterval(): void {
+    $fromTime = $this->newDateTime();
+
+    // Default is 15s. Grace period is always 30s.
+    $this->wasted->insertWindowTitles('u', ['t']);
+    $this->mockTime += 45;
+    $this->wasted->insertWindowTitles('u', ['t']);
+
+    // This yields one interval.
+    $this->assertEquals(
+        $this->wasted->queryTimeSpentByLimitAndDate('u', $fromTime),
+        ['' => ['1970-01-01' => 45]]);
+
+    // Exceeding 45s starts a new interval.
+    $this->mockTime += 46;
+    $this->wasted->insertWindowTitles('u', ['t']);
+    $this->mockTime += 1;
+    $this->wasted->insertWindowTitles('u', ['t']);
+    $this->assertEquals(
+        $this->wasted->queryTimeSpentByLimitAndDate('u', $fromTime),
+        ['' => ['1970-01-01' => 46]]);
+
+    // Increase sample interval to 30s, i.e. 60s including the grace period.
+    $this->wasted->setUserConfig('u', 'sample_interval_seconds', 30);
+    $this->mockTime += 54;
+    $this->wasted->insertWindowTitles('u', ['t']);
+    $this->assertEquals(
+        $this->wasted->queryTimeSpentByLimitAndDate('u', $fromTime),
+        ['' => ['1970-01-01' => 100]]);
+  }
+
 }
 
 (new WastedTest())->run();

@@ -41,11 +41,11 @@ final class WastedTest extends WastedTestBase {
     return $c;
   }
 
-  private function mapping($limitId, $classId) {
+  private static function mapping($limitId, $classId) {
     return ['limit_id' => strval($limitId), 'class_id' => strval($classId)];
   }
 
-  private function queryMappings() {
+  private static function queryMappings() {
     return DB::query('SELECT limit_id, class_id FROM mappings ORDER BY limit_id, class_id');
   }
 
@@ -1403,54 +1403,54 @@ final class WastedTest extends WastedTestBase {
     $limitId2 = $this->wasted->addLimit('u1', 'b2');
     $this->wasted->addMapping($classId1, $limitId1);
     $this->assertEquals(
-        $this->queryMappings(),
-        [$this->mapping($limitId1, $classId1)]);
+        self::queryMappings(),
+        [self::mapping($limitId1, $classId1)]);
     $classId3 = $this->wasted->addClass('c3');
     $classId4 = $this->wasted->addClass('c4');
     $this->wasted->setTotalLimit('u1', $limitId1);
     $this->assertEquals(
-        $this->queryMappings(), [
-        $this->mapping($limitId1, DEFAULT_CLASS_ID),
-        $this->mapping($limitId1, $classId1),
-        $this->mapping($limitId1, $classId2),
-        $this->mapping($limitId1, $classId3),
-        $this->mapping($limitId1, $classId4),
+        self::queryMappings(), [
+        self::mapping($limitId1, DEFAULT_CLASS_ID),
+        self::mapping($limitId1, $classId1),
+        self::mapping($limitId1, $classId2),
+        self::mapping($limitId1, $classId3),
+        self::mapping($limitId1, $classId4),
     ]);
     $classId5 = $this->wasted->addClass('c5');
     $this->assertEquals(
-        $this->queryMappings(), [
-        $this->mapping($limitId1, DEFAULT_CLASS_ID),
-        $this->mapping($limitId1, $classId1),
-        $this->mapping($limitId1, $classId2),
-        $this->mapping($limitId1, $classId3),
-        $this->mapping($limitId1, $classId4),
-        $this->mapping($limitId1, $classId5),
+        self::queryMappings(), [
+        self::mapping($limitId1, DEFAULT_CLASS_ID),
+        self::mapping($limitId1, $classId1),
+        self::mapping($limitId1, $classId2),
+        self::mapping($limitId1, $classId3),
+        self::mapping($limitId1, $classId4),
+        self::mapping($limitId1, $classId5),
     ]);
 
     DB::query('DELETE FROM mappings');
     $this->assertEquals(
-        $this->queryMappings(),
+        self::queryMappings(),
         []);
     $this->wasted->setTotalLimit('u1', $limitId2);
     $this->assertEquals(
-        $this->queryMappings(), [
-        $this->mapping($limitId2, DEFAULT_CLASS_ID),
-        $this->mapping($limitId2, $classId1),
-        $this->mapping($limitId2, $classId2),
-        $this->mapping($limitId2, $classId3),
-        $this->mapping($limitId2, $classId4),
-        $this->mapping($limitId2, $classId5),
+        self::queryMappings(), [
+        self::mapping($limitId2, DEFAULT_CLASS_ID),
+        self::mapping($limitId2, $classId1),
+        self::mapping($limitId2, $classId2),
+        self::mapping($limitId2, $classId3),
+        self::mapping($limitId2, $classId4),
+        self::mapping($limitId2, $classId5),
     ]);
     $classId6 = $this->wasted->addClass('c6');
     $this->assertEquals(
-        $this->queryMappings(), [
-        $this->mapping($limitId2, DEFAULT_CLASS_ID),
-        $this->mapping($limitId2, $classId1),
-        $this->mapping($limitId2, $classId2),
-        $this->mapping($limitId2, $classId3),
-        $this->mapping($limitId2, $classId4),
-        $this->mapping($limitId2, $classId5),
-        $this->mapping($limitId2, $classId6),
+        self::queryMappings(), [
+        self::mapping($limitId2, DEFAULT_CLASS_ID),
+        self::mapping($limitId2, $classId1),
+        self::mapping($limitId2, $classId2),
+        self::mapping($limitId2, $classId3),
+        self::mapping($limitId2, $classId4),
+        self::mapping($limitId2, $classId5),
+        self::mapping($limitId2, $classId6),
     ]);
 
     $this->wasted->removeClass($classId2);
@@ -1462,22 +1462,22 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->setTotalLimit('u2', $limitId1);
 
     $this->assertEquals(
-        $this->queryMappings(), [
-        $this->mapping($limitId1, DEFAULT_CLASS_ID),
-        $this->mapping($limitId1, $classId1),
-        $this->mapping($limitId2, DEFAULT_CLASS_ID),
-        $this->mapping($limitId2, $classId1),
+        self::queryMappings(), [
+        self::mapping($limitId1, DEFAULT_CLASS_ID),
+        self::mapping($limitId1, $classId1),
+        self::mapping($limitId2, DEFAULT_CLASS_ID),
+        self::mapping($limitId2, $classId1),
     ]);
 
     $classId7 = $this->wasted->addClass('c7');
     $this->assertEquals(
-        $this->queryMappings(), [
-        $this->mapping($limitId1, DEFAULT_CLASS_ID),
-        $this->mapping($limitId1, $classId1),
-        $this->mapping($limitId1, $classId7),
-        $this->mapping($limitId2, DEFAULT_CLASS_ID),
-        $this->mapping($limitId2, $classId1),
-        $this->mapping($limitId2, $classId7),
+        self::queryMappings(), [
+        self::mapping($limitId1, DEFAULT_CLASS_ID),
+        self::mapping($limitId1, $classId1),
+        self::mapping($limitId1, $classId7),
+        self::mapping($limitId2, DEFAULT_CLASS_ID),
+        self::mapping($limitId2, $classId1),
+        self::mapping($limitId2, $classId7),
     ]);
 
     // Removing a total limit will make the trigger fail from now on. But if a trigger fails alone
@@ -1485,22 +1485,22 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->removeLimit($limitId1);
     $classId8 = $this->wasted->addClass('c8');
     $this->assertEquals(
-        $this->queryMappings(), [
-        $this->mapping($limitId2, DEFAULT_CLASS_ID),
-        $this->mapping($limitId2, $classId1),
-        $this->mapping($limitId2, $classId7),
-        $this->mapping($limitId2, $classId8),
+        self::queryMappings(), [
+        self::mapping($limitId2, DEFAULT_CLASS_ID),
+        self::mapping($limitId2, $classId1),
+        self::mapping($limitId2, $classId7),
+        self::mapping($limitId2, $classId8),
     ]);
 
     // Remove the total limit setting.
     $this->wasted->unsetTotalLimit('u1');
     $this->wasted->addClass('c9');
     $this->assertEquals(
-        $this->queryMappings(), [
-        $this->mapping($limitId2, DEFAULT_CLASS_ID),
-        $this->mapping($limitId2, $classId1),
-        $this->mapping($limitId2, $classId7),
-        $this->mapping($limitId2, $classId8),
+        self::queryMappings(), [
+        self::mapping($limitId2, DEFAULT_CLASS_ID),
+        self::mapping($limitId2, $classId1),
+        self::mapping($limitId2, $classId7),
+        self::mapping($limitId2, $classId8),
     ]);
   }
 

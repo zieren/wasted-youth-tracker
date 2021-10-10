@@ -927,7 +927,6 @@ class Wasted {
         $orderBy
         $limit",
         $user, $fromTimestamp, $toTimestamp);
-    // TODO: Check interval maths above
   }
 
   /**

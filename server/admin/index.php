@@ -159,7 +159,6 @@ if (!isset($limitId)) {
 }
 
 $limitConfigs = $wasted->getAllLimitConfigs($user);
-$limitNames = limitIdsToNames(array_keys($limitConfigs), $limitConfigs);
 $classes = $wasted->getAllClasses();
 $configs = $wasted->getAllLimitConfigs($user);
 $classifications = $wasted->getAllClassifications();
@@ -201,7 +200,7 @@ echo '<p>
   <form method="post" action="index.php">
     <input type="hidden" name="user" value="' . $user . '">'
     . dateSelector($dateString, false)
-    . limitSelector($limitNames, $limitId) .
+    . limitSelector($limitConfigs, $limitId) .
     '<label for="idOverrideMinutes">Minutes: </label>
     <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
     <input type="submit" value="Set minutes" name="setMinutes">
@@ -274,7 +273,7 @@ echoTable(['Limit', 'Class', 'Further limits'], $wasted->getLimitsToClassesTable
 echo '<h4>Map class to limit</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
-  . classSelector($classes, true) . '==> ' . limitSelector($limitNames, $limitId) . '
+  . classSelector($classes, true) . '==> ' . limitSelector($limitConfigs, $limitId) . '
   <input type="submit" value="Add" name="addMapping">
   <input type="submit" value="Remove" name="removeMapping">
 </form>
@@ -321,7 +320,7 @@ echo '<h4>Map class to limit</h4>
 echo '<h3>Limits</h3>';
 
 foreach ($limitConfigs as $id => $config) {
-  echo '<h4>' . html($limitNames[$id]) . "</h4>\n";
+  echo '<h4>' . html($config['name']) . "</h4>\n";
   unset($config['name']);
   echoTableAssociative($config);
 }
@@ -329,7 +328,7 @@ echo '
 <h4>Configuration</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
-  . limitSelector($limitNames, $limitId) .
+  . limitSelector($limitConfigs, $limitId) .
   '<input type="text" name="limitConfigKey" value="" placeholder="key">
   <input type="text" name="limitConfigValue" value="" placeholder="value">
   <input type="submit" value="Set config" name="setLimitConfig">
@@ -338,7 +337,7 @@ echo '
 
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '"> '
-  . limitSelector($limitNames, $limitId) .
+  . limitSelector($limitConfigs, $limitId) .
   '<input type="submit" value="Remove (incl. config!)" name="removeLimit"
     class="wastedDestructive" disabled>
   <label for="idLimitName">Name: </label>

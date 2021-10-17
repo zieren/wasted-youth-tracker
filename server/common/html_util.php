@@ -76,14 +76,14 @@ function dateSelectorJs() {
           </script>';
 }
 
-function limitSelector($limitNames, $selectedLimitId) {
+function limitSelector($limitConfigs, $selectedLimitId) {
   $select =
       '<label for="idLimit">Limit: </label>
       <select id="idLimit" name="limitId">';
-  foreach ($limitNames as $limitId => $limitName) {
+  foreach ($limitConfigs as $limitId => $config) {
     $selected = $selectedLimitId == $limitId ? 'selected="selected"' : '';
     $select .=
-        '<option value="' . $limitId . '" ' . $selected . '>' . html($limitName) . '</option>';
+        '<option value="' . $limitId . '" ' . $selected . '>' . html($config['name']) . '</option>';
   }
   $select .= "</select>\n";
   return $select;

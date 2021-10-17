@@ -236,11 +236,16 @@ class Wasted {
   }
 
   public function removeLimit($limitId) {
-    DB::delete('limits', 'id = %i', $limitId);
+    // It shouldn't be possible to specifiy the total limit ID here in the first place. Easiest
+    // solution is to do nothing.
+    DB::delete('limits', 'id = %i AND id NOT IN (SELECT total_limit_id FROM users)', $limitId);
   }
 
   public function renameLimit($limitId, $newName) {
-    DB::update('limits', ['name' => $newName], 'id = %s', $limitId);
+    DB::update('limits',
+        ['name' => $newName],
+        'id = %s AND id NOT IN (SELECT total_limit_id FROM users)',
+        $limitId);
   }
 
   public function addClass($className) {
@@ -292,12 +297,18 @@ class Wasted {
   }
 
   public function addMapping($classId, $limitId) {
+    // This will fail when trying to add a mapping for the total limit.
     DB::insert('mappings', ['class_id' => $classId, 'limit_id' => $limitId]);
   }
 
   public function removeMapping($classId, $limitId) {
-    // ö TODO: Don't remove mappings to the total budget
-    DB::delete('mappings', 'class_id=%i AND limit_id=%i', $classId, $limitId);
+    // It shouldn't be possible to specifiy the total limit ID here in the first place. Easiest
+    // solution is to do nothing.
+    DB::delete(
+        'mappings', '
+        class_id = %i AND limit_id = %i
+        AND limit_id NOT IN (SELECT total_limit_id FROM users)',
+        $classId, $limitId);
   }
 
   private static function getTotalLimitTriggerName($user) {
@@ -383,12 +394,7 @@ class Wasted {
       $classification['class_id'] = intval($rows[0]['id']);
       $classification['limits'] = [];
       foreach ($rows as $row) {
-        // Limit ID may be null. ö TODO
-        if ($limitId = $row['limit_id']) {
-          $classification['limits'][] = intval($limitId);
-        } else {
-          $classification['limits'][] = 0;
-        }
+        $classification['limits'][] = intval($row['limit_id']);
       }
       $classifications[] = $classification;
     }
@@ -423,7 +429,7 @@ class Wasted {
       if (!array_key_exists($limitId, $configs)) {
         $configs[$limitId] = [];
       }
-      if ($row['k']) { // May be absent due to RIGHT JOIN.
+      if ($row['k']) { // May be absent due to RIGHT JOIN if limit has no config at all.
         $configs[$limitId][$row['k']] = $row['v'];
       }
       $configs[$limitId]['name'] = $row['name'];
@@ -667,7 +673,7 @@ class Wasted {
     // Map title to current classification. Note that everything is case insensitive:
     // - Regular expression matching
     // - The DB returns e.g. 'Foo' for "title IN ('foo')"
-    // Therefore we normalize keys in this map and add the original to the value.
+    // Therefore we normalize keys in this map and add the original title to the value.
     $classificationsMap = [];
     $newTitles = [];
     foreach ($classifications as $i => $classification) {
@@ -722,7 +728,7 @@ class Wasted {
     }
 
     // Update concluded titles. Since we have already updated 'seq' for all continued titles above,
-    // anything at $previousSeq must be concluded (i.e. 'NOT IN $titles' is not needed).
+    // anything stilil at $previousSeq must be concluded (i.e. 'NOT IN $titles' is not needed).
     DB::query('
         UPDATE activity
         SET to_ts = %i
@@ -992,12 +998,11 @@ class Wasted {
 
   /**
    * Returns the time (in seconds) left today, in an array keyed by limit ID. In order of
-   * decreasing priority, this considers the unlock requirement, an override limit, the limit
-   * configured for the day of the week, and the default daily limit. For the last two, a possible
-   * weekly limit is additionally applied.
+   * decreasing priority, this considers the unlock requirement, override minutes, the minutes
+   * configured for the day of the week, and the default daily minutes. For the last two, possible
+   * weekly minutes are additionally applied.
    *
-   * The special ID null indicating "limit to zero" is present iff the value is < 0, meaning that
-   * time was spent outside of any defined limit. ö
+   * At least the total limit ID is present.
    *
    * The result is sorted by key.
    */
@@ -1010,17 +1015,11 @@ class Wasted {
     $timeSpentByLimitAndDate =
         $this->queryTimeSpentByLimitAndDate($user, getWeekStart($now), null);
 
-    // $minutesSpentByLimitAndDate may contain a limit ID of NULL to indicate "limit to zero", which
-    // $configs never contains.
-    $limitIds = array_keys($configs);
-    if (array_key_exists(null, $timeSpentByLimitAndDate)) {
-      $limitIds[] = null;
-    }
-    $timeLeftByLimit = array();
-    foreach ($limitIds as $limitId) {
-      $config = getOrDefault($configs, $limitId, array());
-      $timeSpentByDate = getOrDefault($timeSpentByLimitAndDate, $limitId, array());
-      $overrides = getOrDefault($overridesByLimit, $limitId, array());
+    $timeLeftByLimit = [];
+    foreach (array_keys($configs) as $limitId) {
+      $config = getOrDefault($configs, $limitId, []);
+      $timeSpentByDate = getOrDefault($timeSpentByLimitAndDate, $limitId, []);
+      $overrides = getOrDefault($overridesByLimit, $limitId, []);
       $timeLeftByLimit[$limitId] = $this->computeTimeLeftToday(
           $config, $now, $overrides, $timeSpentByDate, $limitId);
     }
@@ -1206,7 +1205,7 @@ class Wasted {
         . ' WHERE user = %s'
         . ' AND date = %s',
         $user, getDateString($now));
-    $overridesByLimit = array();
+    $overridesByLimit = [];
     // PK is (user, date, limit_id), so there is at most one row per limit_id.
     foreach ($rows as $row) {
       $overridesByLimit[$row['limit_id']] = array('minutes' => $row['minutes'], 'unlocked' => $row['unlocked']);

@@ -4,7 +4,6 @@
 define('PHP_MIN_VERSION', '7.3');
 define('WASTED_SERVER_HEADING', 'Wasted Youth Tracker 0.0.0-5');
 define('DEFAULT_CLASS_NAME', 'default_class');
-define('LIMIT_TO_ZERO_NAME', 'limit_to_zero'); // ö should be obsolete
 define('DEFAULT_CLASS_ID', 1);
 define('DEFAULT_CLASSIFICATION_ID', 1);
 define('TOTAL_LIMIT_NAME', 'Total');
@@ -101,7 +100,7 @@ function secondsToHHMMSS($seconds) {
 function limitIdsToNames($ids, $configs) {
   $names = [];
   foreach ($ids as $id) {
-    $names[$id] = isset($configs[$id]) ? $configs[$id]['name'] : LIMIT_TO_ZERO_NAME;
+    $names[$id] = $configs[$id]['name'];
   }
   return $names;
 }
@@ -111,7 +110,7 @@ function limitIdsToNames($ids, $configs) {
  * The mapping for the zero limit (key NULL) is included.
  */
 function getLimitIdToNameMap($configs) {
-  $idToName = ['' => LIMIT_TO_ZERO_NAME];
+  $idToName = [];
   foreach ($configs as $id => $config) {
     $idToName[$id] = $config['name'];
   }

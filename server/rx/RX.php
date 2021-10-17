@@ -74,8 +74,7 @@ class RX {
     $limitIdToName = getLimitIdToNameMap($configs);
     $timeLeftByLimit = $wasted->queryTimeLeftTodayAllLimits($user);
     foreach ($timeLeftByLimit as $limitId => $timeLeft) {
-      $response[] = // ö no more 0
-          ($limitId ? $limitId : 0) . ':' . $timeLeft . ':' . $limitIdToName[$limitId];
+      $response[] = "$limitId:$timeLeft:".$limitIdToName[$limitId];
     }
     $response[] = '';
 

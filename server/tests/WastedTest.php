@@ -32,11 +32,6 @@ final class WastedTest extends WastedTestBase {
     // Create default users. Also track total limits per user; many tests need this.
     $this->totalLimitId['u1'] = $this->wasted->addUser('u1');
     $this->totalLimitId['u2'] = $this->wasted->addUser('u2');
-    // Most tests are easier to read if we count total time down from 0 instead of from 24.
-    $this->wasted->clearLimitConfig(
-        $this->totalLimitId['u1'], DAILY_LIMIT_MINUTES_PREFIX.'default');
-    $this->wasted->clearLimitConfig(
-        $this->totalLimitId['u2'], DAILY_LIMIT_MINUTES_PREFIX.'default');
 
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
     $this->setErrorHandler();
@@ -48,6 +43,11 @@ final class WastedTest extends WastedTestBase {
     parent::setUp();
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::WARNING);
     $this->wasted->clearForTest();
+    // Most tests are easier to read if we count total time down from 0 instead of from 24.
+    $this->wasted->clearLimitConfig(
+        $this->totalLimitId['u1'], DAILY_LIMIT_MINUTES_PREFIX.'default');
+    $this->wasted->clearLimitConfig(
+        $this->totalLimitId['u2'], DAILY_LIMIT_MINUTES_PREFIX.'default');
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
     $this->mockTime = 1000;
   }
@@ -2115,6 +2115,41 @@ final class WastedTest extends WastedTestBase {
       WastedTestBase::$lastDbError = null; // don't fail the test
     }
   }
+
+  public function testCannotDeleteMappingToTotalLimit(): void {
+    $n = count($this->queryMappings('u1'));
+    $classId = $this->wasted->addClass('c1');
+    $this->assertEquals(count($this->queryMappings('u1')), $n + 1);
+    $this->wasted->removeMapping($classId, $this->totalLimitId['u1']);
+    $this->assertEquals(count($this->queryMappings('u1')), $n + 1);
+  }
+
+  public function testCannotDeleteTotalLimit(): void {
+    $allLimitConfigs = $this->wasted->getAllLimitConfigs('u1');
+    $this->wasted->removeLimit($this->totalLimitId['u1']);
+    $this->assertEquals($this->wasted->getAllLimitConfigs('u1'), $allLimitConfigs);
+  }
+
+  public function testCannotRenameTotalLimit(): void {
+    $allLimitConfigs = $this->wasted->getAllLimitConfigs('u1');
+    $this->wasted->renameLimit($this->totalLimitId['u1'], 'foobar');
+    $this->assertEquals($this->wasted->getAllLimitConfigs('u1'), $allLimitConfigs);
+  }
+
+  public function testDuplicateMapping(): void {
+    $classId = $this->wasted->addClass('c1');
+    try {
+      $this->wasted->addMapping($classId, $this->totalLimitId['u1']);
+      throw new AssertionError('Should not be able to add duplicate mapping');
+    } catch (Exception $e) {
+      // expected
+      $s = 'Duplicate entry';
+      $this->assertEquals(substr($e->getMessage(), 0, strlen($s)), $s);
+      WastedTestBase::$lastDbError = null; // don't fail the test
+    }
+  }
+
+  // TODO: Test that we don't show the total limit in the UI where we shouldn't. ö
 
 }
 

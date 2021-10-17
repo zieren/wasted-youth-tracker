@@ -98,11 +98,11 @@ FormatSeconds(seconds) {
 ; doomed, this is a no-op. This is for browsers, which change the title when the tab is closed (or
 ; deselected, which unfortunately we can't tell apart), but retain the ahk_id.
 TerminateWindow(id, title) {
-  if (CFG[DISABLE_ENFORCEMENT]) {
-    ShowMessage("enforcement disabled: close/kill '" title "' (" id ")")
-  } else {
-    WinGetTitle, currentTitle, ahk_id %id%
-    if (currentTitle == title) {
+  WinGetTitle, currentTitle, ahk_id %id%
+  if (currentTitle == title) {
+    if (CFG[DISABLE_ENFORCEMENT]) {
+      ShowMessage("enforcement disabled: close/kill '" title "' (" id ")")
+    } else {
       WinGet, pid, PID, ahk_id %id%
       ; WinKill does not seem to work: E.g. EditPlus with an unsaved file will just prompt to save,
       ; but not actually close. So maybe it sends a close request, and when the program acks that

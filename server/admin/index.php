@@ -112,13 +112,6 @@ if (action('setUserConfig')) {
   $limitId = postInt('limitId');
   $classId = postInt('classId');
   $wasted->removeMapping($classId, $limitId);
-} else if (action('setTotalLimit')) {
-  $user = postSanitized('user');
-  $limitId = postInt('limitId');
-  $wasted->setTotalLimit($user, $limitId);
-} else if (action('unsetTotalLimit')) {
-  $user = postSanitized('user');
-  $wasted->unsetTotalLimit($user);
 } else if (action('removeClassification')) {
   $classificationId = postInt('classificationId');
   $wasted->removeClassification($classificationId);
@@ -140,6 +133,12 @@ if (action('setUserConfig')) {
   $days = postInt('reclassificationDays');
   $fromTime = (clone $now)->sub(new DateInterval('P' . $days . 'D'));
   $wasted->reclassify($fromTime);
+} else if (action('addUser')) {
+  $newUser = postSanitized('userId');
+  $wasted->addUser($newUser);
+} else if (action('removeUser')) {
+  $newUser = postSanitized('userId');
+  $wasted->removeUser($newUser);
 } else if (action('prune')) {
   // Need to postfix 00:00:00 to not get current time of day.
   $dateTime = DateTime::createFromFormat('Y-m-d H:i:s', postSanitized('datePrune') . ' 00:00:00');
@@ -171,8 +170,8 @@ echo classificationSelectorJs($classifications);
 echo '<h1>'.WASTED_SERVER_HEADING.'</h1>
 <p>&copy; 2021 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
 Credits:
-<a href="https://www.autohotkey.com/">AutoHotkey</a> by The AutoHotkey Foundation;
-<a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, LGPL;
+<a href="https://www.autohotkey.com/">AutoHotkey</a> by The AutoHotkey Foundation, GNU GPL v2;
+<a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, GNU LGPL v3;
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license';
 if ($considerUnlocking) {
   $limitIdToName = getLimitIdToNameMap($configs);
@@ -335,8 +334,6 @@ echo '
   <input type="text" name="limitConfigValue" value="" placeholder="value">
   <input type="submit" value="Set config" name="setLimitConfig">
   <input type="submit" value="Clear config" name="clearLimitConfig">
-  <input type="submit" value="Set total limit" name="setTotalLimit">
-  <input type="submit" value="Unset total limit" name="unsetTotalLimit">
 </form>
 
 <form method="post" action="index.php">
@@ -360,12 +357,21 @@ echoTableAssociative($wasted->getGlobalConfig());
 echo '<h3>Update config</h3>
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="configUser" value="' . $user . '">
-  <input type="text" name="configKey" value="" placeholder="key">
-  <input type="text" name="configValue" value="" placeholder="value">
+  <input type="text" name="configKey" placeholder="key">
+  <input type="text" name="configValue" placeholder="value">
   <input type="submit" name="setUserConfig" value="Set User Config">
   <input type="submit" name="clearUserConfig" value="Clear User Config">
   <input type="submit" name="setGlobalConfig" value="Set Global Config">
   <input type="submit" name="clearGlobalConfig" value="Clear Global Config">
+</form>
+
+<hr />';
+
+echo '<h3>Users</h3>
+<form method="post" enctype="multipart/form-data">
+  <input type="text" name="userId" required="required" placeholder="id">
+  <input type="submit" name="addUser" value="Add">
+  <input type="submit" name="removeUser" value="Remove" class="wastedDestructive" disabled>
 </form>
 
 <hr />';

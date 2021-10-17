@@ -20,6 +20,7 @@ define('CREATE_TABLE_SUFFIX', 'CHARACTER SET ' . CHARSET_AND_COLLATION . ' ');
 
 DB::$success_handler = 'logDbQuery';
 DB::$error_handler = 'logDbQueryError';
+DB::$throw_exception_on_error = true;
 
 function logDbQuery($params) {
   Logger::Instance()->debug(
@@ -42,22 +43,30 @@ class Wasted {
   }
 
   /** Creates a new instance for use in tests. $timeFunction is used in place of system time(). */
-  public static function createForTest(
-      $dbName, $dbUser, $dbPass, $timeFunction): Wasted {
+  public static function createForTest($dbName, $dbUser, $dbPass, $timeFunction): Wasted {
     return new Wasted($dbName, $dbUser, $dbPass, $timeFunction, true);
   }
 
-  public function clearAllForTest(): void {
-    foreach (DB::query('SHOW TRIGGERS') as $row) {
-      DB::query('DROP TRIGGER IF EXISTS ' . $row['Trigger']);
+  // TODO: Move this to the test class?
+  /**
+   * Clear all data except for users. These should be deleted explicitly if needed, since their
+   * re-creation is expesive (because of CREATE TRIGGER).
+   */
+  public function clearForTest(): void {
+    foreach (DB::tableList() as $table) {
+      if ($table == 'limits') {
+        DB::query('DELETE FROM limits WHERE id NOT IN (SELECT total_limit_id FROM users)');
+      } elseif ($table == 'limit_config') {
+        DB::query(
+            'DELETE FROM limit_config WHERE limit_id NOT IN (SELECT total_limit_id FROM users)');
+      } elseif ($table == 'mappings') {
+        DB::query('DELETE FROM mappings WHERE limit_id NOT IN (SELECT total_limit_id FROM users)');
+      } elseif ($table == 'users') {
+        // Keep users.
+      } else {
+        DB::query("DELETE FROM `$table`");
+      }
     }
-    DB::query('SET FOREIGN_KEY_CHECKS = 0');
-    $rows = DB::query(
-        'SELECT table_name FROM information_schema.tables WHERE table_schema = %s', DB::$dbName);
-    foreach ($rows as $row) {
-      DB::query('DELETE FROM `' . $row['table_name'] . '`');
-    }
-    DB::query('SET FOREIGN_KEY_CHECKS = 1');
     $this->insertDefaultRows();
   }
 
@@ -89,6 +98,13 @@ class Wasted {
   public function createMissingTables() {
     DB::query('SET default_storage_engine=INNODB');
     DB::query(
+        'CREATE TABLE IF NOT EXISTS users ('
+        . 'id VARCHAR(32) NOT NULL, '
+        . 'total_limit_id INT, ' // can't be FK because 'id' is already FK in 'limits'
+        . 'PRIMARY KEY (id) '
+        . ') '
+        . CREATE_TABLE_SUFFIX);
+    DB::query(
         'CREATE TABLE IF NOT EXISTS classes ('
         . 'id INT NOT NULL AUTO_INCREMENT, '
         . 'name VARCHAR(256) NOT NULL, '
@@ -108,7 +124,8 @@ class Wasted {
         . 'class_id INT NOT NULL, '
         . 'title VARCHAR(256) NOT NULL, '
         . 'PRIMARY KEY (user, title, from_ts), '
-        . 'FOREIGN KEY (class_id) REFERENCES classes(id) '
+        . 'FOREIGN KEY (user) REFERENCES users(id) ON DELETE CASCADE, '
+        . 'FOREIGN KEY (class_id) REFERENCES classes(id) ' // must reclassify before delete
         . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
@@ -126,7 +143,8 @@ class Wasted {
         . 'id INT NOT NULL AUTO_INCREMENT, '
         . 'user VARCHAR(32) NOT NULL, '
         . 'name VARCHAR(256) NOT NULL, '
-        . 'PRIMARY KEY (id) '
+        . 'PRIMARY KEY (id), '
+        . 'FOREIGN KEY (user) REFERENCES users(id) ON DELETE CASCADE '
         . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
@@ -152,7 +170,8 @@ class Wasted {
         . 'user VARCHAR(32) NOT NULL, '
         . 'k VARCHAR(100) NOT NULL, '
         . 'v VARCHAR(200) NOT NULL, '
-        . 'PRIMARY KEY (user, k) '
+        . 'PRIMARY KEY (user, k), '
+        . 'FOREIGN KEY (user) REFERENCES users(id) ON DELETE CASCADE '
         . ') '
         . CREATE_TABLE_SUFFIX);
     DB::query(
@@ -169,7 +188,8 @@ class Wasted {
         . 'limit_id INT NOT NULL, '
         . 'minutes INT, '
         . 'unlocked BOOL, '
-        . 'PRIMARY KEY (user, date, limit_id) '
+        . 'PRIMARY KEY (user, date, limit_id), '
+        . 'FOREIGN KEY (user) REFERENCES users(id) ON DELETE CASCADE '
         . ') '
         . CREATE_TABLE_SUFFIX);
     $this->insertDefaultRows();
@@ -273,41 +293,49 @@ class Wasted {
 
   public function addMapping($classId, $limitId) {
     DB::insert('mappings', ['class_id' => $classId, 'limit_id' => $limitId]);
-    return DB::insertId();
   }
 
   public function removeMapping($classId, $limitId) {
+    // ö TODO: Don't remove mappings to the total budget
     DB::delete('mappings', 'class_id=%i AND limit_id=%i', $classId, $limitId);
   }
 
-  private function getTotalLimitTriggerName($user) {
-    return 'total_limit_' . hash('crc32', $user);
+  private static function getTotalLimitTriggerName($user) {
+    return 'total_limit_'.$user;
   }
 
-  /**
-   * Maps all existing classes to the specified limit and installs a trigger that adds each newly
-   * added class to this limit.
-   */
-  public function setTotalLimit($user, $limitId) {
-    $triggerName = $this->getTotalLimitTriggerName($user);
-    DB::query(
-        'INSERT IGNORE INTO mappings (limit_id, class_id)
+  /** Set up the specified new user and create their 'Total' limit. Returns that limit's ID. */
+  public function addUser($user) {
+    DB::insert('users', ['id' => $user, 'total_limit_id' => null]);
+    $limitId = $this->addLimit($user, TOTAL_LIMIT_NAME);
+    DB::update('users', ['total_limit_id' => $limitId], 'id = %s', $user);
+    // TODO: This is inaccurate when DST changes backward and the day has 25h, or for some other
+    // reason the day isn't 24h long.
+    $this->setLimitConfig($limitId, DAILY_LIMIT_MINUTES_PREFIX . 'default', 24 * 60 * 60);
+
+    // Map all existing classes to the total limit and install a trigger that adds each newly
+    // added class to this limit.
+    $triggerName = self::getTotalLimitTriggerName($user);
+    DB::query("
+        CREATE TRIGGER `$triggerName` AFTER INSERT ON classes
+          FOR EACH ROW
+          INSERT INTO mappings
+          SET limit_id = %i, class_id = NEW.id",
+        $limitId);
+    // INSERT IGNORE is just paranoia: A mapping could have been added right now, i.e. after
+    // creation of the trigger.
+    DB::query('
+        INSERT IGNORE INTO mappings (limit_id, class_id)
           SELECT %i AS limit_id, classes.id AS class_id
           FROM classes',
         $limitId);
-    DB::query('DROP TRIGGER IF EXISTS ' . $triggerName);
-    DB::query(
-        'CREATE TRIGGER ' . $triggerName . ' AFTER INSERT ON classes
-          FOR EACH ROW
-          INSERT IGNORE INTO mappings
-          SET limit_id = %i, class_id = NEW.id',
-        $limitId);
+    return $limitId;
   }
 
-  /** Removes the total limit (if any) for the user. */
-  public function unsetTotalLimit($user) {
-    $triggerName = $this->getTotalLimitTriggerName($user);
-    DB::query('DROP TRIGGER IF EXISTS ' . $triggerName);
+  public function removeUser($user) {
+    DB::delete('users', 'id = %s', $user);
+    $triggerName = self::getTotalLimitTriggerName($user);
+    DB::query("DROP TRIGGER `$triggerName`");
   }
 
   /**
@@ -355,7 +383,7 @@ class Wasted {
       $classification['class_id'] = intval($rows[0]['id']);
       $classification['limits'] = [];
       foreach ($rows as $row) {
-        // Limit ID may be null.
+        // Limit ID may be null. ö TODO
         if ($limitId = $row['limit_id']) {
           $classification['limits'][] = intval($limitId);
         } else {
@@ -438,6 +466,7 @@ class Wasted {
                  JOIN limits ON limits.id = limit_id
                  JOIN classes ON classes.id = class_id
                  WHERE USER = %s0
+                 AND limit_id != (SELECT total_limit_id FROM users WHERE id = %s0)
                ) AS user_mappings
                JOIN mappings ON user_mappings.class_id = mappings.class_id
                JOIN limits ON mappings.limit_id = limits.id
@@ -448,10 +477,12 @@ class Wasted {
                FROM mappings
                JOIN limits ON mappings.limit_id = limits.id
                WHERE USER = %s0
+               AND limit_id != (SELECT total_limit_id FROM users WHERE id = %s0)
                GROUP BY class_id
              ) AS limit_count
              ON user_mappings_extended.class_id = limit_count.class_id
              JOIN limits ON other_limit_id = limits.id
+             WHERE limits.id != (SELECT total_limit_id FROM users WHERE id = %s0)
              HAVING limit_id != other_limit_id OR n = 1
            ) AS user_mappings_non_redundant
            GROUP BY limit_id, class_id, n
@@ -777,12 +808,12 @@ class Wasted {
     return $config;
   }
 
-  /** Returns all users, i.e. all distinct user keys for which at least one limit is present. */
+  /** Returns all users ordered by user ID. */
   public function getUsers() {
-    $rows = DB::query('SELECT DISTINCT user FROM limits ORDER BY user');
+    $rows = DB::query('SELECT id FROM users ORDER BY id');
     $users = [];
     foreach ($rows as $row) {
-      $users[] = $row['user'];
+      $users[] = $row['id'];
     }
     return $users;
   }
@@ -966,7 +997,7 @@ class Wasted {
    * weekly limit is additionally applied.
    *
    * The special ID null indicating "limit to zero" is present iff the value is < 0, meaning that
-   * time was spent outside of any defined limit.
+   * time was spent outside of any defined limit. ö
    *
    * The result is sorted by key.
    */
@@ -1131,19 +1162,23 @@ class Wasted {
                 WHERE id = %i0
               ) AS affected_classes
               JOIN mappings ON affected_classes.class_id = mappings.class_id
-              WHERE limit_id != %i0
+              WHERE limit_id NOT IN (
+                %i0,
+                (SELECT total_limit_id FROM users WHERE id =
+                  (SELECT user FROM limits WHERE id = %i0))
+              )
             ) AS overlapping_limits
             JOIN limits ON id = limit_id
             ' . ($dateForUnlock
             ? 'JOIN limit_config ON id = limit_config.limit_id' : '') . '
             WHERE user = (SELECT user FROM limits WHERE id = %i0)
             ' . ($dateForUnlock
-            ? 'AND k = "require_unlock" AND v = "1"
+            ? 'AND k = "require_unlock" AND v
                AND id NOT IN (
                  SELECT limit_id FROM overrides
                  WHERE user = (SELECT user FROM limits WHERE id = %i0)
                  AND date = %s1
-                 AND unlocked = "1")' : '') . '
+                 AND unlocked)' : '') . '
             ORDER BY name', $limitId, $dateForUnlock));
 
   }

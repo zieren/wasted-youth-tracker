@@ -4,9 +4,10 @@
 define('PHP_MIN_VERSION', '7.3');
 define('WASTED_SERVER_HEADING', 'Wasted Youth Tracker 0.0.0-5');
 define('DEFAULT_CLASS_NAME', 'default_class');
-define('LIMIT_TO_ZERO_NAME', 'limit_to_zero');
+define('LIMIT_TO_ZERO_NAME', 'limit_to_zero'); // ö should be obsolete
 define('DEFAULT_CLASS_ID', 1);
 define('DEFAULT_CLASSIFICATION_ID', 1);
+define('TOTAL_LIMIT_NAME', 'Total');
 define('MYSQL_SIGNED_BIGINT_MAX', '9223372036854775807'); // 2^63-1; text to support PHP 32 bit
 define('MYSQL_SIGNED_INT_MIN', -2147483648);
 define('LOG_PATTERN', '/log_(\d\d\d\d-\d\d-\d\d)\.txt/');  // for pruning log files
@@ -34,7 +35,7 @@ function wastedFatalErrorHandler() {
 
 register_shutdown_function('wastedFatalErrorHandler');
 
-// TODO: Check for missed use cases for these helpers. isset() is reportedly much faster.
+// TODO: Check for missed use cases for these helpers. Also, isset() is reportedly much faster.
 
 /** Returns the mapped value (possibly null) if $key exists, else $default. */
 function getOrDefault($array, $key, $default = null) {

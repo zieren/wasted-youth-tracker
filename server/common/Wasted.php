@@ -417,9 +417,10 @@ class Wasted {
    */
   public function getAllLimitConfigs($user) {
     $rows = DB::query(
-        'SELECT id, name, k, v
+        'SELECT limits.id, name, k, v, total_limit_id
           FROM limit_config
           RIGHT JOIN limits ON limit_config.limit_id = limits.id
+          LEFT JOIN users ON users.total_limit_id = limits.id
           WHERE user = %s
           ORDER BY id, k',
         $user);
@@ -433,6 +434,9 @@ class Wasted {
         $configs[$limitId][$row['k']] = $row['v'];
       }
       $configs[$limitId]['name'] = $row['name'];
+      if ($row['total_limit_id']) {
+        $configs[$limitId]['is_total'] = true;
+      }
     }
     ksort($configs);
     return $configs;

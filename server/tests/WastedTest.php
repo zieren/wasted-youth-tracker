@@ -598,7 +598,8 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testGetAllLimitConfigs(): void {
-    $allLimitConfigs = [$this->totalLimitId['u1'] => ['name' => TOTAL_LIMIT_NAME]];
+    $allLimitConfigs =
+        [$this->totalLimitId['u1'] => ['name' => TOTAL_LIMIT_NAME, 'is_total' => true]];
     // No limits configured except the total.
     $this->assertEquals($this->wasted->getAllLimitConfigs('u1'), $allLimitConfigs);
 
@@ -619,7 +620,8 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testManageLimits(): void {
-    $allLimitConfigs = [$this->totalLimitId['u1'] => ['name' => TOTAL_LIMIT_NAME]];
+    $allLimitConfigs =
+        [$this->totalLimitId['u1'] => ['name' => TOTAL_LIMIT_NAME, 'is_total' => true]];
     // No limits set up except the total.
     $this->assertEquals($this->wasted->getAllLimitConfigs('u1'), $allLimitConfigs);
     // Add a limit but no maping yet.
@@ -1256,10 +1258,10 @@ final class WastedTest extends WastedTestBase {
     $limitId1 = $this->wasted->addLimit('u1', 'b1');
     $limitId2 = $this->wasted->addLimit('u2', 'b1');
     $this->assertEquals($this->wasted->getAllLimitConfigs('u1'), [
-        $this->totalLimitId['u1'] => ['name' => TOTAL_LIMIT_NAME],
+        $this->totalLimitId['u1'] => ['name' => TOTAL_LIMIT_NAME, 'is_total' => true],
         $limitId1 => ['name' => 'b1']]);
     $this->assertEquals($this->wasted->getAllLimitConfigs('u2'), [
-        $this->totalLimitId['u2'] => ['name' => TOTAL_LIMIT_NAME],
+        $this->totalLimitId['u2'] => ['name' => TOTAL_LIMIT_NAME, 'is_total' => true],
         $limitId2 => ['name' => 'b1']]);
     $this->assertEquals($this->wasted->getAllLimitConfigs('nobody'), []);
   }
@@ -1268,7 +1270,7 @@ final class WastedTest extends WastedTestBase {
     $limitName = 't' . chr(228) . 'st';
     $limitId = $this->wasted->addLimit('u1', $limitName);
     $this->assertEquals($this->wasted->getAllLimitConfigs('u1'), [
-        $this->totalLimitId['u1'] => ['name' => TOTAL_LIMIT_NAME],
+        $this->totalLimitId['u1'] => ['name' => TOTAL_LIMIT_NAME, 'is_total' => true],
         $limitId => ['name' => $limitName]]);
   }
 
@@ -1580,8 +1582,9 @@ final class WastedTest extends WastedTestBase {
     $limitId = $this->wasted->addLimit('u1', 'b1');
     $this->wasted->renameLimit($limitId, 'b2');
     $this->assertEquals(
-        $this->wasted->getAllLimitConfigs('u1'),
-        [$this->totalLimitId['u1'] => ['name' => TOTAL_LIMIT_NAME], $limitId => ['name' => 'b2']]);
+        $this->wasted->getAllLimitConfigs('u1'), [
+        $this->totalLimitId['u1'] => ['name' => TOTAL_LIMIT_NAME, 'is_total' => true],
+        $limitId => ['name' => 'b2']]);
   }
 
   public function testRenameClass(): void {

@@ -76,11 +76,14 @@ function dateSelectorJs() {
           </script>';
 }
 
-function limitSelector($limitConfigs, $selectedLimitId) {
+function limitSelector($limitConfigs, $selectedLimitId, $skipTotal = false) {
   $select =
       '<label for="idLimit">Limit: </label>
       <select id="idLimit" name="limitId">';
   foreach ($limitConfigs as $limitId => $config) {
+    if ($skipTotal && $config['is_total']) {
+      continue;
+    }
     $selected = $selectedLimitId == $limitId ? 'selected="selected"' : '';
     $select .=
         '<option value="' . $limitId . '" ' . $selected . '>' . html($config['name']) . '</option>';

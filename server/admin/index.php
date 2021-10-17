@@ -273,7 +273,7 @@ echoTable(['Limit', 'Class', 'Further limits'], $wasted->getLimitsToClassesTable
 echo '<h4>Map class to limit</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
-  . classSelector($classes, true) . '==> ' . limitSelector($limitConfigs, $limitId) . '
+  . classSelector($classes, true) . '==> ' . limitSelector($limitConfigs, $limitId, true) . '
   <input type="submit" value="Add" name="addMapping">
   <input type="submit" value="Remove" name="removeMapping">
 </form>
@@ -322,6 +322,7 @@ echo '<h3>Limits</h3>';
 foreach ($limitConfigs as $id => $config) {
   echo '<h4>' . html($config['name']) . "</h4>\n";
   unset($config['name']);
+  unset($config['is_total']);
   echoTableAssociative($config);
 }
 echo '
@@ -337,7 +338,7 @@ echo '
 
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '"> '
-  . limitSelector($limitConfigs, $limitId) .
+  . limitSelector($limitConfigs, $limitId, true) .
   '<input type="submit" value="Remove (incl. config!)" name="removeLimit"
     class="wastedDestructive" disabled>
   <label for="idLimitName">Name: </label>

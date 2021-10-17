@@ -1208,7 +1208,8 @@ class Wasted {
     $overridesByLimit = [];
     // PK is (user, date, limit_id), so there is at most one row per limit_id.
     foreach ($rows as $row) {
-      $overridesByLimit[$row['limit_id']] = array('minutes' => $row['minutes'], 'unlocked' => $row['unlocked']);
+      $overridesByLimit[$row['limit_id']] =
+          ['minutes' => $row['minutes'], 'unlocked' => $row['unlocked']];
     }
     return $overridesByLimit;
   }
@@ -1230,10 +1231,7 @@ class Wasted {
         $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
     foreach ($rows as $row) {
       // TODO: This should use the client's local time format.
-      $windowTitles[] = array(
-          date("Y-m-d H:i:s", $row['ts']),
-          $row['name'],
-          $row['title']);
+      $windowTitles[] = [date("Y-m-d H:i:s", $row['ts']), $row['name'], $row['title']];
     }
     return $windowTitles;
   }

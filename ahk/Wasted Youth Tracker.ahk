@@ -54,7 +54,7 @@ CFG[OFFLINE_GRACE_PERIOD_SECONDS] := 60
 global DISABLE_ENFORCEMENT := "disable_enforcement"
 CFG[DISABLE_ENFORCEMENT] := 0
 
-ReadConfig()
+RequestConfig()
 
 ; TODO: Is this a loophole?
 DetectHiddenWindows, Off
@@ -384,7 +384,7 @@ AddStatusReport(limits, titlesByLimit, messages) {
   }
 }
 
-ReadConfig() {
+RequestConfig() {
   responseLines := ["Not the Mama!"] ; invalid
   path := "cfg/?user=" USER
   try {

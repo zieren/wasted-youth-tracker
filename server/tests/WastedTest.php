@@ -2152,8 +2152,6 @@ final class WastedTest extends WastedTestBase {
     }
   }
 
-  // TODO: Test that we don't show the total limit in the UI where we shouldn't. ö
-
 }
 
 (new WastedTest())->run();

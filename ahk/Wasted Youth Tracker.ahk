@@ -455,6 +455,7 @@ LogError(exception, showMessage) {
   if (exception.Extra) {
     msg .= " (" exception.Extra ")"
   }
+  msg := RegExReplace(msg, "[`r`n]+", " // ")
   filename := A_Temp "\wasted.log"
   FileGetSize, filesize, % filename, M
   if (filesize > 10) {

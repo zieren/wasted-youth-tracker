@@ -1,11 +1,13 @@
 ; Get config for contacting server.
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 INI_FILE := USERPROFILE "\wasted.ini"
-global URL, HTTP_USER, HTTP_PASS, USER
+global URL, HTTP_USER, HTTP_PASS, USER, LOGFILE, LAST_ERROR
 IniRead, URL, %INI_FILE%, server, url
 IniRead, HTTP_USER, %INI_FILE%, server, username
 IniRead, HTTP_PASS, %INI_FILE%, server, password
 IniRead, USER, %INI_FILE%, account, user
+LOGFILE := A_Temp "\wasted.log"
+LAST_ERROR := GetLastLogLine() ; possibly empty
 
 OnError("LogErrorHandler") ; The handler logs some of the config read above.
 
@@ -229,7 +231,7 @@ DoTheThing(reportStatus) {
   request := CreateRequest()
   try {
     requestStart := A_TickCount
-    OpenRequest("POST", request, "rx/").send(USER windowList)
+    OpenRequest("POST", request, "rx/").send(USER "`n" LAST_ERROR windowList)
     CheckStatus200(request)
     LAST_REQUEST_DURATION_MS := A_TickCount - requestStart
     LAST_SUCCESSFUL_REQUEST := EpochSeconds()
@@ -455,18 +457,25 @@ LogError(exception, showMessage) {
   if (exception.Extra) {
     msg .= " (" exception.Extra ")"
   }
-  msg := RegExReplace(msg, "[`r`n]+", " // ")
-  filename := A_Temp "\wasted.log"
-  FileGetSize, filesize, % filename, M
-  if (filesize > 10) {
-    FileDelete % filename
+  LAST_ERROR := t " " USER " " exception.Line " " RegExReplace(msg, "[`r`n]+", " // ")
+  FileGetSize, filesize, % LOGFILE, K
+  if (filesize > 1024) {
+    FileDelete % LOGFILE
   }
-  FileAppend % t " " USER " " exception.Line " " msg "`n", % filename
+  FileAppend % LAST_ERROR "`n", % LOGFILE
   if (showMessage) {
-    ShowMessages(["Please get your parents to look at this error:", msg, "Full details logged to " filename])
+    ShowMessages(["Please get your parents to look at this error:", LAST_ERROR, "Full details logged to " LOGFILE])
   }
-  ; TODO: Surface this on the server.
-  return msg
+  return LAST_ERROR
+}
+
+GetLastLogLine() {
+  lastLine := ""
+  Loop, Read, %LOGFILE% 
+  {
+    lastLine := A_LoopReadLine
+  }
+  return lastLine
 }
 
 DebugShowStatus() {
@@ -501,6 +510,7 @@ DebugShowStatus() {
   }
   t := FormatSeconds(EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
   msgs.Push("", "Last successful request: " t " ago")
+  msgs.Push("Last error: " LAST_ERROR)
   msgs.Push("Duration [ms]: " LAST_REQUEST_DURATION_MS)
 
   ShowMessages(msgs, false)

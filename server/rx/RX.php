@@ -44,20 +44,22 @@ class RX {
    * 12
    */
   public static function handleRequest($wasted, $content): string {
-    $lines = $array = preg_split("/\r\n|\n|\r/", $content);
-    Logger::Instance()->debug('Received data: ' . implode($lines, '\n'));
-    $user = $lines[0];
-    if (!$user) {
+    $lines = preg_split("/\r\n|\n|\r/", $content);
+    $linesForLog = implode('\n', $lines);
+    Logger::Instance()->debug("Received data: '$linesForLog'");
+    if (count($lines) < 2 || !$lines[0]) {
       http_response_code(400);
-      Logger::Instance()->error('Invalid request: "' . str_replace("\n", '\n', $content) . '"');
+      Logger::Instance()->error("Invalid request: '$linesForLog'");
       return "error\nInvalid request";
     }
-    $titles = array_slice($lines, 1); // could be empty, but we still need to insert a timestamp
+    $user = $lines[0];
+    $lastError = $lines[1];
+    $titles = array_slice($lines, 2); // could be empty, but we still need to insert a timestamp
     // AutoHotkey sends strings in utf8, but we use latin1 because MySQL's RegExp library doesn't
     // support utf8. https://github.com/zieren/kids-freedom-control/issues/33
     $titles = array_map('utf8_decode', $titles);
 
-    $classifications = $wasted->insertWindowTitles($user, $titles);
+    $classifications = $wasted->insertActivity($user, $lastError, $titles);
 
     // Build response.
 

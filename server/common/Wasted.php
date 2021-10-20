@@ -646,10 +646,13 @@ class Wasted {
    * code), so we can assume requests are serialized. However, a request may arrive within the same
    * epoch second as the previous request.
    *
+   * Title classification can change between calls; the new classification will replace the old one
+   * back until the start of the title's current interval. Previous intervals are unaffected.
+   *
    * If no windows are open, $titles should be an empty array. In this case the timestamp is
    * recorded for the computation of the previous interval.
    */
-  public function insertWindowTitles($user, $titles) {
+  public function insertActivity($user, $lastError, $titles) {
     $ts = $this->time();
     $config = $this->getClientConfig($user);
     // Grace period is always 30s. It accounts for the client being slow to send its request. A

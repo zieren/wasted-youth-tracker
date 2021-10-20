@@ -2152,6 +2152,20 @@ final class WastedTest extends WastedTestBase {
     }
   }
 
+  public function testInvalidRegEx(): void {
+    $classId = $this->wasted->addClass('c1');
+    try {
+      $this->wasted->addClassification($classId, 0, '*');
+      throw new AssertionError('Should not be able to add invalid RegEx');
+    } catch (Exception $e) {
+      // expected
+      $s = "Got error '";
+      $this->assertEquals(substr($e->getMessage(), 0, strlen($s)), $s);
+      $s = "' from regexp";
+      $this->assertEquals(substr($e->getMessage(), -strlen($s)), $s);
+      WastedTestBase::$lastDbError = null; // don't fail the test
+    }
+  }
 }
 
 (new WastedTest())->run();

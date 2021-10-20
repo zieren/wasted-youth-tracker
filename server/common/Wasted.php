@@ -271,6 +271,7 @@ class Wasted {
   }
 
   public function addClassification($classId, $priority, $regEx) {
+    DB::query("SELECT 'test' REGEXP %s", $regEx);
     DB::insert('classification', [
         'class_id' => $classId,
         'priority' => $priority,

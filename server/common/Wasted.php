@@ -100,7 +100,9 @@ class Wasted {
     DB::query(
         'CREATE TABLE IF NOT EXISTS users ('
         . 'id VARCHAR(32) NOT NULL, '
-        . 'total_limit_id INT, ' // can't be FK because 'id' is already FK in 'limits'
+        . 'total_limit_id INT DEFAULT NULL, ' // can't be FK because 'id' is already FK in 'limits'
+        . 'last_error VARCHAR(10240) DEFAULT "", '
+        . 'acked_error CHAR(15) DEFAULT "", ' // date and time: '20211020 113720'
         . 'PRIMARY KEY (id) '
         . ') '
         . CREATE_TABLE_SUFFIX);
@@ -318,7 +320,7 @@ class Wasted {
 
   /** Set up the specified new user and create their 'Total' limit. Returns that limit's ID. */
   public function addUser($user) {
-    DB::insert('users', ['id' => $user, 'total_limit_id' => null]);
+    DB::insert('users', ['id' => $user]);
     $limitId = $this->addLimit($user, TOTAL_LIMIT_NAME);
     DB::update('users', ['total_limit_id' => $limitId], 'id = %s', $user);
     // TODO: This is inaccurate when DST changes backward and the day has 25h, or for some other
@@ -654,6 +656,9 @@ class Wasted {
    */
   public function insertActivity($user, $lastError, $titles) {
     $ts = $this->time();
+    if ($lastError) {
+      DB::update('users', ['last_error' => $lastError], 'id = %s', $user);
+    }
     $config = $this->getClientConfig($user);
     // Grace period is always 30s. It accounts for the client being slow to send its request. A
     // higher value means that we tend towards interpreting an observation as a continuation of the
@@ -830,6 +835,20 @@ class Wasted {
       $users[] = $row['id'];
     }
     return $users;
+  }
+
+  /** Returns an unacknowledged error, if any. */
+  public function getUnackedError($user) {
+    $rows = DB::query('
+        SELECT last_error FROM users
+        WHERE id = %s
+        AND SUBSTR(last_error, 1, 15) != acked_error', $user);
+    return $rows ? $rows[0]['last_error'] : '';
+  }
+
+  /** Acknowledges the specified error. Only the first 15 characters are relevant. */
+  public function ackError($user, $error) {
+    DB::update('users', ['acked_error' => $error], 'id = %s', $user);
   }
 
   // ---------- TIME SPENT/LEFT QUERIES ----------

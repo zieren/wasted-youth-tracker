@@ -139,6 +139,10 @@ if (action('setUserConfig')) {
 } else if (action('removeUser')) {
   $newUser = postSanitized('userId');
   $wasted->removeUser($newUser);
+} else if (action('ackError')) {
+  $user = postSanitized('user');
+  $ackedError = postSanitized('ackedError');
+  $wasted->ackError($user, $ackedError);
 } else if (action('prune')) {
   // Need to postfix 00:00:00 to not get current time of day.
   $dateTime = DateTime::createFromFormat('Y-m-d H:i:s', postSanitized('datePrune') . ' 00:00:00');
@@ -157,6 +161,7 @@ if (!isset($dateString)) {
 if (!isset($limitId)) {
   $limitId = 0; // never exists, MySQL index is 1-based
 }
+$unackedError = $user ? $wasted->getUnackedError($user) : '';
 
 $limitConfigs = $wasted->getAllLimitConfigs($user);
 $classes = $wasted->getAllClasses();
@@ -172,6 +177,18 @@ Credits:
 <a href="https://www.autohotkey.com/">AutoHotkey</a> by The AutoHotkey Foundation, GNU GPL v2;
 <a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, GNU LGPL v3;
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license';
+if ($unackedError) {
+  $m = [];
+  preg_match('/^\d{8} \d{6}/', $unackedError, $m);
+  $ackError = substr($unackedError, 0, 15);
+  echo '<p class="warning" style="display: inline; margin-right: 1em;">
+    Last client error: '.html($unackedError).'</p>
+    <form method="post" action="index.php"  style="display: inline;">
+      <input type="hidden" name="ackedError" value="'.getOrDefault($m, 0, '').'">
+      <input type="hidden" name="user" value="'.$user.'">
+      <input type="submit" value="Acknowledge" name="ackError">
+    </form>';
+}
 if ($considerUnlocking) {
   $limitIdToName = getLimitIdToNameMap($configs);
   echo '<p class="notice">Further locked limits affecting classes in "'

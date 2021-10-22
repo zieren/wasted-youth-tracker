@@ -52,7 +52,7 @@ class RX {
     if (count($lines) < 2 || !$lines[0]) {
       http_response_code(400);
       Logger::Instance()->error("Invalid request: '$linesForLog'");
-      return "error\nInvalid request";
+      return '';
     }
     $user = $lines[0];
     $lastError = $lines[1];

@@ -1,7 +1,8 @@
 ; Get config for contacting server.
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 INI_FILE := USERPROFILE "\wasted.ini"
-global URL, HTTP_USER, HTTP_PASS, USER, LOGFILE, LAST_ERROR
+global URL, HTTP_USER, HTTP_PASS, USER, LOGFILE, LAST_ERROR, APP_NAME
+APP_NAME := "Wasted Youth Tracker 0.0.0-7"
 IniRead, URL, %INI_FILE%, server, url
 IniRead, HTTP_USER, %INI_FILE%, server, username
 IniRead, HTTP_PASS, %INI_FILE%, server, password
@@ -64,23 +65,8 @@ DetectHiddenWindows, Off
 ; The tray icon allows the user to exit the script, so hide it.
 ; Killing it with the task manager or removing it from autostart requires
 ; significantly more skill; for now this is good enough.
-if (!CFG[DISABLE_ENFORCEMENT]) {
+if (!CFG[DISABLE_ENFORCEMENT])
   Menu, Tray, NoIcon
-}
-
-Beep(t) {
-  Loop, %t% {
-    SoundBeep
-  }
-}
-
-ShowMessage(msg) {
-  Gui, Destroy
-  Gui, +AlwaysOnTop
-  Gui, Add, Text,, %msg%
-  Gui, Add, Button, default w80, OK ; this implicitly sets a handler of ButtonOK
-  Gui, Show, , Wasted Youth Tracker
-}
 
 ; Returns the specified seconds formatted as "hh:mm:ss".
 FormatSeconds(seconds) {
@@ -96,14 +82,21 @@ FormatSeconds(seconds) {
   return sign Format("{:i}:{:02i}:{:02i}", hours, minutes, seconds)
 }
 
-; Close the window with the specified ahk_id. If the window title does not match what was originally
-; doomed, this is a no-op. This is for browsers, which change the title when the tab is closed (or
-; deselected, which unfortunately we can't tell apart), but retain the ahk_id.
+; Close the window with the specified ahk_id. "title" can be set to the originally doomed title, or
+; be empty. In the former case the window is only doomed if its title matches. This is for browsers, 
+; which change the title when the tab is closed (or deselected, which unfortunately we can't tell 
+; apart), but retain the ahk_id.
 TerminateWindow(id, title) {
-  WinGetTitle, currentTitle, ahk_id %id%
+  if (title != "") {
+    WinGetTitle, currentTitle, ahk_id %id%
+  } else {
+    currentTitle := "" ; skip the check below
+  }
   if (currentTitle == title) {
     if (CFG[DISABLE_ENFORCEMENT]) {
-      ShowMessage("enforcement disabled: close/kill '" title "' (" id ")")
+      Critical, On ; prevent pseudo-multithreaded creation of conflicting GUI
+      ShowDebugGui("enforcement disabled: close/kill '" title "' (" id ")")
+      Critical, Off
     } else {
       WinGet, pid, PID, ahk_id %id%
       ; WinKill does not seem to work: E.g. EditPlus with an unsaved file will just prompt to save,
@@ -129,35 +122,13 @@ TerminateWindow(id, title) {
 
 TerminateProcess(pid) {
   if (CFG[DISABLE_ENFORCEMENT]) {
-    ShowMessage("enforcement disabled: kill process " pid)
+    Critical, On ; prevent pseudo-multithreaded creation of conflicting GUI
+    ShowDebugGui("enforcement disabled: kill process " pid)
+    Critical, Off
   } else {
     Process, Close, %pid%
   }
   DOOMED_PROCESSES.Delete(pid)
-}
-
-FindLowestLimit(limitIds, limits) {
-  lowestLimitId := -1
-  for ignored, limitId in limitIds {
-    if (lowestLimitId == -1
-        || limits[limitId]["remaining"] < limits[lowestLimitId]["remaining"]) {
-      lowestLimitId := limitId
-    }
-  }
-  return lowestLimitId
-}
-
-ShowMessages(messages, enableBeep = true) {
-  if (messages.Length()) {
-    text := ""
-    for ignored, message in messages {
-      text .= "`n" message
-    }
-    ShowMessage(SubStr(text, 2))
-    if (enableBeep) {
-      Beep(3)
-    }
-  }
 }
 
 ; Returns an associative array describing all windows, keyed by title.
@@ -215,7 +186,7 @@ GetAllWindows() {
 ; This function does the thing. "Critical" should be set while this is running, since the code
 ; uses global state. Interruptions may currently only occur from the status hotkey, which calls
 ; this function asynchronously to the main loop.
-DoTheThing(reportStatus) {
+DoTheThing(showStatusGui) {
   windows := GetAllWindows()
 
   ; Build request payload.
@@ -235,50 +206,147 @@ DoTheThing(reportStatus) {
     CheckStatus200(request)
     LAST_REQUEST_DURATION_MS := A_TickCount - requestStart
     LAST_SUCCESSFUL_REQUEST := EpochSeconds()
+    LAST_ERROR := "" ; successfully reported error to server
   } catch exception {
-    return HandleOffline(exception, windows)
+    HandleOffline(exception, windows)
+    return ; Better luck next time!
   }
 
   ; Parse response. Format is described in RX.php.
   responseLines := StrSplit(request.responseText, "`n")
-  ; Collect messages to show after processing the response.
-  messages := []
-  ; Collect titles by limit ID so we can show them if reportStatus is set.
-  titlesByLimit := {}
+  ; Collect titles by limit ID so we can show them if showStatusGui is set.
+  limitsToTitles := {}
 
-  if (responseLines[1] == "error") {
-    messages := responseLines
-    messages[1] := "The server reported an error:"
-  } else {
-    ; See RX.php for response sections.
-    section := 1
-    index := 1
-    limits := {}
-    for ignored, line in responseLines {
-      if (line == "") {
-        section++
-        continue
-      }
-      switch (section) {
-        case 1:
-          s := StrSplit(line, ":", "", 3)
-          limits[s[1]] := {"remaining": s[2], "name": s[3]}
-        case 2:
-          ProcessTitleResponse(line, windows, indexToTitle[index++], limits, titlesByLimit, messages)
-        default:
-          messages := responseLines
-          messages.InsertAt(1, "Invalid response received from server:")
-      }
+  ; See RX.php for response sections.
+  section := 1
+  index := 1
+  limits := {}
+  for ignored, line in responseLines {
+    if (line == "") {
+      section++
+      continue
     }
-    ; TODO: Add option to logout/shutdown:
-    ; Shutdown, 0 ; 0 means logout
+    switch (section) {
+      case 1:
+        s := StrSplit(line, ":", "", 3)
+        limits[s[1]] := {"remaining": s[2], "name": s[3]}
+      case 2:
+        title := indexToTitle[index++]
+        limitIds := StrSplit(line, ",")
+        for ignored, id in limitIds {
+          if (!limitsToTitles[id]) {
+            limitsToTitles[id] := []
+          }
+          limitsToTitles[id].Push(title)
+        }
+    }
+  }
+  if (section != 2) {
+    LogError("Invalid response received from server:`n" request.responseText, true)
+    return ; Better luck next time!
+  }
+  
+  ; Business logic for both "time low" and "time up" warnings: If there is a new limit/title to warn
+  ; about, show the GUI with all warnings (but don't show "time low" for limits for which no titles
+  ; are active). If there are no warnings at all, destroy the GUI.
+  
+  ; Find limits whose time is low or up.
+  timeLow := [] ; entries: [limit, title, remaining]
+  timeUp := [] ; entries: [limit, title]
+  newlyWarned := false
+  newlyDoomed := false
+  for id, limit in limits {
+    if (limit["remaining"] <= 0) {
+      ; This shows a title that maps to N limits N times in the list. This is useful so the kid
+      ; knows which limits would need to be extended.
+      for ignored, title in limitsToTitles[id] {
+        timeUp.Push([limit["name"], title])
+        newlyDoomed |= DoomWindow(windows[title], title)
+      }
+    } else if (limit["remaining"] <= 300) { ; TODO: 300 -> config option
+      for ignored, title in limitsToTitles[id] {
+        timeLow.Push([limit["name"], title, limit["remaining"]])
+        if (!WARNED_LIMITS[id]) {
+          ; We have warned about at least one current title. Don't warn about future titles.
+          WARNED_LIMITS[id] := 1
+          newlyWarned := true
+        }
+      }
+    } else {
+      WARNED_LIMITS.Delete(id) ; limit was increased, would need to warn again next time it's low
+    }
   }
 
-  if (reportStatus) {
-    AddStatusReport(limits, titlesByLimit, messages)
-  }
+  ; "Time low" is shown in top left corner, "time up" in top center.
+  ShowTimeLowGui(newlyWarned, timeLow)
+  ShowTimeUpGui(newlyDoomed, timeUp)
 
-  return messages
+  if (showStatusGui)
+    ShowStatusGui(limits, limitsToTitles)
+}
+
+ShowTimeLowGui(newlyWarned, timeLow) {
+  if (!timeLow.Length()) {
+    Gui, TimeLow:Destroy ; No active titles with low limits.
+    return
+  }
+  if (!newlyWarned)
+    return ; Don't reshow the GUI when nothing was added.
+  totalRows := timeLow.Length()
+  displayRows := Min(20, totalRows)
+  Gui, TimeLow:New, AlwaysOnTop, %APP_NAME% - Time Low
+  Gui, Add, Text,, Time is low for:
+  Gui, Add, ListView, r%displayRows% w700 Count%totalRows%, Limit|Title|Time Left|Current Slot|Next Slot
+  for ignored, row in timeLow {
+    LV_Add("", row[1], row[2], FormatSeconds(row[3]), "", "")
+  }
+  LV_ModifyCol(1, 100)
+  LV_ModifyCol(2, 300)
+  LV_ModifyCol(3, 60)
+  LV_ModifyCol(4, 100)
+  LV_ModifyCol(5, 100)
+  Gui, Add, Button, w80 x310 gTimeLowGuiOK, &OK
+  Gui, Show, X42 Y42 NoActivate
+  SoundTimeLow()
+}
+
+ShowTimeUpGui(newlyDoomed, timeUp) {
+  if (!timeUp.Length()) {
+    Gui, TimeUp:Destroy ; All windows were closed/terminated.
+    return
+  }
+  if (!newlyDoomed)
+    return ; Don't reshow the GUI when nothing was added.
+
+  totalRows := timeUp.Length()
+  displayRows := Min(20, totalRows)
+  Gui, TimeUp:New, AlwaysOnTop, %APP_NAME% - Time Up
+  Gui, Add, Text,, Time is up for:
+  Gui, Add, ListView, r%displayRows% w700 Count%totalRows%, Limit|Title|Current Slot|Next Slot
+  for ignored, row in timeUp {
+    LV_Add("", row[1], row[2], "", "")
+  }
+  LV_ModifyCol(1, 100)
+  LV_ModifyCol(2, 300)
+  LV_ModifyCol(3, 100)
+  LV_ModifyCol(4, 100)
+  Gui, Add, Button, w80 x310 gTimeUpGuiOK, &OK
+  Gui, Show, xCenter Y42 NoActivate
+  SoundTimeUp()
+}
+
+SoundTimeUp() {
+  Loop, 3 {
+    SoundBeep, 1000, 500
+  }
+}
+
+SoundError() {
+  SoundBeep, 2000, 1000
+}
+
+SoundTimeLow() {
+  SoundBeep, 523, 500
 }
 
 CreateRequest() {
@@ -291,66 +359,40 @@ OpenRequest(method, request, path) {
 }
 
 CheckStatus200(request) {
-  if (request.status != 200) {
+  if (request.status != 200)
     throw Exception("HTTP " request.status ": " request.statusText)
-  }
 }
 
+; Logs the exception and, after a while, dooms all windows and shows a variant of the TimeUp GUI.
 HandleOffline(exception, windows) {
   ; Server may be temporarily unavailable, so initially we only log silently.
-  errorMessage := LogError(exception, false)
+  LogError(ExceptionToString(exception), false)
   offlineSeconds := EpochSeconds() - LAST_SUCCESSFUL_REQUEST
-  messages := []
   if (offlineSeconds > CFG[OFFLINE_GRACE_PERIOD_SECONDS]) {
-    for title, window in windows {
-      ; Specifying the title here is slightly counterproductive because it allows to evade
-      ; termination by e.g. switching between browser tabs. The offline grace period is likely
-      ; larger than the regular sample interval, so this could be worthwhile. However, without a
-      ; network connection the browser (which is the primary means of exploit) is not too useful.
-      ; All in all, this case seems too obscure to special case it.
-      DoomWindow(window, title, messages, "No uplink to the mothership. Please close '" title "'")
+    anyNewlyDoomed := false
+    for title, window in windows 
+      anyNewlyDoomed |= DoomWindow(window, "")
+    if (anyNewlyDoomed) {
+      ; Build a variant of the TimeUp GUI.
+      Gui, TimeUp:New, AlwaysOnTop, %APP_NAME% - Server Unreachable
+      Gui, Add, Text,, Server is unreachable`, please close all programs!
+      Gui, Add, Button, w80 x210, &OK
+      Gui, Show, w500 xCenter Y42 NoActivate
+      SoundTimeUp()
     }
-    messages.Push("", "Error: " errorMessage)
-  }
-  return messages
-}
-
-ProcessTitleResponse(line, windows, title, limits, titlesByLimit, messages) {
-  limitIds := StrSplit(line, ",")
-  for ignored, id in limitIds {
-    if (!titlesByLimit[id]) {
-      titlesByLimit[id] := []
-    }
-    titlesByLimit[id].Push(title)
-  }
-  lowestLimitId := FindLowestLimit(limitIds, limits)
-  secondsLeft := limits[lowestLimitId]["remaining"]
-  limit := limits[lowestLimitId]["name"]
-  if (secondsLeft <= 0) {
-    closeMessage := "Time is up for '" limit "', please close '" title "'"
-    DoomWindow(windows[title], title, messages, closeMessage)
-  } else if (secondsLeft <= 300) {
-    ; TODO: Make this configurable.
-    if (!WARNED_LIMITS[lowestLimitId]) {
-      WARNED_LIMITS[lowestLimitId] := 1
-      timeLeftString := FormatSeconds(secondsLeft)
-      messages.Push("Limit '" limit "' for '" title "' has " timeLeftString " left.")
-    }
-  } else if (WARNED_LIMITS[lowestLimitId]) { ; limit was increased, need to warn again
-    WARNED_LIMITS.Delete(lowestLimitId)
   }
 }
 
-; Dooms the specified window/process, adding the appropriate message to "messages".
-DoomWindow(window, title, messages, closeMessage) {
-  pushCloseMessage := false
+; Dooms the specified window/process. Returns true if at least one title was newly doomed.
+DoomWindow(window, title) {
+  newlyDoomed := false
   ; Handle regular windows.
   for ignored, id in window["ids"] {
     if (!DOOMED_WINDOWS[id]) {
       DOOMED_WINDOWS[id] := 1
+      newlyDoomed := true
       terminateWindow := Func("TerminateWindow").Bind(id, title)
       SetTimer % terminateWindow, % CFG[GRACE_PERIOD_SECONDS] * (-1000)
-      pushCloseMessage = true
     }
   }
   ; Handle process without window.
@@ -358,32 +400,48 @@ DoomWindow(window, title, messages, closeMessage) {
     pid := window["pid"]
     if (!DOOMED_PROCESSES[pid]) {
       DOOMED_PROCESSES[pid] := 1
+      newlyDoomed := true
       terminateProcess := Func("TerminateProcess").Bind(pid)
       ; The kill should happen after the same amount of time as for a window.
       SetTimer % terminateProcess, % (CFG[GRACE_PERIOD_SECONDS] + CFG[KILL_AFTER_SECONDS]) * (-1000)
-      pushCloseMessage = true
     }
   }
-  if (pushCloseMessage)
-    messages.Push(closeMessage)
+  return newlyDoomed
 }
 
-AddStatusReport(limits, titlesByLimit, messages) {
-  if (messages.Length()) {
-    messages.Push("")
-  }
-  messages.Push("---------- * STATUS * ----------", "")
+ShowStatusGui(limits, limitsToTitles) {
   limitsSorted := {}
   for id, limit in limits {
     limitsSorted[limit["name"]] := {"remaining": limit["remaining"], "id": id}
   }
+  topRows := []
+  bottomRows := []
   for name, limit in limitsSorted {
-    messages.Push("")
-    messages.Push(FormatSeconds(limit["remaining"]) " " name)
-    for ignored, title in titlesByLimit[limit["id"]] {
-      messages.Push("  --> " title)
+    remaining := FormatSeconds(limit["remaining"])
+    for ignored, title in limitsToTitles[limit["id"]] {
+      topRows.Push([name, title, remaining, "", ""])
+    }
+    if (!limitsToTitles[limit["id"]].Length()) {
+      bottomRows.Push([name, "", remaining, "", ""])
     }
   }
+  
+  totalRows := topRows.Length() + bottomRows.Length()
+  displayRows := Min(20, totalRows)
+  Gui, Status:New, , %APP_NAME% - Status
+  Gui, Add, ListView, r%displayRows% w700 Count%totalRows%, Limit|Title|Time Left|Current Slot|Next Slot
+  for ignored, rows in [topRows, bottomRows] {
+    for ignored, row in rows {
+      LV_Add("", row[1], row[2], row[3], row[4], row[5])
+    }
+  }
+  LV_ModifyCol(1, 100)
+  LV_ModifyCol(2, 300)
+  LV_ModifyCol(3, 60)
+  LV_ModifyCol(4, 100)
+  LV_ModifyCol(5, 100)
+  Gui, Add, Button, w80 x310 gStatusGuiOK, &OK
+  Gui, Show
 }
 
 RequestConfig() {
@@ -398,36 +456,37 @@ RequestConfig() {
       throw Exception("Failed to read config from " URL "/" path " (failed to parse response)")
     }
   } catch exception {
-    LogError(exception, true)
+    LogError(ExceptionToString(exception), true)
     return
   }
 
-  msgs := []
+  errors := ""
   Loop % responseLines.Length() / 2 {
     k := responseLines[A_Index * 2 - 1]
     v := responseLines[A_Index * 2]
-    if (InStr(k, "watch_process") = 1) {
+    if (InStr(k, "watch_process") == 1) {
       i := RegExMatch(v, "=[^=]+$")
       if (i > 0) {
         name := trim(SubStr(v, 1, i - 1))
         title := trim(SubStr(v, i + 1))
         CFG[WATCH_PROCESSES][name] := title
       } else {
-        msgs.Push("Ignoring invalid value for option " k ": " v)
+        errors .= "Ignoring invalid value for option " k ": " v "`n"
       }
-    } else if (InStr(k, "ignore_process") = 1) {
+    } else if (InStr(k, "ignore_process") == 1) {
       CFG[IGNORE_PROCESSES][v] := 1
     } else {
       CFG[k] := v
     }
   }
-  ShowMessages(msgs, false)
+  if (StrLen(errors) > 0)
+    LogError(errors, false)
 }
 
 ; The main loop that does the thing.
 Loop {
   Critical, On
-  ShowMessages(DoTheThing(false))
+  DoTheThing(false)
   Critical, Off
   Sleep % CFG[SAMPLE_INTERVAL_SECONDS] * 1000
 }
@@ -440,33 +499,33 @@ EpochSeconds() {
 
 ShowStatus() {
   Critical, On
-  ShowMessages(DoTheThing(true), false)
+  DoTheThing(true)
   Critical, Off
 }
 
 LogErrorHandler(exception) {
-  LogError(exception, true)
+  LogError(ExceptionToString(exception), true)
   ; No ExitApp: Leave the script running because it may help figure out the error.
   return 1
 }
 
-; Logs the exception to a file and optionally to the UI. Returns a short error message.
-LogError(exception, showMessage) {
-  FormatTime, t, Time, yyyyMMdd HHmmss
+ExceptionToString(exception) {
   msg := exception.Message
-  if (exception.Extra) {
+  if (exception.Extra)
     msg .= " (" exception.Extra ")"
-  }
-  LAST_ERROR := t " " USER " " exception.Line " " RegExReplace(msg, "[`r`n]+", " // ")
+  return exception.Line " " RegExReplace(msg, "[`r`n]+", " // ")
+}
+
+; Logs the message to a file and optionally to the UI.
+LogError(message, showGui) {
+  FormatTime, t, Time, yyyyMMdd HHmmss
+  LAST_ERROR := t " " USER " " message
   FileGetSize, filesize, % LOGFILE, K
-  if (filesize > 1024) {
+  if (filesize > 1024)
     FileDelete % LOGFILE
-  }
   FileAppend % LAST_ERROR "`n", % LOGFILE
-  if (showMessage) {
-    ShowMessages(["Please get your parents to look at this error:", LAST_ERROR, "Full details logged to " LOGFILE])
-  }
-  return LAST_ERROR
+  if (showGui)
+    ShowErrorGui("Please get your parents to look at this error:`n" LAST_ERROR "`nFull details logged to " LOGFILE)
 }
 
 GetLastLogLine() {
@@ -478,48 +537,82 @@ GetLastLogLine() {
   return lastLine
 }
 
+ShowErrorGui(text) {
+  static errorButtonOK := 0
+  Gui, Error:New, AlwaysOnTop, %APP_NAME% - Error
+  Gui, Add, Edit, w700 ReadOnly, %text%
+  Gui, Add, Button, w80 x310 gErrorGuiOK VerrorButtonOK, &OK
+  GuiControl, Focus, errorButtonOK ; to avoid text selection
+  Gui, Show
+  ; TODO: Should we use (possibly disabled) system sounds instead? Or bundle mp3-s?
+  SoundError()
+}
+
+ShowDebugGui(text) {
+  static debugButtonOK := 0
+  Gui, Debug:New,, %APP_NAME% - Debug
+  Gui, Add, Edit, w700 ReadOnly, %text%
+  Gui, Add, Button, w80 x310 gDebugGuiOK VdebugButtonOK, &OK
+  GuiControl, Focus, debugButtonOK ; to avoid text selection
+  Gui, Show
+}
+
 DebugShowStatus() {
-  msgs := []
-  for title, window in GetAllWindows()
-  {
+  text := ""
+  for title, window in GetAllWindows() {
     ids := ""
     for ignored, id in window["ids"] {
       ids .= (ids ? "/" : "") id
     }
-    msgs.Push("title=" title " ids=" ids " name=" window["name"])
+    text .= "title=" title " ids=" ids " name=" window["name"] "`n"
   }
-  msgs.Push("----- warned limits:")
-  for limit, ignored in WARNED_LIMITS {
-    msgs.Push("warned: " limit)
-  }
-  msgs.Push("----- doomed windows")
-  for id, ignored in DOOMED_WINDOWS {
-    msgs.Push("doomed: " id)
-  }
-  msgs.Push("----- doomed processes")
-  for pid, ignored in DOOMED_PROCESSES {
-    msgs.Push("doomed: " pid)
-  }
-  msgs.Push("----- watched processes")
-  for name, title in CFG[WATCH_PROCESSES] {
-    msgs.Push("process: " name " -> " title)
-  }
-  msgs.Push("----- ignored processes")
-  for name, ignored in CFG[IGNORE_PROCESSES] {
-    msgs.Push("process: " name)
-  }
+  text .= "----- warned limits:`n"
+  for limit, ignored in WARNED_LIMITS
+    text .= "warned: " limit "`n"
+  text .= "----- doomed windows`n"
+  for id, ignored in DOOMED_WINDOWS 
+    text .= "doomed: " id "`n"
+  text .= "----- doomed processes`n"
+  for pid, ignored in DOOMED_PROCESSES
+    text .= "doomed: " pid "`n"
+  text .= "----- watched processes`n"
+  for name, title in CFG[WATCH_PROCESSES]
+    text .= "process: " name " -> " title "`n"
+  text .= "----- ignored processes`n"
+  for name, ignored in CFG[IGNORE_PROCESSES]
+    text .= "process: " name "`n"
   t := FormatSeconds(EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
-  msgs.Push("", "Last successful request: " t " ago")
-  msgs.Push("Last error: " LAST_ERROR)
-  msgs.Push("Duration [ms]: " LAST_REQUEST_DURATION_MS)
+  text .= "Last successful request: " t " ago, duration " LAST_REQUEST_DURATION_MS "ms`n"
+  text .= "Last error: " LAST_ERROR
 
-  ShowMessages(msgs, false)
+  ShowDebugGui(text)
 }
 
 ; --- GUI ---
 
-ButtonOK:
-Gui, Destroy
+StatusGuiOK:
+StatusGuiEscape:
+Gui, Status:Destroy
+return
+
+TimeLowGuiOK:
+TimeLowGuiEscape:
+Gui, TimeLow:Destroy
+return
+
+TimeUpGuiOK:
+TimeUpGuiEscape:
+Gui, TimeUp:Destroy
+return
+
+ErrorGuiOK:
+ErrorGuiEscape:
+Gui, Error:Destroy
+return
+
+DebugGuiOK:
+DebugGuiEscape:
+Gui, Debug:Destroy
 return
 
 ; --- User hotkeys ---

@@ -10,16 +10,18 @@ class RX {
    * Incoming data format by line:
    *
    * 1. username
-   * 2. window title #0
-   * 3. window title #1
+   * 2. last error, format "YYYYMMDD HHMMSS ..." (or else empty line)
+   * 3. window title #0
+   * 4. window title #1
    * ...
    *
-   * No trailing newline must be added. At least the first line must be sent. This would indicate
-   * that no windows are open.
+   * No trailing newline must be added. At least the first two lines must be sent. This would
+   * indicate that no windows are open.
    *
    * Example request:
    *
    * john_doe
+   *
    * Minecraft
    * Calculator
    *
@@ -34,7 +36,7 @@ class RX {
    *
    * limitId ( "," limitId )*
    *
-   * Example response:
+   * Example response for the above request:
    *
    * 10:42:Games
    * 11:23:Minecraft

@@ -80,11 +80,6 @@ class RX {
       $response[] = implode(',', $classification['limits']);
     }
 
-    // Special case: Nothing is running.
-    // TODO: Whether this is OK or not should probably be a config option.
-    if (!$classifications) {
-    }
-
     return implode("\n", $response);
   }
 }

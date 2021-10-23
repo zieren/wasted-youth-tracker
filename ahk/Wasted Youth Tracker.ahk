@@ -471,7 +471,7 @@ RequestConfig() {
         title := trim(SubStr(v, i + 1))
         CFG[WATCH_PROCESSES][name] := title
       } else {
-        errors .= "Ignoring invalid value for option " k ": " v "`n"
+        errors .= "`nIgnoring invalid value for option " k ": '" v "'"
       }
     } else if (InStr(k, "ignore_process") == 1) {
       CFG[IGNORE_PROCESSES][v] := 1
@@ -480,7 +480,7 @@ RequestConfig() {
     }
   }
   if (StrLen(errors) > 0)
-    LogError(errors, false)
+    LogError(SubStr(errors, 2), true)
 }
 
 ; The main loop that does the thing.
@@ -513,19 +513,20 @@ ExceptionToString(exception) {
   msg := exception.Message
   if (exception.Extra)
     msg .= " (" exception.Extra ")"
-  return exception.Line " " RegExReplace(msg, "[`r`n]+", " // ")
+  return exception.Line " " msg
 }
 
 ; Logs the message to a file and optionally to the UI.
 LogError(message, showGui) {
   FormatTime, t, Time, yyyyMMdd HHmmss
-  LAST_ERROR := t " " USER " " message
+  message := t " " USER " "  message
+  LAST_ERROR := RegExReplace(message, "[`r`n]+", " // ")
   FileGetSize, filesize, % LOGFILE, K
   if (filesize > 1024)
     FileDelete % LOGFILE
   FileAppend % LAST_ERROR "`n", % LOGFILE
   if (showGui)
-    ShowErrorGui("Please get your parents to look at this error:`n" LAST_ERROR "`nFull details logged to " LOGFILE)
+    ShowErrorGui("Please get your parents to look at this error:`n" message "`nFull details logged to " LOGFILE)
 }
 
 GetLastLogLine() {

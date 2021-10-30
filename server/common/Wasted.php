@@ -1289,12 +1289,12 @@ class Wasted {
    * the end timestamp is always exclusive.
    */
   private static $ACTIVITY_OVERLAP_CONDITION = '
-        (
-          (%i1 <= from_ts AND from_ts < %i2)
-          OR
-          (%i1 < to_ts AND to_ts <= %i2)
-          OR
-          (from_ts < %i1 AND %i2 <= to_ts)
-        )';
+      (
+        (%i1 <= from_ts AND from_ts < %i2)
+        OR
+        (%i1 < to_ts AND to_ts <= %i2)
+        OR
+        (from_ts < %i1 AND %i2 <= to_ts)
+      )';
 
 }

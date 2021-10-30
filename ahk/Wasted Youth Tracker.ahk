@@ -83,8 +83,8 @@ FormatSeconds(seconds) {
 }
 
 ; Close the window with the specified ahk_id. "title" can be set to the originally doomed title, or
-; be empty. In the former case the window is only doomed if its title matches. This is for browsers, 
-; which change the title when the tab is closed (or deselected, which unfortunately we can't tell 
+; be empty. In the former case the window is only doomed if its title matches. This is for browsers,
+; which change the title when the tab is closed (or deselected, which unfortunately we can't tell
 ; apart), but retain the ahk_id.
 TerminateWindow(id, title) {
   if (title != "") {
@@ -245,11 +245,11 @@ DoTheThing(showStatusGui) {
     LogError("Invalid response received from server:`n" request.responseText, true)
     return ; Better luck next time!
   }
-  
+
   ; Business logic for both "time low" and "time up" warnings: If there is a new limit/title to warn
   ; about, show the GUI with all warnings (but don't show "time low" for limits for which no titles
   ; are active). If there are no warnings at all, destroy the GUI.
-  
+
   ; Find limits whose time is low or up.
   timeLow := [] ; entries: [limit, title, remaining]
   timeUp := [] ; entries: [limit, title]
@@ -370,7 +370,7 @@ HandleOffline(exception, windows) {
   offlineSeconds := EpochSeconds() - LAST_SUCCESSFUL_REQUEST
   if (offlineSeconds > CFG[OFFLINE_GRACE_PERIOD_SECONDS]) {
     anyNewlyDoomed := false
-    for title, window in windows 
+    for title, window in windows
       anyNewlyDoomed |= DoomWindow(window, "")
     if (anyNewlyDoomed) {
       ; Build a variant of the TimeUp GUI.
@@ -425,7 +425,7 @@ ShowStatusGui(limits, limitsToTitles) {
       bottomRows.Push([name, "", remaining, "", ""])
     }
   }
-  
+
   totalRows := topRows.Length() + bottomRows.Length()
   displayRows := Min(20, totalRows)
   Gui, Status:New, , %APP_NAME% - Status
@@ -499,6 +499,11 @@ EpochSeconds() {
 
 ShowStatus() {
   Critical, On
+  Gui, Status:New, , %APP_NAME% - Status - Requesting...
+  Gui, Add, Text
+  Gui, Add, Text, w350 +Center, Requesting status, please wait...
+  Gui, Add, Text
+  Gui, Show
   DoTheThing(true)
   Critical, Off
 }
@@ -531,7 +536,7 @@ LogError(message, showGui) {
 
 GetLastLogLine() {
   lastLine := ""
-  Loop, Read, %LOGFILE% 
+  Loop, Read, %LOGFILE%
   {
     lastLine := A_LoopReadLine
   }
@@ -571,7 +576,7 @@ DebugShowStatus() {
   for limit, ignored in WARNED_LIMITS
     text .= "warned: " limit "`n"
   text .= "----- doomed windows`n"
-  for id, ignored in DOOMED_WINDOWS 
+  for id, ignored in DOOMED_WINDOWS
     text .= "doomed: " id "`n"
   text .= "----- doomed processes`n"
   for pid, ignored in DOOMED_PROCESSES

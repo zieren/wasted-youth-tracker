@@ -34,8 +34,6 @@ function logDbQueryError($params) {
 
 class Wasted {
 
-  private static $NO_TITLES_PSEUDO_CLASSIFICATION = [['class_id' => DEFAULT_CLASS_ID]];
-
   /** Creates a new instance for use in production, using parameters from config.php. */
   public static function create($createMissingTables = false): Wasted {
     return new Wasted(
@@ -876,13 +874,7 @@ class Wasted {
         ON activity.class_id = user_mappings.class_id
         WHERE user = %s0
         AND title != ""
-        AND (
-          (%i1 <= from_ts AND from_ts < %i2)
-          OR
-          (%i1 < to_ts AND to_ts <= %i2)
-          OR
-          (from_ts < %i1 AND %i2 <= to_ts)
-        )
+        AND '.self::$ACTIVITY_OVERLAP_CONDITION.'
         ORDER BY from_ts, to_ts',
         $user, $fromTimestamp, $toTimestamp);
 
@@ -987,13 +979,7 @@ class Wasted {
         WHERE user = %s0
         AND title != ''
         $filter
-        AND (
-          (%i1 <= from_ts AND from_ts < %i2)
-          OR
-          (%i1 < to_ts AND to_ts <= %i2)
-          OR
-          (from_ts < %i1 AND %i2 <= to_ts)
-        )
+        AND ".self::$ACTIVITY_OVERLAP_CONDITION."
         GROUP BY title, name
         $orderBy
         $limit",
@@ -1249,16 +1235,22 @@ class Wasted {
    */
   public function queryTitleSequence($user, $fromTime) {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-    $rows = DB::query(
-        'SELECT ts, name, title FROM activity JOIN classes ON class_id = id
-          WHERE user = %s
-          AND ts >= %i
-          AND ts < %i
-          ORDER BY ts DESC',
-        $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
+    $rows = DB::query('
+      SELECT from_ts, to_ts, name, title
+      FROM activity
+      JOIN classes ON class_id = id
+      WHERE user = %s0
+      AND '.self::$ACTIVITY_OVERLAP_CONDITION.'
+      ORDER BY to_ts DESC, from_ts, title',
+      $user, $fromTime->getTimestamp(), $toTime->getTimestamp());
+    $windowTitles = [];
     foreach ($rows as $row) {
       // TODO: This should use the client's local time format.
-      $windowTitles[] = [date("Y-m-d H:i:s", $row['ts']), $row['name'], $row['title']];
+      $windowTitles[] = [
+          date("Y-m-d H:i:s", $row['from_ts']),
+          date("Y-m-d H:i:s", $row['to_ts']),
+          $row['name'],
+          $row['title']];
     }
     return $windowTitles;
   }
@@ -1289,5 +1281,20 @@ class Wasted {
     $d->setTimestamp($this->time());
     return $d;
   }
+
+  private static $NO_TITLES_PSEUDO_CLASSIFICATION = [['class_id' => DEFAULT_CLASS_ID]];
+
+  /**
+   * The activity starts in the interval, or ends in the interval, or fully encloses it. Note that
+   * the end timestamp is always exclusive.
+   */
+  private static $ACTIVITY_OVERLAP_CONDITION = '
+        (
+          (%i1 <= from_ts AND from_ts < %i2)
+          OR
+          (%i1 < to_ts AND to_ts <= %i2)
+          OR
+          (from_ts < %i1 AND %i2 <= to_ts)
+        )';
 
 }

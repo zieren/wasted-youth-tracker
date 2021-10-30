@@ -64,9 +64,9 @@ for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
 }
 echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
 
-if (getOrDefault($_GET, 'debug')) {
-  echo "<h2>Window title sequence</h2>";
-  echoTable(['Date & Time', 'Class', 'Title'], $wasted->queryTitleSequence($user, $fromTime));
+if (get('debug')) {
+  echo '<h2>Window title sequence</h2>';
+  echoTable(['From', 'To', 'Class', 'Title'], $wasted->queryTitleSequence($user, $fromTime));
 }
 
 ?>

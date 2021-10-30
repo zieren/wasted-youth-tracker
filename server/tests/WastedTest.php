@@ -920,10 +920,10 @@ final class WastedTest extends WastedTestBase {
 
   public function testHandleRequest_invalidRequests(): void {
     foreach (['', "\n123"] as $content) {
+      http_response_code(200);
       $this->onFailMessage("content: $content");
-      $this->assertEquals(
-          explode("\n", RX::handleRequest($this->wasted, $content), 1)[0],
-          "error\nInvalid request");
+      $this->assertEquals(RX::handleRequest($this->wasted, $content), '');
+      $this->assertEquals(http_response_code(), 400);
     }
   }
 
@@ -2169,6 +2169,50 @@ final class WastedTest extends WastedTestBase {
       $this->assertEquals(substr($e->getMessage(), -strlen($s)), $s);
       WastedTestBase::$lastDbError = null; // don't fail the test
     }
+  }
+
+  public function testQueryTitleSequence(): void {
+    $fromTime = $this->newDateTime();
+    $fromTimeString1 = $this->dateTimeString();
+    $this->assertEquals($this->wasted->queryTitleSequence('u1', $fromTime), []);
+
+    $classId = $this->wasted->addClass('c2');
+    $this->wasted->addClassification($classId, 0, '2$');
+
+    $this->insertActivity('u1', ['t1']);
+    $this->mockTime++;
+    $this->insertActivity('u1', ['t1']);
+    $this->mockTime++;
+    $fromTimeString2 = $this->dateTimeString();
+    $this->insertActivity('u1', ['t1', 't2']);
+    // A range that will only include the to_ts, not the from_ts.
+    // The end timestamp is exclusive, so this will not include t2.
+    $fromTime2 = $this->newDateTime()->sub(new DateInterval('P1D'));
+    $this->mockTime++;
+    // This will now include t2.
+    $fromTime3 = $this->newDateTime()->sub(new DateInterval('P1D'));
+    $toTimeString = $this->dateTimeString();
+    $this->insertActivity('u1', ['t1', 't2']);
+
+    $this->assertEquals(
+        $this->wasted->queryTitleSequence('u1', $fromTime),
+        [
+            [$fromTimeString1, $toTimeString, DEFAULT_CLASS_NAME, 't1'],
+            [$fromTimeString2, $toTimeString, 'c2', 't2']
+        ]);
+
+    $this->assertEquals(
+        $this->wasted->queryTitleSequence('u1', $fromTime2),
+        [
+            [$fromTimeString1, $toTimeString, DEFAULT_CLASS_NAME, 't1']
+        ]);
+
+    $this->assertEquals(
+        $this->wasted->queryTitleSequence('u1', $fromTime3),
+        [
+            [$fromTimeString1, $toTimeString, DEFAULT_CLASS_NAME, 't1'],
+            [$fromTimeString2, $toTimeString, 'c2', 't2']
+        ]);
   }
 }
 

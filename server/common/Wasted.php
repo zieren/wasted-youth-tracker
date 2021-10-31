@@ -187,8 +187,9 @@ class Wasted {
         . 'user VARCHAR(32) NOT NULL, '
         . 'date DATE NOT NULL, '
         . 'limit_id INT NOT NULL, '
-        . 'minutes INT, '
         . 'unlocked BOOL, '
+        . 'minutes INT, '
+        . 'slots VARCHAR(200), '
         . 'PRIMARY KEY (user, date, limit_id), '
         . 'FOREIGN KEY (user) REFERENCES users(id) ON DELETE CASCADE, '
         . 'FOREIGN KEY (limit_id) REFERENCES limits(id) ON DELETE CASCADE '
@@ -1039,15 +1040,23 @@ class Wasted {
       $timeSpentByDate = getOrDefault($timeSpentByLimitAndDate, $limitId, []);
       $overrides = getOrDefault($overridesByLimit, $limitId, []);
       $timeLeftByLimit[$limitId] = $this->computeTimeLeftToday(
-          $config, $now, $overrides, $timeSpentByDate, $limitId);
+          $now, $config, $overrides, $timeSpentByDate, $limitId);
     }
     ksort($timeLeftByLimit, SORT_NUMERIC);
     return $timeLeftByLimit;
   }
 
-  private function computeTimeLeftToday($config, $now, $overrides, $timeSpentByDate) {
+  /**
+   * Returns the seconds left today in one limit, for which config, overrides and time spent this
+   * week are specified.
+   */
+  private function computeTimeLeftToday($now, $config, $overrides, $timeSpentByDate) {
     $nowString = getDateString($now);
+    $dow = strtolower($now->format('D'));
     $timeSpentToday = getOrDefault($timeSpentByDate, $nowString, 0);
+
+    [$timeLeftInSlot, $currentSlot, $nextSlot] =
+        self::getTimeLeftInSlot($now, $dow, $config, $overrides);
 
     // Explicit overrides have highest priority.
     $requireUnlock = getOrDefault($config, 'require_unlock', false);
@@ -1065,7 +1074,7 @@ class Wasted {
     $minutesLimitToday = getOrDefault($config, DAILY_LIMIT_MINUTES_PREFIX . 'default', 0);
 
     // Weekday-specific limit overrides default limit.
-    $key = DAILY_LIMIT_MINUTES_PREFIX . strtolower($now->format('D'));
+    $key = DAILY_LIMIT_MINUTES_PREFIX . $dow;
     $minutesLimitToday = getOrDefault($config, $key, $minutesLimitToday);
 
     $timeLeftToday = $minutesLimitToday * 60 - $timeSpentToday;
@@ -1077,6 +1086,82 @@ class Wasted {
     }
 
     return $timeLeftToday;
+  }
+
+  /**
+   * Returns an array of: [time left in current slot, [curren slot from, to], [next slot from, to].
+   * If a slot does not exist (no current slot, or no next slot), it is set to [].
+   */
+  static function getTimeLeftInSlot($now, $dow, $config, $overrides) {
+    $s = getOrDefault($overrides, 'slots');
+    $s = $s !== null ? $s : getOrDefault($config, TIME_OF_DAY_LIMIT_PREFIX . $dow);
+    $s = $s !== null ? $s : getOrDefault($config, TIME_OF_DAY_LIMIT_PREFIX . 'default');
+    if ($s === null) {
+      return [PHP_INT_MAX, [], []];
+    }
+
+    $slots = self::getSlotsOrError($now, $s);
+    if (is_string($slots)) {
+      $this->throwException($slots);
+    }
+
+    $ts = $now->getTimestamp();
+    $slots[] = []; // avoids next slot extraction special case
+    for ($i = 0; $i < count($slots) - 1; $i++) {
+      $slot = $slots[$i];
+      if ($slot[0] <= $ts && $ts < $slot[1]) {
+        return [$slot[1] - $ts, $slot, $slots[$i + 1]];
+      }
+      if ($ts < $slot[0]) { // this is the next slot
+        return [0, [], $slot];
+      }
+    }
+
+    return [0, [], []];
+  }
+
+  /**
+   * Returns a sorted array of non-overlapping slots in the form
+   * [[from_ts_0, to_ts_0], [from_ts_1, to_ts_1]]. On error returns an error message (string).
+   */
+  static function getSlotsOrError($now, $configValue) {
+    $slotsStrings = explode(',', $configValue);
+    $slots = [];
+    foreach ($slotsStrings as $slotString) {
+      $slotString = trim($slotString);
+      if (!$slotString) {
+        continue;
+      }
+      $m = [];
+      if (preg_match_all(self::$TIME_OF_DAY_PATTERN, $slotString, $m) && count($m[0]) == 2) {
+        $fromHour = self::adjust12hFormat(intval($m[1][0]), strtolower($m[3][0]));
+        $fromMinute = $m[2][0] ? intval($m[2][0]) : 0;
+        $toHour = self::adjust12hFormat(intval($m[1][1]), strtolower($m[3][1]));
+        $toMinute = $m[2][1] ? intval($m[2][1]) : 0;
+        $slots[] = [
+            (clone $now)->setTime($fromHour, $fromMinute)->getTimestamp(),
+            (clone $now)->setTime($toHour, $toMinute)->getTimestamp()];
+      } else {
+        return "Invalid time slot: '$slotString'";
+      }
+    }
+    // Sort by from timestamp.
+    usort($slots, function ($a, $b) { return $a[0] - $b[0]; });
+    for ($i = 1; $i < count($slots); $i++) {
+      if ($slots[$i][0] < $slots[$i - 1][1]) {
+        return "Time slots overlap: '$configValue'";
+      }
+    }
+    return $slots;
+  }
+
+  private static function adjust12hFormat($h, $amOrPm) {
+    if ($amOrPm == 'a') {
+      return $h == 12 ? 0 : $h;
+    } else if ($amOrPm == 'p') {
+      return $h < 12 ? $h + 12 : $h;
+    }
+    return $h;
   }
 
   /**
@@ -1153,9 +1238,20 @@ class Wasted {
     return $this->queryOverlappingLimits($limitId, $date);
   }
 
+  /** Overrides the time slots otherwise applicable for this date. */
+  public function setOverrideSlots($user, $date, $limitId, $slots) {
+    DB::insertUpdate('overrides', [
+        'user' => $user,
+        'date' => $date,
+        'limit_id' => $limitId,
+        'slots' => $slots],
+        'slots=%s', $slots);
+    return $this->queryOverlappingLimits($limitId, $date);
+  }
+
   /**
-   * Clears all overrides (minutes and unlock) for the specified limit for $date, which is a
-   * String in the format 'YYYY-MM-DD'.
+   * Clears all overrides for the specified limit for $date, which is a String in the format
+   * 'YYYY-MM-DD'.
    */
   public function clearOverrides($user, $date, $limitId) {
     DB::delete('overrides', 'user=%s AND date=%s AND limit_id=%i', $user, $date, $limitId);
@@ -1219,14 +1315,19 @@ class Wasted {
 
   /** Returns all overrides as a 2D array keyed first by limit ID, then by override. */
   private function queryOverridesByLimit($user, $now) {
-    $rows = DB::query(
-        'SELECT limit_id, minutes, unlocked FROM overrides WHERE user = %s AND date = %s',
+    $rows = DB::query('
+        SELECT limit_id, unlocked , minutes, slots
+        FROM overrides
+        WHERE user = %s
+        AND date = %s',
         $user, getDateString($now));
     $overridesByLimit = [];
     // PK is (user, date, limit_id), so there is at most one row per limit_id.
     foreach ($rows as $row) {
-      $overridesByLimit[$row['limit_id']] =
-          ['minutes' => $row['minutes'], 'unlocked' => $row['unlocked']];
+      $overridesByLimit[$row['limit_id']] = [
+          'minutes' => $row['minutes'],
+          'unlocked' => $row['unlocked'],
+          'slots' => $row['slots']];
     }
     return $overridesByLimit;
   }
@@ -1301,4 +1402,6 @@ class Wasted {
         (from_ts < %i1 AND %i2 <= to_ts)
       )';
 
+  private static $TIME_OF_DAY_PATTERN =
+      '/\b((?:[01]?[0-9])|(?:2[0-3]))(?::([0-5][0-9]))?(?: *(a|p)[.m]*)? *(?:-|$)/i';
 }

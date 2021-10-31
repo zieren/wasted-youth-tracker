@@ -52,16 +52,16 @@ final class WastedTest extends WastedTestBase {
     $this->mockTime = 1000;
   }
 
-  private static function classification($id, $limits) {
+  private static function classification($id, $limits): array {
     $c = ['class_id' => $id, 'limits' => $limits];
     return $c;
   }
 
-  private static function mapping($limitId, $classId) {
+  private static function mapping($limitId, $classId): array {
     return ['limit_id' => strval($limitId), 'class_id' => strval($classId)];
   }
 
-  private static function queryMappings($user) {
+  private static function queryMappings($user): array {
     return DB::query('
         SELECT limit_id, class_id
         FROM mappings
@@ -71,18 +71,23 @@ final class WastedTest extends WastedTestBase {
         $user);
   }
 
-  private function total($seconds, $user = 'u1') {
+  private function total($seconds, $user = 'u1'): array {
     return [$this->totalLimitId[$user] => ['1970-01-01' => $seconds]];
   }
 
-  private function limit($limitId, $seconds, $user = 'u1') {
+  private function limit($limitId, $seconds, $user = 'u1'): array {
     return [
         $this->totalLimitId[$user] => ['1970-01-01' => $seconds],
         $limitId => ['1970-01-01' => $seconds]];
   }
 
-  private function insertActivity($user, $titles) {
+  private function insertActivity($user, $titles): array {
     return $this->wasted->insertActivity($user, '', $titles);
+  }
+
+  private static function slot($now, $fromHour, $fromMinute, $toHour, $toMinute): array {
+    return [(clone $now)->setTime($fromHour, $fromMinute)->getTimestamp(),
+        (clone $now)->setTime($toHour, $toMinute)->getTimestamp()];
   }
 
   public function testSmokeTest(): void {
@@ -2242,6 +2247,104 @@ final class WastedTest extends WastedTestBase {
       $this->wasted->removeLimit($limitId);
     }
   }
+
+  public function testGetSlotsOrError(): void {
+    $now = $this->newDateTime();
+    $this->assertEquals(Wasted::getSlotsOrError($now, ''), []);
+    $this->assertEquals(
+        Wasted::getSlotsOrError($now, '11-13:30'), [
+            self::slot($now, 11, 0, 13, 30)]);
+    $this->assertEquals(
+        Wasted::getSlotsOrError($now, '11-13:30, 2:01pm-4:15pm'), [
+            self::slot($now, 11, 0, 13, 30),
+            self::slot($now, 14, 1, 16, 15)]);
+    $this->assertEquals(
+        Wasted::getSlotsOrError($now, '11-13:30, 2:01pm-4:15pm  ,  20:00-20:42'), [
+            self::slot($now, 11, 0, 13, 30),
+            self::slot($now, 14, 1, 16, 15),
+            self::slot($now, 20, 0, 20, 42)]);
+    $this->assertEquals(
+        Wasted::getSlotsOrError($now, '0-1, 1:00-2, 20-21:00, 22:00-23:59'), [
+            self::slot($now, 0, 0, 1, 0),
+            self::slot($now, 1, 0, 2, 0),
+            self::slot($now, 20, 0, 21, 0),
+            self::slot($now, 22, 0, 23, 59)]);
+    $this->assertEquals(
+        Wasted::getSlotsOrError($now, '7:30-12p, 12a-1'), [
+            self::slot($now, 0, 0, 1, 0),
+            self::slot($now, 7, 30, 12, 0)]);
+
+    $this->assertEquals(
+        Wasted::getSlotsOrError($now, '1-2, 20-30'),
+        "Invalid time slot: '20-30'");
+    $this->assertEquals(
+        Wasted::getSlotsOrError($now, '1-2, 17:60 - 18:10'),
+        "Invalid time slot: '17:60 - 18:10'");
+    $this->assertEquals(
+        Wasted::getSlotsOrError($now, '1-2, 17:a - 18:10'),
+        "Invalid time slot: '17:a - 18:10'");
+  }
+
+  public function testGetTimeLeftInSlot(): void {
+    $now = $this->newDateTime();
+    $config = [];
+    $overrides = [];
+
+    // No slots mean unlimited time.
+    $this->assertEquals(
+        Wasted::getTimeLeftInSlot($now, 'foo', $config, $overrides),
+        [PHP_INT_MAX, [], []]);
+
+    // Configure default slots.
+    $config[TIME_OF_DAY_LIMIT_PREFIX . 'default'] = '8-9, 12-14, 20-21:30';
+
+    // Before first slot.
+    $now->setTime(6, 30);
+    $this->assertEquals(
+        Wasted::getTimeLeftInSlot($now, 'foo', $config, $overrides),
+        [0, [], self::slot($now, 8, 0, 9, 0)]);
+
+    // Within first slot.
+    $now->setTime(13, 0);
+    $this->assertEquals(
+        Wasted::getTimeLeftInSlot($now, 'foo', $config, $overrides),
+        [60 * 60, self::slot($now, 12, 0, 14, 0), self::slot($now, 20, 0, 21, 30)]);
+
+    // Within last slot.
+    $now->setTime(21, 0);
+    $this->assertEquals(
+        Wasted::getTimeLeftInSlot($now, 'foo', $config, $overrides),
+        [30 * 60, self::slot($now, 20, 0, 21, 30), []]);
+
+    // Between two slots.
+    $now->setTime(11, 0);
+    $this->assertEquals(
+        Wasted::getTimeLeftInSlot($now, 'foo', $config, $overrides),
+        [0, [], self::slot($now, 12, 0, 14, 0)]);
+
+    // After last slot.
+    $now->setTime(23, 0);
+    $this->assertEquals(
+        Wasted::getTimeLeftInSlot($now, 'foo', $config, $overrides),
+        [0, [], []]);
+
+    // Epoch start is a Thursday. Override for this day.
+    $config[TIME_OF_DAY_LIMIT_PREFIX . 'thu'] = '22-23:30';
+    $this->assertEquals(
+        Wasted::getTimeLeftInSlot($now, 'thu', $config, $overrides),
+        [30 * 60, self::slot($now, 22, 0, 23, 30), []]);
+
+    // Override explicitly.
+    $overrides['slots'] = ''; // No slots available; different from unset!
+    $this->assertEquals(
+        Wasted::getTimeLeftInSlot($now, 'thu', $config, $overrides),
+        [0, [], []]);
+    $overrides['slots'] = '10:42-11, 23:30-23:31';
+    $this->assertEquals(
+        Wasted::getTimeLeftInSlot($now, 'thu', $config, $overrides), [
+        0, [], self::slot($now, 23, 30, 23, 31)]);
+  }
+
 }
 
 (new WastedTest())->run();

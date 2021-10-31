@@ -4,6 +4,7 @@ require_once 'common.php';
 require_once 'db.class.php';
 
 define('DAILY_LIMIT_MINUTES_PREFIX', 'daily_limit_minutes_');
+define('TIME_OF_DAY_LIMIT_PREFIX', 'time_of_day_limit_');
 
 define('CHARSET_AND_COLLATION', 'latin1 COLLATE latin1_german1_ci');
 
@@ -189,7 +190,8 @@ class Wasted {
         . 'minutes INT, '
         . 'unlocked BOOL, '
         . 'PRIMARY KEY (user, date, limit_id), '
-        . 'FOREIGN KEY (user) REFERENCES users(id) ON DELETE CASCADE '
+        . 'FOREIGN KEY (user) REFERENCES users(id) ON DELETE CASCADE, '
+        . 'FOREIGN KEY (limit_id) REFERENCES limits(id) ON DELETE CASCADE '
         . ') '
         . CREATE_TABLE_SUFFIX);
     $this->insertDefaultRows();
@@ -415,6 +417,9 @@ class Wasted {
   /**
    * Returns configs of all limits for the specified user. Returns a 2D array
    * $configs[$limitId][$key] = $value. The array is sorted by limit ID.
+   *
+   * Two synthetic configs are injected: 'name' for the limit name, and 'is_total' (mapped to true)
+   * for the single total limit.
    */
   public function getAllLimitConfigs($user) {
     $rows = DB::query(
@@ -1214,9 +1219,8 @@ class Wasted {
 
   /** Returns all overrides as a 2D array keyed first by limit ID, then by override. */
   private function queryOverridesByLimit($user, $now) {
-    $rows = DB::query('SELECT limit_id, minutes, unlocked FROM overrides'
-        . ' WHERE user = %s'
-        . ' AND date = %s',
+    $rows = DB::query(
+        'SELECT limit_id, minutes, unlocked FROM overrides WHERE user = %s AND date = %s',
         $user, getDateString($now));
     $overridesByLimit = [];
     // PK is (user, date, limit_id), so there is at most one row per limit_id.

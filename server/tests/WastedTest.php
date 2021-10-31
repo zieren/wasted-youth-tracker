@@ -2214,6 +2214,34 @@ final class WastedTest extends WastedTestBase {
             [$fromTimeString2, $toTimeString, 'c2', 't2']
         ]);
   }
+
+  public function testOnDeleteCascade_deleteLimit(): void {
+    $classId = $this->wasted->addClass('c');
+    $limitId = $this->wasted->addLimit('u1', 'foo');
+    $this->wasted->setLimitConfig($limitId, 'a', 'b');
+    $this->wasted->addMapping($classId, $limitId);
+    $this->wasted->setOverrideUnlock('u1', '1970-01-01', $limitId);
+
+    foreach ([[2, 1, 1], [1, 0, 0]] as $expected) {
+      $this->onFailMessage('expected: ' . implode(', ', $expected));
+      // The total limit is always included.
+      $this->assertEquals(count($this->wasted->getAllLimitConfigs('u1')), $expected[0]);
+      $n = intval(
+          DB::query(
+              'SELECT COUNT(*) AS n FROM mappings WHERE limit_id = %i',
+              $limitId)
+          [0]['n']);
+      $this->assertEquals($n, $expected[1]);
+      $n = intval(
+          DB::query(
+              'SELECT COUNT(*) AS n FROM overrides WHERE limit_id = %i',
+              $limitId)
+          [0]['n']);
+      $this->assertEquals($n, $expected[2]);
+
+      $this->wasted->removeLimit($limitId);
+    }
+  }
 }
 
 (new WastedTest())->run();

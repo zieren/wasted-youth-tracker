@@ -46,7 +46,7 @@ abstract class TestCase {
   }
 
   protected function assertEquals($actual, $expected): void {
-    if ($actual === $expected) {
+    if ((is_object($expected) && $actual == $expected) || $actual === $expected) {
       return;
     }
 

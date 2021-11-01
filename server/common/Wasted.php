@@ -859,8 +859,7 @@ class Wasted {
 
   /**
    * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by limit
-   * ID (including NULL for "limit to zero", if applicable) and date. $toTime may be null to omit
-   * the upper limit.
+   * ID and then date. $toTime may be null to omit the upper limit.
    */
   public function queryTimeSpentByLimitAndDate($user, $fromTime, $toTime = null) {
     $fromTimestamp = $fromTime->getTimestamp();
@@ -903,6 +902,13 @@ class Wasted {
       $fromTs = $row['from_ts'];
       $toTs = $row['to_ts'];
       $limitId = $row['limit_id'];
+      // We should always at least have the total limit. But that works via a trigger that maps
+      // new classes to the total limit. Theoretically these mappings could be removed by hand. In
+      // that unlikely event, bail out because the code doesn't expect null as a limit ID.
+      if ($limitId == null) {
+        $this->throwException('Missing total limit: keys: '.implode(',', array_keys($row))
+            .'; values: '.implode(',', $row));
+      }
       getOrCreate(getOrCreate($timestamps, $fromTs, []), 'starting', [])[] = $limitId;
       getOrCreate(getOrCreate($timestamps, $toTs, []), 'ending', [])[] = $limitId;
       $maxTs = max($maxTs, $toTs);
@@ -1016,14 +1022,8 @@ class Wasted {
   }
 
   /**
-   * Returns the time (in seconds) left today, in an array keyed by limit ID. In order of
-   * decreasing priority, this considers the unlock requirement, override minutes, the minutes
-   * configured for the day of the week, and the default daily minutes. For the last two, possible
-   * weekly minutes are additionally applied.
-   *
-   * At least the total limit ID is present.
-   *
-   * The result is sorted by key.
+   * Returns an array keyed by limit ID that holds TimeLeft instances. All limits for the user are
+   * present. The result is sorted by key (for consistency, as the ID is not meaningful).
    */
   public function queryTimeLeftTodayAllLimits($user) {
     $configs = $this->getAllLimitConfigs($user);
@@ -1039,65 +1039,77 @@ class Wasted {
       $config = getOrDefault($configs, $limitId, []);
       $timeSpentByDate = getOrDefault($timeSpentByLimitAndDate, $limitId, []);
       $overrides = getOrDefault($overridesByLimit, $limitId, []);
-      $timeLeftByLimit[$limitId] = $this->computeTimeLeftToday(
-          $now, $config, $overrides, $timeSpentByDate, $limitId);
+      $timeLeftByLimit[$limitId] =
+          $this->computeTimeLeftToday($now, $config, $overrides, $timeSpentByDate, $limitId);
     }
     ksort($timeLeftByLimit, SORT_NUMERIC);
     return $timeLeftByLimit;
   }
 
   /**
-   * Returns the seconds left today in one limit, for which config, overrides and time spent this
+   * Returns a TimeLeft instance for one limit. That limit's config, overrides and time spent this
    * week are specified.
+   *
+   * This considers the unlock requirement, time slots, override minutes, the  minutes configured
+   * for the day of the week, the default daily minutes. For the last two, possible weekly minutes
+   * are additionally applied.
    */
   private function computeTimeLeftToday($now, $config, $overrides, $timeSpentByDate) {
     $nowString = getDateString($now);
     $dow = strtolower($now->format('D'));
-    $timeSpentToday = getOrDefault($timeSpentByDate, $nowString, 0);
 
-    [$timeLeftInSlot, $currentSlot, $nextSlot] =
-        self::getTimeLeftInSlot($now, $dow, $config, $overrides);
-
-    // Explicit overrides have highest priority.
+    // Unlock required and not unlocked? Return zero and no current/next slots.
     $requireUnlock = getOrDefault($config, 'require_unlock', false);
-    if ($overrides) {
-      if ($requireUnlock && $overrides['unlocked'] != 1) {
-        return 0;
-      }
-      if ($overrides['minutes'] != null) {
-        return $overrides['minutes'] * 60 - $timeSpentToday;
-      }
-    } else if ($requireUnlock) {
-      return 0;
+    if ($requireUnlock && !getOrDefault($overrides, 'unlocked', false)) {
+      return new TimeLeft(0, [], []);
+    }
+    // Outside of any time slot? Return zero and, if applicable, next slot.
+    $timeLeft = self::evaluateSlots($now, $dow, $config, $overrides);
+    if ($timeLeft->seconds <= 0) {
+      return $timeLeft;
+    }
+    // Minutes overridden? Time slots still apply too, but daily defaults and the weekly limit
+    // don't.
+    $timeSpentToday = getOrDefault($timeSpentByDate, $nowString, 0);
+    if (($minutes = getOrDefault($overrides, 'minutes')) !== null) {
+      $timeLeftToday = min($minutes * 60 - $timeSpentToday, $timeLeft->seconds);
+      return new TimeLeft($timeLeftToday, $timeLeft->currentSlot, $timeLeft->nextSlot);
     }
 
-    $minutesLimitToday = getOrDefault($config, DAILY_LIMIT_MINUTES_PREFIX . 'default', 0);
+    // Compute the regular minutes for today: default, or else day-of-week if present. Zero if
+    // neither is set.
+    $minutesLimitToday = getOrDefault($config, DAILY_LIMIT_MINUTES_PREFIX.'default', 0);
+    $minutesLimitToday = getOrDefault($config, DAILY_LIMIT_MINUTES_PREFIX.$dow, $minutesLimitToday);
 
-    // Weekday-specific limit overrides default limit.
-    $key = DAILY_LIMIT_MINUTES_PREFIX . $dow;
-    $minutesLimitToday = getOrDefault($config, $key, $minutesLimitToday);
+    // Possibly further restrict by time left in slot.
+    $timeLeftToday = min($minutesLimitToday * 60 - $timeSpentToday, $timeLeft->seconds);
 
-    $timeLeftToday = $minutesLimitToday * 60 - $timeSpentToday;
-
-    // A weekly limit can shorten the daily limit, but not extend it.
+    // A weekly limit can further shorten the daily limit, but not extend it.
     if (isset($config['weekly_limit_minutes'])) {
       $timeLeftInWeek = $config['weekly_limit_minutes'] * 60 - array_sum($timeSpentByDate);
       $timeLeftToday = min($timeLeftToday, $timeLeftInWeek);
     }
 
-    return $timeLeftToday;
+    return new TimeLeft($timeLeftToday, $timeLeft->currentSlot, $timeLeft->nextSlot);
   }
 
   /**
-   * Returns an array of: [time left in current slot, [curren slot from, to], [next slot from, to].
-   * If a slot does not exist (no current slot, or no next slot), it is set to [].
+   * Takes the current time, day of week, limit config and limit overrides.
+   *
+   * Returns an array of: [time left in current slot, [curren slot from, to], [next slot from, to]
+   * (slots are specified in epoch timestamps). If a slot does not exist (no current slot, or no
+   * next slot, or neither), it is set to [].
+   *
+   * This takes into account, in order of increasing precedence, a default time of day limit, a
+   * day-of-week time of day limit, and an explicit override for the day.
    */
-  static function getTimeLeftInSlot($now, $dow, $config, $overrides) {
+  static function evaluateSlots($now, $dow, $config, $overrides): TimeLeft {
     $s = getOrDefault($overrides, 'slots');
     $s = $s !== null ? $s : getOrDefault($config, TIME_OF_DAY_LIMIT_PREFIX . $dow);
     $s = $s !== null ? $s : getOrDefault($config, TIME_OF_DAY_LIMIT_PREFIX . 'default');
     if ($s === null) {
-      return [PHP_INT_MAX, [], []];
+      $tomorrow = (clone $now)->setTime(0, 0)->add(new DateInterval('P1D'));
+      return new TimeLeft($tomorrow->getTimestamp() - $now->getTimestamp(), [], []);
     }
 
     $slots = self::getSlotsOrError($now, $s);
@@ -1110,14 +1122,14 @@ class Wasted {
     for ($i = 0; $i < count($slots) - 1; $i++) {
       $slot = $slots[$i];
       if ($slot[0] <= $ts && $ts < $slot[1]) {
-        return [$slot[1] - $ts, $slot, $slots[$i + 1]];
+        return new TimeLeft($slot[1] - $ts, $slot, $slots[$i + 1]);
       }
       if ($ts < $slot[0]) { // this is the next slot
-        return [0, [], $slot];
+        return new TimeLeft(0, [], $slot);
       }
     }
 
-    return [0, [], []];
+    return new TimeLeft(0, [], []);
   }
 
   /**
@@ -1186,7 +1198,7 @@ class Wasted {
       if (!array_key_exists($classId, $classes)) {
         $classes[$classId] = [$row['name'], PHP_INT_MAX];
       }
-      $newLimit = $timeLeftTodayAllLimits[$row['limit_id']];
+      $newLimit = $timeLeftTodayAllLimits[$row['limit_id']]->seconds;
       $classes[$classId][1] = min($classes[$classId][1], $newLimit);
     }
     // Remove classes for which no time is left.

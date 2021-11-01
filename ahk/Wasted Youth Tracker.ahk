@@ -228,8 +228,8 @@ DoTheThing(showStatusGui) {
     }
     switch (section) {
       case 1:
-        s := StrSplit(line, ":", "", 3)
-        limits[s[1]] := {"remaining": s[2], "name": s[3]}
+        s := StrSplit(line, ";", "", 5)
+        limits[s[1]] := {"id": s[1], "remaining": s[2], "currentSlot": s[3], "nextSlot": s[4], "name": s[5]}
       case 2:
         title := indexToTitle[index++]
         limitIds := StrSplit(line, ",")
@@ -412,17 +412,17 @@ DoomWindow(window, title) {
 ShowStatusGui(limits, limitsToTitles) {
   limitsSorted := {}
   for id, limit in limits {
-    limitsSorted[limit["name"]] := {"remaining": limit["remaining"], "id": id}
+    limitsSorted[limit["name"]] := limit
   }
   topRows := []
   bottomRows := []
   for name, limit in limitsSorted {
     remaining := FormatSeconds(limit["remaining"])
     for ignored, title in limitsToTitles[limit["id"]] {
-      topRows.Push([name, title, remaining, "", ""])
+      topRows.Push([name, title, remaining, limit["currentSlot"], limit["nextSlot"]])
     }
     if (!limitsToTitles[limit["id"]].Length()) {
-      bottomRows.Push([name, "", remaining, "", ""])
+      bottomRows.Push([name, "", remaining, limit["currentSlot"], limit["nextSlot"]])
     }
   }
 

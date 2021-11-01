@@ -25,10 +25,11 @@ class RX {
    * Minecraft
    * Calculator
    *
-   * The response contains two parts. The first part lists all limits configured for the user and
-   * the remaining time today in seconds.
+   * The response contains two parts. The first part lists all limits configured for the user, the
+   * remaining time (starting right now) in seconds, the current time slot (if any), the next time
+   * slot (if any), and the limit's name:
    *
-   * limitId ":" timeLeftToday ":" limitName
+   * limitId ";" timeLeftToday ";" currentSlot ";" nextSlot ";" limitName
    *
    * The second part, separated by a blank line, lists the limits to which each window title maps,
    * in the order they appear in the request. If multiple limits match a title, they are separated
@@ -38,9 +39,9 @@ class RX {
    *
    * Example response for the above request:
    *
-   * 10:42:Games
-   * 11:23:Minecraft
-   * 12:666:School
+   * 10;42;16:00-18:00;;Games
+   * 11;23;16:00-18:00;;Minecraft
+   * 12;666;08:00-13:00;15:00-16:00;School
    *
    * 10,11
    * 12
@@ -71,7 +72,7 @@ class RX {
     $limitIdToName = getLimitIdToNameMap($configs);
     $timeLeftByLimit = $wasted->queryTimeLeftTodayAllLimits($user);
     foreach ($timeLeftByLimit as $limitId => $timeLeft) {
-      $response[] = $limitId.':'.$timeLeft->seconds.':'.$limitIdToName[$limitId];
+      $response[] = $limitId.';'.$timeLeft->toClientResponse().';'.$limitIdToName[$limitId];
     }
     $response[] = '';
 

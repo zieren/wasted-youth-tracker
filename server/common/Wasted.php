@@ -391,7 +391,7 @@ class Wasted {
           ORDER BY limit_id',
           $user, $title);
       if (!$rows) { // This should never happen, the default class catches all.
-        $this->throwException('Failed to classify "' . $title . '"');
+        $this->throwException("Failed to classify '$title'");
       }
 
       $classification = [];
@@ -906,8 +906,7 @@ class Wasted {
       // new classes to the total limit. Theoretically these mappings could be removed by hand. In
       // that unlikely event, bail out because the code doesn't expect null as a limit ID.
       if ($limitId == null) {
-        $this->throwException('Missing total limit: keys: '.implode(',', array_keys($row))
-            .'; values: '.implode(',', $row));
+        $this->throwException('Missing total limit in row:  '.dumpArrayToString($row));
       }
       getOrCreate(getOrCreate($timestamps, $fromTs, []), 'starting', [])[] = $limitId;
       getOrCreate(getOrCreate($timestamps, $toTs, []), 'ending', [])[] = $limitId;

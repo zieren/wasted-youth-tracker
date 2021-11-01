@@ -942,15 +942,15 @@ final class WastedTest extends WastedTestBase {
     $totalLimitId = $this->totalLimitId['u1'];
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n"),
-        "$totalLimitId:0:".TOTAL_LIMIT_NAME."\n");
+        "$totalLimitId;0;;;".TOTAL_LIMIT_NAME."\n");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n\ntitle 1"),
-        "$totalLimitId:0:".TOTAL_LIMIT_NAME."\n\n$totalLimitId");
+        "$totalLimitId;0;;;".TOTAL_LIMIT_NAME."\n\n$totalLimitId");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n\ntitle 1"),
-        "$totalLimitId:-1:".TOTAL_LIMIT_NAME."\n\n$totalLimitId");
+        "$totalLimitId;-1;;;".TOTAL_LIMIT_NAME."\n\n$totalLimitId");
   }
 
   public function testHandleRequest_withLimits(): void {
@@ -964,29 +964,29 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n"), // no titles
-        "$totalId:0:$totalName\n$limitId1:300:b1\n");
+        "$totalId;0;;;$totalName\n$limitId1;300;;;b1\n");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n\ntitle 1"),
-        "$totalId:0:$totalName\n$limitId1:300:b1\n\n$totalId,$limitId1");
+        "$totalId;0;;;$totalName\n$limitId1;300;;;b1\n\n$totalId,$limitId1");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n\ntitle 1"),
-        "$totalId:-1:$totalName\n$limitId1:299:b1\n\n$totalId,$limitId1");
+        "$totalId;-1;;;$totalName\n$limitId1;299;;;b1\n\n$totalId,$limitId1");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n\ntitle 1\nfoo"),
-        "$totalId:-2:$totalName\n$limitId1:298:b1\n\n$totalId,$limitId1\n$totalId");
+        "$totalId;-2;;;$totalName\n$limitId1;298;;;b1\n\n$totalId,$limitId1\n$totalId");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n\ntitle 1\nfoo"),
-        "$totalId:-3:$totalName\n$limitId1:297:b1\n\n$totalId,$limitId1\n$totalId");
+        "$totalId;-3;;;$totalName\n$limitId1;297;;;b1\n\n$totalId,$limitId1\n$totalId");
 
     // Flip order.
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n\nfoo\ntitle 1"),
-        "$totalId:-4:$totalName\n$limitId1:296:b1\n\n$totalId\n$totalId,$limitId1");
+        "$totalId;-4;;;$totalName\n$limitId1;296;;;b1\n\n$totalId\n$totalId,$limitId1");
 
     // Add second limit.
     $classId2 = $this->wasted->addClass('c2');
@@ -999,25 +999,25 @@ final class WastedTest extends WastedTestBase {
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n\ntitle 1\nfoo"),
-        "$totalId:-5:$totalName\n$limitId1:295:b1\n$limitId2:115:b2\n\n".
+        "$totalId;-5;;;$totalName\n$limitId1;295;;;b1\n$limitId2;115;;;b2\n\n".
         "$totalId,$limitId1,$limitId2\n$totalId");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n\ntitle 1\ntitle 2"),
-        "$totalId:-6:$totalName\n$limitId1:294:b1\n$limitId2:114:b2\n\n".
+        "$totalId;-6;;;$totalName\n$limitId1;294;;;b1\n$limitId2;114;;;b2\n\n".
         "$totalId,$limitId1,$limitId2\n$totalId,$limitId2");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n\ntitle 2"),
-        "$totalId:-7:$totalName\n$limitId1:293:b1\n$limitId2:113:b2\n\n$totalId,$limitId2");
+        "$totalId;-7;;;$totalName\n$limitId1;293;;;b1\n$limitId2;113;;;b2\n\n$totalId,$limitId2");
     $this->mockTime++; // This still counts towards b2.
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n"),
-        "$totalId:-8:$totalName\n$limitId1:293:b1\n$limitId2:112:b2\n");
+        "$totalId;-8;;;$totalName\n$limitId1;293;;;b1\n$limitId2;112;;;b2\n");
     $this->mockTime++; // Last request had no titles, so no time is added.
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u1\n\ntitle 2"),
-        "$totalId:-8:$totalName\n$limitId1:293:b1\n$limitId2:112:b2\n\n$totalId,$limitId2");
+        "$totalId;-8;;;$totalName\n$limitId1;293;;;b1\n$limitId2;112;;;b2\n\n$totalId,$limitId2");
   }
 
   public function testHandleRequest_mappedForOtherUser(): void {
@@ -1030,15 +1030,15 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u2\n"),
-        "$totalLimitId:0:".TOTAL_LIMIT_NAME."\n");
+        "$totalLimitId;0;;;".TOTAL_LIMIT_NAME."\n");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u2\n\ntitle 1"),
-        "$totalLimitId:0:".TOTAL_LIMIT_NAME."\n\n$totalLimitId");
+        "$totalLimitId;0;;;".TOTAL_LIMIT_NAME."\n\n$totalLimitId");
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u2\n\ntitle 1"),
-        "$totalLimitId:-1:".TOTAL_LIMIT_NAME."\n\n$totalLimitId");
+        "$totalLimitId;-1;;;".TOTAL_LIMIT_NAME."\n\n$totalLimitId");
 
     // Now map same class for user u2.
     $limitId2 = $this->wasted->addLimit('u2', 'b2');
@@ -1047,7 +1047,7 @@ final class WastedTest extends WastedTestBase {
     $this->mockTime++;
     $this->assertEquals(
         RX::handleRequest($this->wasted, "u2\n\ntitle 1"),
-        "$totalLimitId:-2:".TOTAL_LIMIT_NAME."\n$limitId2:58:b2\n\n$totalLimitId,$limitId2");
+        "$totalLimitId;-2;;;".TOTAL_LIMIT_NAME."\n$limitId2;58;;;b2\n\n$totalLimitId,$limitId2");
   }
 
   public function testHandleRequest_utf8Conversion(): void {
@@ -1060,7 +1060,7 @@ final class WastedTest extends WastedTestBase {
     // This file uses utf8 encoding. The word 'süß' would not match the above RE in utf8 because
     // MySQL's RE library does not support utf8 and would see 5 bytes.
     $this->assertEquals(RX::handleRequest($this->wasted, "u1\n\nsüß"),
-        "$totalLimitId:0:".TOTAL_LIMIT_NAME."\n$limitId:0:b1\n\n$totalLimitId,$limitId");
+        "$totalLimitId;0;;;".TOTAL_LIMIT_NAME."\n$limitId;0;;;b1\n\n$totalLimitId,$limitId");
   }
 
   public function testSetOverrideMinutesAndUnlock(): void {

@@ -15,6 +15,21 @@ class TimeLeft {
     $this->nextSlot = $nextSlot;
   }
 
+  public function toClientResponse() {
+    $date = new DateTime();
+    $response = [$this->seconds];
+    foreach ([$this->currentSlot, $this->nextSlot] as $slot) {
+      if ($slot) {
+        $response[] =
+            $date->setTimestamp($slot[0])->format('H:i') . '-' .
+            $date->setTimestamp($slot[1])->format('H:i');
+      } else {
+        $response[] = '';
+      }
+    }
+    return implode(';', $response);
+  }
+
   public static function toSeconds($timeLeft) {
     return $timeLeft->seconds;
   }

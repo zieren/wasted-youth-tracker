@@ -75,11 +75,6 @@ function getWeekStart($date) {
   return $weekStart;
 }
 
-/** Returns a DateTime set to 0:00 of today. */
-function getTodayStart() {
-  return (new DateTime())->setTime(0, 0);
-}
-
 /** Returns the date from the specified DateTime, in YYYY-MM-DD format. */
 function getDateString($dateTime) {
   return $dateTime->format('Y-m-d');

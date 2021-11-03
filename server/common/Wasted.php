@@ -1060,7 +1060,7 @@ class Wasted {
     // Unlock required and not unlocked? Return zero and no current/next slots.
     $requireUnlock = getOrDefault($config, 'require_unlock', false);
     if ($requireUnlock && !getOrDefault($overrides, 'unlocked', false)) {
-      return new TimeLeft(0, [], []);
+      return new TimeLeft(true, 0, [], []);
     }
     // Outside of any time slot? Return zero and, if applicable, next slot.
     $timeLeft = self::evaluateSlots($now, $dow, $config, $overrides);
@@ -1072,7 +1072,7 @@ class Wasted {
     $timeSpentToday = getOrDefault($timeSpentByDate, $nowString, 0);
     if (($minutes = getOrDefault($overrides, 'minutes')) !== null) {
       $timeLeftToday = min($minutes * 60 - $timeSpentToday, $timeLeft->seconds);
-      return new TimeLeft($timeLeftToday, $timeLeft->currentSlot, $timeLeft->nextSlot);
+      return new TimeLeft(false, $timeLeftToday, $timeLeft->currentSlot, $timeLeft->nextSlot);
     }
 
     // Compute the regular minutes for today: default, or else day-of-week if present. Zero if
@@ -1089,7 +1089,7 @@ class Wasted {
       $timeLeftToday = min($timeLeftToday, $timeLeftInWeek);
     }
 
-    return new TimeLeft($timeLeftToday, $timeLeft->currentSlot, $timeLeft->nextSlot);
+    return new TimeLeft(false, $timeLeftToday, $timeLeft->currentSlot, $timeLeft->nextSlot);
   }
 
   /**
@@ -1108,7 +1108,7 @@ class Wasted {
     $s = $s !== null ? $s : getOrDefault($config, TIME_OF_DAY_LIMIT_PREFIX . 'default');
     if ($s === null) {
       $tomorrow = (clone $now)->setTime(0, 0)->add(new DateInterval('P1D'));
-      return new TimeLeft($tomorrow->getTimestamp() - $now->getTimestamp(), [], []);
+      return new TimeLeft(false, $tomorrow->getTimestamp() - $now->getTimestamp(), [], []);
     }
 
     $slots = self::getSlotsOrError($now, $s);
@@ -1121,14 +1121,14 @@ class Wasted {
     for ($i = 0; $i < count($slots) - 1; $i++) {
       $slot = $slots[$i];
       if ($slot[0] <= $ts && $ts < $slot[1]) {
-        return new TimeLeft($slot[1] - $ts, $slot, $slots[$i + 1]);
+        return new TimeLeft(false, $slot[1] - $ts, $slot, $slots[$i + 1]);
       }
       if ($ts < $slot[0]) { // this is the next slot
-        return new TimeLeft(0, [], $slot);
+        return new TimeLeft(false, 0, [], $slot);
       }
     }
 
-    return new TimeLeft(0, [], []);
+    return new TimeLeft(false, 0, [], []);
   }
 
   /**

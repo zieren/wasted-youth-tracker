@@ -228,8 +228,8 @@ DoTheThing(showStatusGui) {
     }
     switch (section) {
       case 1:
-        s := StrSplit(line, ";", "", 5)
-        limits[s[1]] := {"id": s[1], "remaining": s[2], "currentSlot": s[3], "nextSlot": s[4], "name": s[5]}
+        s := StrSplit(line, ";", "", 6)
+        limits[s[1]] := {"id": s[1], "locked": s[2], "remaining": s[3], "currentSlot": s[4], "nextSlot": s[5], "name": s[6]}
       case 2:
         title := indexToTitle[index++]
         limitIds := StrSplit(line, ",")
@@ -418,28 +418,33 @@ ShowStatusGui(limits, limitsToTitles) {
   bottomRows := []
   for name, limit in limitsSorted {
     remaining := FormatSeconds(limit["remaining"])
+    currentSlot := limit["currentSlot"]
+    nextSlot := limit["nextSlot"]
+    locked := limit["locked"] ? "L" : ""
     for ignored, title in limitsToTitles[limit["id"]] {
-      topRows.Push([name, title, remaining, limit["currentSlot"], limit["nextSlot"]])
+      topRows.Push([locked, name, title, remaining, currentSlot, nextSlot])
     }
+    ; Put limits that don't affect current titles at the bottom.
     if (!limitsToTitles[limit["id"]].Length()) {
-      bottomRows.Push([name, "", remaining, limit["currentSlot"], limit["nextSlot"]])
+      bottomRows.Push([locked, name, "", remaining, currentSlot, nextSlot])
     }
   }
 
   totalRows := topRows.Length() + bottomRows.Length()
   displayRows := Min(20, totalRows)
   Gui, Status:New, , %APP_NAME% - Status
-  Gui, Add, ListView, r%displayRows% w700 Count%totalRows%, Limit|Title|Time Left|Current Slot|Next Slot
+  Gui, Add, ListView, r%displayRows% w700 Count%totalRows%, Lock|Limit|Title|Time Left|Current Slot|Next Slot
   for ignored, rows in [topRows, bottomRows] {
     for ignored, row in rows {
-      LV_Add("", row[1], row[2], row[3], row[4], row[5])
+      LV_Add("", row[1], row[2], row[3], row[4], row[5], row[6])
     }
   }
-  LV_ModifyCol(1, 100)
-  LV_ModifyCol(2, 300)
-  LV_ModifyCol(3, 60)
-  LV_ModifyCol(4, 100)
+  LV_ModifyCol(1, 20)
+  LV_ModifyCol(2, 100)
+  LV_ModifyCol(3, 300)
+  LV_ModifyCol(4, 60)
   LV_ModifyCol(5, 100)
+  LV_ModifyCol(6, 100)
   Gui, Add, Button, w80 x310 gStatusGuiOK, &OK
   Gui, Show
 }

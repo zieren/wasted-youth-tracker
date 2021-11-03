@@ -66,7 +66,7 @@ class RX {
 
     // Build response.
 
-    // Part 1: Limits and time left.
+    // Part 1: Limits and TimeLeft.
     $response = [];
     $configs = $wasted->getAllLimitConfigs($user);
     $limitIdToName = getLimitIdToNameMap($configs);

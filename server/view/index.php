@@ -48,7 +48,7 @@ echo "<h3>Time left today</h3>";
 $timeLeftByLimit = $wasted->queryTimeLeftTodayAllLimits($user);
 echoTable(
     limitIdsToNames(array_keys($timeLeftByLimit), $configs),
-    [array_map('secondsToHHMMSS', array_map('TimeLeft::toSeconds', $timeLeftByLimit))]);
+    [array_map('secondsToHHMMSS', array_map('TimeLeft::toCurrentSeconds', $timeLeftByLimit))]);
 
 echo "<h3>Most Recently Used<h3>";
 $timeSpentPerTitle = $wasted->queryTimeSpentByTitle($user, $fromTime, false);

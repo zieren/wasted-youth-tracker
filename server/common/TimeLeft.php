@@ -1,29 +1,44 @@
 <?php
 
-/**
- * Describes the time left today as well as the current and next slot, if applicable. This always
- * pertains to one specific limit.
- */
+/** Describes the various aspects of time left today, all with respect to one specific limit. */
 class TimeLeft {
   /** Whether the limit is locked. */
   public $locked;
-  /** An int containing the remaining seconds for today. */
-  public $seconds;
-  /** An array with [from_epoch, to_epoch] indicating the current time slot. */
+  /**
+   * Seconds left before the minutes budget for the day runs out or the current slot ends, i.e. time
+   * until the user has to close running programs. Zero if the limit is locked.
+   */
+  public $currentSeconds;
+  /** Total number of seconds left today, ignoring slots. */
+  public $totalSeconds;
+  /** An array with [from_epoch, to_epoch] indicating the current time slot, or else []. */
   public $currentSlot;
-  /** An array with [from_epoch, to_epoch] indicating the next time slot. */
+  /** An array with [from_epoch, to_epoch] indicating the next time slot, or else []. */
   public $nextSlot;
 
-  public function __construct($locked, $seconds, $currentSlot, $nextSlot) {
+  /**
+   * Construct based on the minute contingent: If not locked, both current and total seconds are
+   * initialized to the same value. Otherwise current seconds are set to zero.
+   */
+  public function __construct($locked, $totalSeconds) {
     $this->locked = $locked;
-    $this->seconds = $seconds;
+    $this->currentSeconds = $locked ? 0 : $totalSeconds;
+    $this->totalSeconds = $totalSeconds;
+    $this->currentSlot = [];
+    $this->nextSlot = [];
+  }
+
+  /** Reflect the restrictions from the specified slots. */
+  public function reflectSlots($currentSeconds, $currentSlot, $nextSlot): TimeLeft {
+    $this->currentSeconds = min($this->currentSeconds, $currentSeconds);
     $this->currentSlot = $currentSlot;
     $this->nextSlot = $nextSlot;
+    return $this;
   }
 
   public function toClientResponse() {
     $date = new DateTime();
-    $response = [$this->locked ? 1 : 0, $this->seconds];
+    $response = [$this->locked ? 1 : 0, $this->currentSeconds];
     foreach ([$this->currentSlot, $this->nextSlot] as $slot) {
       if ($slot) {
         $response[] =
@@ -36,7 +51,7 @@ class TimeLeft {
     return implode(';', $response);
   }
 
-  public static function toSeconds($timeLeft) {
-    return $timeLeft->seconds;
+  public static function toCurrentSeconds($timeLeft) {
+    return $timeLeft->currentSeconds;
   }
 }

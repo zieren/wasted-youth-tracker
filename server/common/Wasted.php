@@ -258,7 +258,7 @@ class Wasted {
 
   public function removeClass($classId) {
     if ($classId == DEFAULT_CLASS_ID) {
-      $this->throwException('Cannot delete default class "' . DEFAULT_CLASS_NAME . '"');
+      self::throwException('Cannot delete default class "' . DEFAULT_CLASS_NAME . '"');
     }
     // Delete classifications first to avoid new titles (and their classification) racing for
     // insertion against the class deletion.
@@ -285,14 +285,14 @@ class Wasted {
 
   public function removeClassification($classificationId) {
     if ($classificationId == DEFAULT_CLASSIFICATION_ID) {
-      $this->throwException('Cannot delete default classification');
+      self::throwException('Cannot delete default classification');
     }
     DB::delete('classification', 'id = %i', $classificationId);
   }
 
   public function changeClassification($classificationId, $newRegEx, $newPriority) {
     if ($classificationId == DEFAULT_CLASSIFICATION_ID) {
-      $this->throwException('Cannot change default classification');
+      self::throwException('Cannot change default classification');
     }
     DB::update(
         'classification',
@@ -391,7 +391,7 @@ class Wasted {
           ORDER BY limit_id',
           $user, $title);
       if (!$rows) { // This should never happen, the default class catches all.
-        $this->throwException("Failed to classify '$title'");
+        self::throwException("Failed to classify '$title'");
       }
 
       $classification = [];
@@ -906,7 +906,7 @@ class Wasted {
       // new classes to the total limit. Theoretically these mappings could be removed by hand. In
       // that unlikely event, bail out because the code doesn't expect null as a limit ID.
       if ($limitId == null) {
-        $this->throwException('Missing total limit in row:  '.dumpArrayToString($row));
+        self::throwException('Missing total limit in row:  '.dumpArrayToString($row));
       }
       getOrCreate(getOrCreate($timestamps, $fromTs, []), 'starting', [])[] = $limitId;
       getOrCreate(getOrCreate($timestamps, $toTs, []), 'ending', [])[] = $limitId;
@@ -943,7 +943,7 @@ class Wasted {
       foreach (getOrDefault($events, 'ending', []) as $limitId) {
         $n = &$limitCount[$limitId];
         if (!$n) {
-          $this->throwException('Invalid: Limit interval ending before it started');
+          self::throwException('Invalid: Limit interval ending before it started');
         }
         $n--;
         if ($n == 0) {
@@ -1049,71 +1049,72 @@ class Wasted {
    * Returns a TimeLeft instance for one limit. That limit's config, overrides and time spent this
    * week are specified.
    *
-   * This considers the unlock requirement, time slots, override minutes, the  minutes configured
-   * for the day of the week, the default daily minutes. For the last two, possible weekly minutes
-   * are additionally applied.
+   * This considers the unlock requirement, weekly minutes, daily minutes, time slots and overrides
+   * for daily minutes and/or time slots.
+   *
+   * Available time depending on presence/absence of minutes and slots:
+   * - No minutes, no slots: zero
+   * - Minutes, no slots: the minutes
+   * - No minutes, but slots: the slots
+   * - Minutes and slots: minimum from both
    */
   private function computeTimeLeftToday($now, $config, $overrides, $timeSpentByDate) {
     $nowString = getDateString($now);
     $dow = strtolower($now->format('D'));
 
-    // Unlock required and not unlocked? Return zero and no current/next slots.
-    $requireUnlock = getOrDefault($config, 'require_unlock', false);
-    if ($requireUnlock && !getOrDefault($overrides, 'unlocked', false)) {
-      return new TimeLeft(true, 0, [], []);
-    }
-    // Outside of any time slot? Return zero and, if applicable, next slot.
-    $timeLeft = self::evaluateSlots($now, $dow, $config, $overrides);
-    if ($timeLeft->seconds <= 0) {
-      return $timeLeft;
-    }
-    // Minutes overridden? Time slots still apply too, but daily defaults and the weekly limit
-    // don't.
-    $timeSpentToday = getOrDefault($timeSpentByDate, $nowString, 0);
-    if (($minutes = getOrDefault($overrides, 'minutes')) !== null) {
-      $timeLeftToday = min($minutes * 60 - $timeSpentToday, $timeLeft->seconds);
-      return new TimeLeft(false, $timeLeftToday, $timeLeft->currentSlot, $timeLeft->nextSlot);
-    }
-
-    // Compute the regular minutes for today: default, or else day-of-week if present. Zero if
-    // neither is set.
-    $minutesLimitToday = getOrDefault($config, DAILY_LIMIT_MINUTES_PREFIX.'default', 0);
+    // Limit is locked if unlock is required and it's not unlocked.
+    $locked =
+        getOrDefault($config, 'require_unlock', false)
+        && !getOrDefault($overrides, 'unlocked', false);
+    // Extract slots string.
+    $slots = getOrDefault($config, TIME_OF_DAY_LIMIT_PREFIX.'default');
+    $slots = getOrDefault($config, TIME_OF_DAY_LIMIT_PREFIX.$dow, $slots);
+    $slots = getOrDefault($overrides, 'slots', $slots);
+    // Compute the regular minutes for today: default, day-of-week or overridden. Zero if none set,
+    // or in case of NULL (which can happen for overrides).
+    $minutesLimitToday = getOrDefault($config, DAILY_LIMIT_MINUTES_PREFIX.'default');
     $minutesLimitToday = getOrDefault($config, DAILY_LIMIT_MINUTES_PREFIX.$dow, $minutesLimitToday);
-
-    // Possibly further restrict by time left in slot.
-    $timeLeftToday = min($minutesLimitToday * 60 - $timeSpentToday, $timeLeft->seconds);
-
-    // A weekly limit can further shorten the daily limit, but not extend it.
+    $minutesLimitToday = getOrDefault($overrides, 'minutes', $minutesLimitToday);
+    // Compute minutes limit in seconds, considering presence/absence of config.
+    if ($minutesLimitToday === null) {
+      if ($slots === null) {
+        // When a limit is not configured, it is zero.
+        $secondsLimitToday = 0;
+      } else {
+        // When no minutes are set, but slots are, then set the minutes to "rest of day".
+        $tomorrow = (clone $now)->setTime(0, 0)->add(new DateInterval('P1D'));
+        $secondsLimitToday = $tomorrow->getTimestamp() - $now->getTimestamp();
+      }
+    } else {
+      $secondsLimitToday = $minutesLimitToday * 60;
+    }
+    // A weekly limit can further shorten the daily contingent, but not extend it.
     if (isset($config['weekly_limit_minutes'])) {
-      $timeLeftInWeek = $config['weekly_limit_minutes'] * 60 - array_sum($timeSpentByDate);
-      $timeLeftToday = min($timeLeftToday, $timeLeftInWeek);
+      $secondsLeftInWeek = $config['weekly_limit_minutes'] * 60 - array_sum($timeSpentByDate);
+      $secondsLimitToday = min($secondsLimitToday, $secondsLeftInWeek);
+    }
+    // Compute time left in the minutes contingent.
+    $totalSeconds = $secondsLimitToday - getOrDefault($timeSpentByDate, $nowString, 0);
+    $timeLeft = new TimeLeft($locked, $totalSeconds);
+
+    // Apply slots, if set.
+    if ($slots !== null) {
+      self::applySlots($now, $slots, $timeLeft);
     }
 
-    return new TimeLeft(false, $timeLeftToday, $timeLeft->currentSlot, $timeLeft->nextSlot);
+    return $timeLeft;
   }
 
   /**
-   * Takes the current time, day of week, limit config and limit overrides.
+   * Takes the current time, slots string from config/overrides (may be null) and the time left so
+   * far, i.e. computed for the minutes contingent.
    *
-   * Returns an array of: [time left in current slot, [curren slot from, to], [next slot from, to]
-   * (slots are specified in epoch timestamps). If a slot does not exist (no current slot, or no
-   * next slot, or neither), it is set to [].
-   *
-   * This takes into account, in order of increasing precedence, a default time of day limit, a
-   * day-of-week time of day limit, and an explicit override for the day.
+   * Updates current seconds, current slot and next slot in $timeLeft.
    */
-  static function evaluateSlots($now, $dow, $config, $overrides): TimeLeft {
-    $s = getOrDefault($overrides, 'slots');
-    $s = $s !== null ? $s : getOrDefault($config, TIME_OF_DAY_LIMIT_PREFIX . $dow);
-    $s = $s !== null ? $s : getOrDefault($config, TIME_OF_DAY_LIMIT_PREFIX . 'default');
-    if ($s === null) {
-      $tomorrow = (clone $now)->setTime(0, 0)->add(new DateInterval('P1D'));
-      return new TimeLeft(false, $tomorrow->getTimestamp() - $now->getTimestamp(), [], []);
-    }
-
-    $slots = self::getSlotsOrError($now, $s);
+  static function applySlots($now, $slotsString, $timeLeft) {
+    $slots = self::getSlotsOrError($now, $slotsString);
     if (is_string($slots)) {
-      $this->throwException($slots);
+      self::throwException($slots);
     }
 
     $ts = $now->getTimestamp();
@@ -1121,14 +1122,16 @@ class Wasted {
     for ($i = 0; $i < count($slots) - 1; $i++) {
       $slot = $slots[$i];
       if ($slot[0] <= $ts && $ts < $slot[1]) {
-        return new TimeLeft(false, $slot[1] - $ts, $slot, $slots[$i + 1]);
+        $timeLeft->reflectSlots($slot[1] - $ts, $slot, $slots[$i + 1]);
+        return;
       }
-      if ($ts < $slot[0]) { // this is the next slot
-        return new TimeLeft(false, 0, [], $slot);
+      if ($ts < $slot[0]) { // next slot is in the future
+        $timeLeft->reflectSlots(0, [], $slot);
+        return;
       }
     }
 
-    return new TimeLeft(false, 0, [], []);
+    $timeLeft->reflectSlots(0, [], []);
   }
 
   /**
@@ -1197,7 +1200,7 @@ class Wasted {
       if (!array_key_exists($classId, $classes)) {
         $classes[$classId] = [$row['name'], PHP_INT_MAX];
       }
-      $newLimit = $timeLeftTodayAllLimits[$row['limit_id']]->seconds;
+      $newLimit = $timeLeftTodayAllLimits[$row['limit_id']]->currentSeconds;
       $classes[$classId][1] = min($classes[$classId][1], $newLimit);
     }
     // Remove classes for which no time is left.
@@ -1335,10 +1338,11 @@ class Wasted {
     $overridesByLimit = [];
     // PK is (user, date, limit_id), so there is at most one row per limit_id.
     foreach ($rows as $row) {
-      $overridesByLimit[$row['limit_id']] = [
+      $overridesByLimit[$row['limit_id']] = array_filter([
           'minutes' => $row['minutes'],
           'unlocked' => $row['unlocked'],
-          'slots' => $row['slots']];
+          'slots' => $row['slots']],
+          function ($v) { return $v !== null; }); // remove NULL for easier use with getOrDefault()
     }
     return $overridesByLimit;
   }
@@ -1371,7 +1375,7 @@ class Wasted {
     return $windowTitles;
   }
 
-  private function throwException($message) {
+  private static function throwException($message) {
     Logger::Instance()->critical($message);
     throw new Exception($message);
   }

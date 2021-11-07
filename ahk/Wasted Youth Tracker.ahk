@@ -362,7 +362,6 @@ ShowOrDestroyTimeUpGui(newlyDoomed, timeUp) {
   }
   if (!newlyDoomed)
     return ; Don't reshow the GUI when nothing was added.
-
   BuildTimeGui("TimeUp", "Time Up", "Time is up for:", timeUp)
   Gui, Show, xCenter Y42 NoActivate
   SoundTimeUp()

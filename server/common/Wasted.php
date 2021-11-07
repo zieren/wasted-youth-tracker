@@ -1078,14 +1078,16 @@ class Wasted {
     // Compute minutes limit in seconds, considering presence/absence of config.
     if ($minutesLimitToday === null) {
       if ($slots === null) {
-        // When a limit is not configured, it is zero.
+        // When a limit is totally not configured, available time is zero.
         $secondsLimitToday = 0;
       } else {
-        // When no minutes are set, but slots are, then set the minutes to "rest of day".
+        // When no daily minutes are set, but slots are used, then set the minutes to "rest of day".
+        // They may later be further limited by the weekly minutes.
         $tomorrow = (clone $now)->setTime(0, 0)->add(new DateInterval('P1D'));
         $secondsLimitToday = $tomorrow->getTimestamp() - $now->getTimestamp();
       }
     } else {
+      // Minutes are set.
       $secondsLimitToday = $minutesLimitToday * 60;
     }
     // A weekly limit can further shorten the daily contingent, but not extend it.
@@ -1119,19 +1121,30 @@ class Wasted {
 
     $ts = $now->getTimestamp();
     $slots[] = []; // avoids next slot extraction special case
+    $currentSeconds = 0;
+    $totalSeconds = 0;
+    $currentSlot = [];
+    $nextSlot = [];
     for ($i = 0; $i < count($slots) - 1; $i++) {
       $slot = $slots[$i];
       if ($slot[0] <= $ts && $ts < $slot[1]) {
-        $timeLeft->reflectSlots($slot[1] - $ts, $slot, $slots[$i + 1]);
-        return;
+        $totalSeconds = $currentSeconds = $slot[1] - $ts;
+        $currentSlot = $slot;
+        $nextSlot = $slots[$i + 1];
+        $i++;
+        break;
       }
       if ($ts < $slot[0]) { // next slot is in the future
-        $timeLeft->reflectSlots(0, [], $slot);
-        return;
+        $nextSlot = $slot;
+        break;
       }
     }
+    // Sum up remaining time in slots.
+    for (; $i < count($slots) - 1; $i++) {
+      $totalSeconds += $slots[$i][1] - $slots[$i][0];
+    }
 
-    $timeLeft->reflectSlots(0, [], []);
+    $timeLeft->reflectSlots($currentSeconds, $totalSeconds, $currentSlot, $nextSlot);
   }
 
   /**

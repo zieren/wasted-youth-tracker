@@ -26,10 +26,11 @@ class RX {
    * Calculator
    *
    * The response contains two parts. The first part lists all limits configured for the user, the
-   * remaining time (starting right now) in seconds, the current time slot (if any), the next time
-   * slot (if any), and the limit's name:
+   * remaining time (starting right now) in seconds, the remaining time today (possibly in an
+   * upcoming slot), the current time slot (if any), the next time slot (if any), and the limit's
+   * name:
    *
-   * limitId ";" timeLeftToday ";" currentSlot ";" nextSlot ";" limitName
+   * limitId ";" timeLeftNow ";" timeLeftToday ";" currentSlot ";" nextSlot ";" limitName
    *
    * The second part, separated by a blank line, lists the limits to which each window title maps,
    * in the order they appear in the request. If multiple limits match a title, they are separated
@@ -39,9 +40,9 @@ class RX {
    *
    * Example response for the above request:
    *
-   * 10;42;16:00-18:00;;Games
-   * 11;23;16:00-18:00;;Minecraft
-   * 12;666;08:00-13:00;15:00-16:00;School
+   * 10;42;42;16:00-18:00;;Games
+   * 11;23;53;16:00-18:00;18:30-19:00;Minecraft
+   * 12;666;666;08:00-13:00;15:00-16:00;School
    *
    * 10,11
    * 12

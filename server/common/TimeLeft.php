@@ -5,8 +5,8 @@ class TimeLeft {
   /** Whether the limit is locked. */
   public $locked;
   /**
-   * Seconds left before the minutes budget for the day runs out or the current slot ends, i.e. time
-   * until the user has to close running programs. Zero if the limit is locked.
+   * Seconds left before the minutes condingent for the day runs out or the current slot ends, i.e.
+   * time until the user has to close running programs. Zero if the limit is locked.
    */
   public $currentSeconds;
   /** Total number of seconds left today, ignoring slots. */
@@ -22,15 +22,18 @@ class TimeLeft {
    */
   public function __construct($locked, $totalSeconds) {
     $this->locked = $locked;
+    // It is clearer for the user, and easier for the client to process, when we set this to zero
+    // for locked limits.
     $this->currentSeconds = $locked ? 0 : $totalSeconds;
     $this->totalSeconds = $totalSeconds;
     $this->currentSlot = [];
     $this->nextSlot = [];
   }
 
-  /** Reflect the restrictions from the specified slots. */
-  public function reflectSlots($currentSeconds, $currentSlot, $nextSlot): TimeLeft {
+  /** Reflect the restrictions computed from time slots. */
+  public function reflectSlots($currentSeconds, $totalSeconds, $currentSlot, $nextSlot): TimeLeft {
     $this->currentSeconds = min($this->currentSeconds, $currentSeconds);
+    $this->totalSeconds = min($this->totalSeconds, $totalSeconds);
     $this->currentSlot = $currentSlot;
     $this->nextSlot = $nextSlot;
     return $this;

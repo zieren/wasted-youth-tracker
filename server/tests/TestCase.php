@@ -45,8 +45,9 @@ abstract class TestCase {
     $this->onFailMessage[$this->test] = $message;
   }
 
-  protected function assertEquals($actual, $expected): void {
-    if ((is_object($expected) && $actual == $expected) || $actual === $expected) {
+  protected function assertEquals($actual, $expected, $useContentEquality = false): void {
+    if ((($useContentEquality || is_object($expected)) && $actual == $expected)
+        || $actual === $expected) {
       return;
     }
 

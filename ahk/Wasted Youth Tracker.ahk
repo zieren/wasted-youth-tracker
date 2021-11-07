@@ -291,7 +291,7 @@ DoTheThing(showStatusGui) {
     ShowStatusGui(limits, limitsToTitles)
 }
 
-ToGuiRow(limit, title = "") {
+ToGuiRow(limit, title := "") {
   locked := limit["locked"] ? "L" : ""
   name := limit["name"]
   remaining := FormatSeconds(limit["remaining"])
@@ -350,7 +350,7 @@ ShowOrDestroyTimeLowGui(newlyWarned, timeLow) {
   }
   if (!newlyWarned)
     return ; Don't reshow the GUI when nothing was added.
-  BuildTimeGui("TimeLow", "Time Low", "Time is low for:", timeLow)
+  BuildTimeGui("TimeLow", "Time Low", "Time is low for:", timeLow, "AlwaysOnTop")
   Gui, Show, X42 Y42 NoActivate
   SoundTimeLow()
 }
@@ -362,15 +362,15 @@ ShowOrDestroyTimeUpGui(newlyDoomed, timeUp) {
   }
   if (!newlyDoomed)
     return ; Don't reshow the GUI when nothing was added.
-  BuildTimeGui("TimeUp", "Time Up", "Time is up for:", timeUp)
+  BuildTimeGui("TimeUp", "Time Up", "Time is up for:", timeUp, "AlwaysOnTop")
   Gui, Show, xCenter Y42 NoActivate
   SoundTimeUp()
 }
 
-BuildTimeGui(guiName, guiTitle, guiMessage, listLimitAndTitle) {
+BuildTimeGui(guiName, guiTitle, guiMessage, listLimitAndTitle, options := "") {
   totalRows := listLimitAndTitle.Length()
   displayRows := Min(20, totalRows)
-  Gui, %guiName%:New, AlwaysOnTop, %APP_NAME% - %guiTitle%
+  Gui, %guiName%:New, %options%, %APP_NAME% - %guiTitle%
   if (guiMessage)
     Gui, Add, Text,, %guiMessage%
   AddGuiListView(displayRows, totalRows)

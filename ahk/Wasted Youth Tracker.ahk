@@ -328,25 +328,18 @@ ShowStatusGui(limits, limitsToTitles) {
   bottomRows := []
   for name, limit in limitsSorted {
     for ignored, title in limitsToTitles[limit["id"]] {
-      topRows.Push(ToGuiRow(limit, title))
+      topRows.Push([limit, title])
     }
     ; Put limits that don't affect current titles at the bottom.
     if (!limitsToTitles[limit["id"]].Length()) {
-      bottomRows.Push(ToGuiRow(limit))
+      bottomRows.Push([limit, ""])
     }
   }
+  
+  listLimitAndTitle := topRows
+  listLimitAndTitle.Push(bottomRows)
 
-  totalRows := topRows.Length() + bottomRows.Length()
-  displayRows := Min(20, totalRows)
-  Gui, Status:New, , %APP_NAME% - Status
-  AddGuiListView(displayRows, totalRows)
-  for ignored, rows in [topRows, bottomRows] {
-    for ignored, row in rows {
-      AddGuiRow(row)
-    }
-  }
-  SetGuiColumnWidths()
-  Gui, Add, Button, w80 x310 gStatusGuiOK, &OK
+  BuildTimeGui("Status", "Status", "", listLimitAndTitle)
   Gui, Show
 }
 
@@ -357,16 +350,7 @@ ShowOrDestroyTimeLowGui(newlyWarned, timeLow) {
   }
   if (!newlyWarned)
     return ; Don't reshow the GUI when nothing was added.
-  totalRows := timeLow.Length()
-  displayRows := Min(20, totalRows)
-  Gui, TimeLow:New, AlwaysOnTop, %APP_NAME% - Time Low
-  Gui, Add, Text,, Time is low for:
-  AddGuiListView(displayRows, totalRows)
-  for ignored, limitAndTitle in timeLow {
-    AddGuiRow(ToGuiRow(limitAndTitle[1], limitAndTitle[2]))
-  }
-  SetGuiColumnWidths()
-  Gui, Add, Button, w80 x310 gTimeLowGuiOK, &OK
+  BuildTimeGui("TimeLow", "Time Low", "Time is low for:", timeLow)
   Gui, Show, X42 Y42 NoActivate
   SoundTimeLow()
 }
@@ -379,18 +363,23 @@ ShowOrDestroyTimeUpGui(newlyDoomed, timeUp) {
   if (!newlyDoomed)
     return ; Don't reshow the GUI when nothing was added.
 
-  totalRows := timeUp.Length()
+  BuildTimeGui("TimeUp", "Time Up", "Time is up for:", timeUp)
+  Gui, Show, xCenter Y42 NoActivate
+  SoundTimeUp()
+}
+
+BuildTimeGui(guiName, guiTitle, guiMessage, listLimitAndTitle) {
+  totalRows := listLimitAndTitle.Length()
   displayRows := Min(20, totalRows)
-  Gui, TimeUp:New, AlwaysOnTop, %APP_NAME% - Time Up
-  Gui, Add, Text,, Time is up for:
+  Gui, %guiName%:New, AlwaysOnTop, %APP_NAME% - %guiTitle%
+  if (guiMessage)
+    Gui, Add, Text,, %guiMessage%
   AddGuiListView(displayRows, totalRows)
-  for ignored, limitAndTitle in timeUp {
+  for ignored, limitAndTitle in listLimitAndTitle {
     AddGuiRow(ToGuiRow(limitAndTitle[1], limitAndTitle[2]))
   }
   SetGuiColumnWidths()
-  Gui, Add, Button, w80 x310 gTimeUpGuiOK, &OK
-  Gui, Show, xCenter Y42 NoActivate
-  SoundTimeUp()
+  Gui, Add, Button, w80 x310 g%guiName%GuiOK, &OK
 }
 
 SoundTimeUp() {

@@ -2422,7 +2422,52 @@ final class WastedTest extends WastedTestBase {
         true);
   }
 
-  // TODO: Test computation of effective slots (overrides etc.).
+  public function testSlotOverrides(): void {
+    $now = $this->newDateTime();
+    $this->mockTime = $now->setTime(9, 0)->getTimestamp();
+    $limitId = $this->totalLimitId['u1'];
+    $dow = strtolower($now->format('D'));
+    $slots = [ // default, day-of-week, override
+        self::slot($now, 10, 0, 11, 0),
+        self::slot($now, 11, 0, 12, 0),
+        self::slot($now, 12, 0, 13, 0)];
+    // pattern: override day-of-week default
+    // value is index in $slots
+    $cases = [
+        -1, // 000
+        0, // 001
+        1, // 010
+        1, // 011
+        2, // 100
+        2, // 101
+        2, // 110
+        2, // 111
+    ];
+
+    for ($i = 0; $i < count($cases); $i++) {
+      $this->onFailMessage("case: $i");
+      $this->wasted->clearLimitConfig($limitId, TIME_OF_DAY_LIMIT_PREFIX.'default');
+      $this->wasted->clearLimitConfig($limitId, TIME_OF_DAY_LIMIT_PREFIX.$dow);
+      $this->wasted->clearOverrides('u1', $this->dateString(), $limitId);
+      if ($i & 1) {
+        $this->wasted->setLimitConfig($limitId, TIME_OF_DAY_LIMIT_PREFIX.'default', '10-11');
+      }
+      if ($i & 2) {
+        $this->wasted->setLimitConfig($limitId, TIME_OF_DAY_LIMIT_PREFIX.$dow, '11-12');
+      }
+      if ($i & 4) {
+        $this->wasted->setOverrideSlots('u1', $this->dateString(), $limitId, '12-13');
+      }
+      $timeLeft = $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId];
+      if ($cases[$i] >= 0) {
+        $this->assertEquals($timeLeft->nextSlot, $slots[$cases[$i]]);
+      } else {
+        $this->assertEquals($timeLeft->nextSlot, []);
+      }
+    }
+  }
+
+  // TODO: Test computation of effective minutes (overrides etc.).
   // TODO: Test all minutes/slots absent/present combinations.
   // TODO: Test other recent changes.
   // TODO: Test invalid slot spec handling.

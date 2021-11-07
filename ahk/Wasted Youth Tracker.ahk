@@ -337,7 +337,7 @@ ShowStatusGui(limits, limitsToTitles) {
   }
   
   listLimitAndTitle := topRows
-  listLimitAndTitle.Push(bottomRows)
+  listLimitAndTitle.Push(bottomRows*) ; pass as variadic args
 
   BuildTimeGui("Status", "Status", "", listLimitAndTitle)
   Gui, Show

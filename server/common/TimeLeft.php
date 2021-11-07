@@ -38,7 +38,7 @@ class TimeLeft {
 
   public function toClientResponse() {
     $date = new DateTime();
-    $response = [$this->locked ? 1 : 0, $this->currentSeconds];
+    $response = [$this->locked ? 1 : 0, $this->currentSeconds, $this->totalSeconds];
     foreach ([$this->currentSlot, $this->nextSlot] as $slot) {
       if ($slot) {
         $response[] =

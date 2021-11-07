@@ -228,8 +228,14 @@ DoTheThing(showStatusGui) {
     }
     switch (section) {
       case 1:
-        s := StrSplit(line, ";", "", 6)
-        limits[s[1]] := {"id": s[1], "locked": s[2], "remaining": s[3], "currentSlot": s[4], "nextSlot": s[5], "name": s[6]}
+        s := StrSplit(line, ";", "", 7)
+        limits[s[1]] := {"id": s[1]}
+        limits[s[1]]["locked"] := s[2]
+        limits[s[1]]["remaining"] := s[3]
+        limits[s[1]]["total"] := s[4] ; ? rename this and the above
+        limits[s[1]]["currentSlot"] := s[5]
+        limits[s[1]]["nextSlot"] := s[6]
+        limits[s[1]]["name"] := s[7]
       case 2:
         title := indexToTitle[index++]
         limitIds := StrSplit(line, ",")
@@ -250,9 +256,9 @@ DoTheThing(showStatusGui) {
   ; about, show the GUI with all warnings (but don't show "time low" for limits for which no titles
   ; are active). If there are no warnings at all, destroy the GUI.
 
-  ; Find limits whose time is low or up.
-  timeLow := [] ; entries: [limit, title, remaining]
-  timeUp := [] ; entries: [limit, title]
+  ; Find limits whose time is low or up. Entries: [limit, title]
+  timeLow := []
+  timeUp := []
   newlyWarned := false
   newlyDoomed := false
   for id, limit in limits {
@@ -260,12 +266,12 @@ DoTheThing(showStatusGui) {
       ; This shows a title that maps to N limits N times in the list. This is useful so the kid
       ; knows which limits would need to be extended.
       for ignored, title in limitsToTitles[id] {
-        timeUp.Push([limit["name"], title])
+        timeUp.Push([limit, title])
         newlyDoomed |= DoomWindow(windows[title], title)
       }
     } else if (limit["remaining"] <= 300) { ; TODO: 300 -> config option
       for ignored, title in limitsToTitles[id] {
-        timeLow.Push([limit["name"], title, limit["remaining"]])
+        timeLow.Push([limit, title])
         if (!WARNED_LIMITS[id]) {
           ; We have warned about at least one current title. Don't warn about future titles.
           WARNED_LIMITS[id] := 1
@@ -278,14 +284,73 @@ DoTheThing(showStatusGui) {
   }
 
   ; "Time low" is shown in top left corner, "time up" in top center.
-  ShowTimeLowGui(newlyWarned, timeLow)
-  ShowTimeUpGui(newlyDoomed, timeUp)
+  ShowOrDestroyTimeLowGui(newlyWarned, timeLow)
+  ShowOrDestroyTimeUpGui(newlyDoomed, timeUp)
 
   if (showStatusGui)
     ShowStatusGui(limits, limitsToTitles)
 }
 
-ShowTimeLowGui(newlyWarned, timeLow) {
+ToGuiRow(limit, title = "") {
+  locked := limit["locked"] ? "L" : ""
+  name := limit["name"]
+  remaining := FormatSeconds(limit["remaining"])
+  currentSlot := limit["currentSlot"]
+  nextSlot := limit["nextSlot"]
+  total := FormatSeconds(limit["total"])
+  return [locked, name, title, remaining, currentSlot, nextSlot, total]
+}
+
+AddGuiListView(displayRows, totalRows) {
+  Gui, Add, ListView, r%displayRows% w760 Count%totalRows%, Lock|Limit|Title|Now Left|Current Slot|Next Slot|Total Left
+}
+
+AddGuiRow(row) {
+  LV_Add("", row[1], row[2], row[3], row[4], row[5], row[6], row[7])
+}
+
+SetGuiColumnWidths() {
+  LV_ModifyCol(1, 20)
+  LV_ModifyCol(2, 100)
+  LV_ModifyCol(3, 300)
+  LV_ModifyCol(4, 60)
+  LV_ModifyCol(5, 100)
+  LV_ModifyCol(6, 100)
+  LV_ModifyCol(7, 60)
+}
+
+ShowStatusGui(limits, limitsToTitles) {
+  limitsSorted := {}
+  for id, limit in limits {
+    limitsSorted[limit["name"]] := limit
+  }
+  topRows := []
+  bottomRows := []
+  for name, limit in limitsSorted {
+    for ignored, title in limitsToTitles[limit["id"]] {
+      topRows.Push(ToGuiRow(limit, title))
+    }
+    ; Put limits that don't affect current titles at the bottom.
+    if (!limitsToTitles[limit["id"]].Length()) {
+      bottomRows.Push(ToGuiRow(limit))
+    }
+  }
+
+  totalRows := topRows.Length() + bottomRows.Length()
+  displayRows := Min(20, totalRows)
+  Gui, Status:New, , %APP_NAME% - Status
+  AddGuiListView(displayRows, totalRows)
+  for ignored, rows in [topRows, bottomRows] {
+    for ignored, row in rows {
+      AddGuiRow(row)
+    }
+  }
+  SetGuiColumnWidths()
+  Gui, Add, Button, w80 x310 gStatusGuiOK, &OK
+  Gui, Show
+}
+
+ShowOrDestroyTimeLowGui(newlyWarned, timeLow) {
   if (!timeLow.Length()) {
     Gui, TimeLow:Destroy ; No active titles with low limits.
     return
@@ -296,21 +361,17 @@ ShowTimeLowGui(newlyWarned, timeLow) {
   displayRows := Min(20, totalRows)
   Gui, TimeLow:New, AlwaysOnTop, %APP_NAME% - Time Low
   Gui, Add, Text,, Time is low for:
-  Gui, Add, ListView, r%displayRows% w700 Count%totalRows%, Limit|Title|Time Left|Current Slot|Next Slot
-  for ignored, row in timeLow {
-    LV_Add("", row[1], row[2], FormatSeconds(row[3]), "", "")
+  AddGuiListView(displayRows, totalRows)
+  for ignored, limitAndTitle in timeLow {
+    AddGuiRow(ToGuiRow(limitAndTitle[1], limitAndTitle[2]))
   }
-  LV_ModifyCol(1, 100)
-  LV_ModifyCol(2, 300)
-  LV_ModifyCol(3, 60)
-  LV_ModifyCol(4, 100)
-  LV_ModifyCol(5, 100)
+  SetGuiColumnWidths()
   Gui, Add, Button, w80 x310 gTimeLowGuiOK, &OK
   Gui, Show, X42 Y42 NoActivate
   SoundTimeLow()
 }
 
-ShowTimeUpGui(newlyDoomed, timeUp) {
+ShowOrDestroyTimeUpGui(newlyDoomed, timeUp) {
   if (!timeUp.Length()) {
     Gui, TimeUp:Destroy ; All windows were closed/terminated.
     return
@@ -322,14 +383,11 @@ ShowTimeUpGui(newlyDoomed, timeUp) {
   displayRows := Min(20, totalRows)
   Gui, TimeUp:New, AlwaysOnTop, %APP_NAME% - Time Up
   Gui, Add, Text,, Time is up for:
-  Gui, Add, ListView, r%displayRows% w700 Count%totalRows%, Limit|Title|Current Slot|Next Slot
-  for ignored, row in timeUp {
-    LV_Add("", row[1], row[2], "", "")
+  AddGuiListView(displayRows, totalRows)
+  for ignored, limitAndTitle in timeUp {
+    AddGuiRow(ToGuiRow(limitAndTitle[1], limitAndTitle[2]))
   }
-  LV_ModifyCol(1, 100)
-  LV_ModifyCol(2, 300)
-  LV_ModifyCol(3, 100)
-  LV_ModifyCol(4, 100)
+  SetGuiColumnWidths()
   Gui, Add, Button, w80 x310 gTimeUpGuiOK, &OK
   Gui, Show, xCenter Y42 NoActivate
   SoundTimeUp()
@@ -407,46 +465,6 @@ DoomWindow(window, title) {
     }
   }
   return newlyDoomed
-}
-
-ShowStatusGui(limits, limitsToTitles) {
-  limitsSorted := {}
-  for id, limit in limits {
-    limitsSorted[limit["name"]] := limit
-  }
-  topRows := []
-  bottomRows := []
-  for name, limit in limitsSorted {
-    remaining := FormatSeconds(limit["remaining"])
-    currentSlot := limit["currentSlot"]
-    nextSlot := limit["nextSlot"]
-    locked := limit["locked"] ? "L" : ""
-    for ignored, title in limitsToTitles[limit["id"]] {
-      topRows.Push([locked, name, title, remaining, currentSlot, nextSlot])
-    }
-    ; Put limits that don't affect current titles at the bottom.
-    if (!limitsToTitles[limit["id"]].Length()) {
-      bottomRows.Push([locked, name, "", remaining, currentSlot, nextSlot])
-    }
-  }
-
-  totalRows := topRows.Length() + bottomRows.Length()
-  displayRows := Min(20, totalRows)
-  Gui, Status:New, , %APP_NAME% - Status
-  Gui, Add, ListView, r%displayRows% w700 Count%totalRows%, Lock|Limit|Title|Time Left|Current Slot|Next Slot
-  for ignored, rows in [topRows, bottomRows] {
-    for ignored, row in rows {
-      LV_Add("", row[1], row[2], row[3], row[4], row[5], row[6])
-    }
-  }
-  LV_ModifyCol(1, 20)
-  LV_ModifyCol(2, 100)
-  LV_ModifyCol(3, 300)
-  LV_ModifyCol(4, 60)
-  LV_ModifyCol(5, 100)
-  LV_ModifyCol(6, 100)
-  Gui, Add, Button, w80 x310 gStatusGuiOK, &OK
-  Gui, Show
 }
 
 RequestConfig() {

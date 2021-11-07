@@ -44,6 +44,7 @@ class WastedTestBase extends TestCase {
 
   protected function newDateTime() {
     $d = new DateTime();
+    // Specifying the timestamp on creation sets TZ=UTC, which clashes with the server code.
     $d->setTimestamp($this->mockTime);
     return $d;
   }

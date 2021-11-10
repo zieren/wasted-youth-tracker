@@ -326,7 +326,7 @@ class Wasted {
     DB::update('users', ['total_limit_id' => $limitId], 'id = %s', $user);
     // TODO: This is inaccurate when DST changes backward and the day has 25h, or for some other
     // reason the day isn't 24h long.
-    $this->setLimitConfig($limitId, DAILY_LIMIT_MINUTES_PREFIX . 'default', 24 * 60 * 60);
+    $this->setLimitConfig($limitId, DAILY_LIMIT_MINUTES_PREFIX . 'default', 24 * 60);
 
     // Map all existing classes to the total limit and install a trigger that adds each newly
     // added class to this limit.

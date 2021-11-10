@@ -1702,15 +1702,18 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->addMapping($classId3, $limitId4);
     $this->wasted->addMapping($classId4, $limitId4);
     $this->wasted->addMapping($classId4, $limitId5);
+    $this->wasted->setLimitConfig($limitId2, 'foo', 'bar');
+    $this->wasted->setLimitConfig($limitId3, 'a', 'b');
+    $this->wasted->setLimitConfig($limitId3, 'c', 'd');
 
     $this->assertEquals(
         $this->wasted->getLimitsToClassesTable('u1'), [
-        ['b2', 'c2', ''],
-        ['b2', 'c3', 'b3, b4'],
-        ['b3', 'c3', 'b2, b4'],
-        ['b4', 'c3', 'b2, b3'],
-        ['b4', 'c4', 'b5'],
-        ['b5', 'c4', 'b4']
+        ['b2', 'c2', '', 'foo=bar'],
+        ['b2', 'c3', 'b3, b4', 'foo=bar'],
+        ['b3', 'c3', 'b2, b4', 'a=b, c=d'],
+        ['b4', 'c3', 'b2, b3', ''],
+        ['b4', 'c4', 'b5', ''],
+        ['b5', 'c4', 'b4', '']
     ]);
   }
 
@@ -2472,6 +2475,7 @@ final class WastedTest extends WastedTestBase {
   // TODO: Test other recent changes.
   // TODO: Test invalid slot spec handling.
   // TODO: Test total time returned.
+  // TODO: Test that the locked flag is returned and minutes are set correctly in that case.
 
   // TODO: Special case slot config -> validate.
 

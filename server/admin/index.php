@@ -285,7 +285,7 @@ echoTable(
     'titled collapsible limitTdWidth');
 
 echo '<hr><h4>Limits and classes</h4>';
-echoTable(['Limit', 'Class', 'Further limits'], $wasted->getLimitsToClassesTable($user));
+echoTable(['Limit', 'Class', 'Further limits', 'Config'], $wasted->getLimitsToClassesTable($user));
 
 echo '<h4>Map class to limit</h4>
 <form method="post" action="index.php">

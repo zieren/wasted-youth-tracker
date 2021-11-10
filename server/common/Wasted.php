@@ -458,7 +458,8 @@ class Wasted {
         'SELECT
            limits.name as lim,
            classes.name AS class,
-           CASE WHEN n = 1 THEN "" ELSE other_limits END
+           CASE WHEN n = 1 THEN "" ELSE other_limits END,
+           cfg
          FROM (
            SELECT
              limit_id,
@@ -506,6 +507,17 @@ class Wasted {
          ) AS result
          JOIN classes ON class_id = classes.id
          JOIN limits ON limit_id = limits.id
+         LEFT JOIN (
+           SELECT
+             limit_id,
+             GROUP_CONCAT(config_text ORDER BY config_text SEPARATOR ", ") AS cfg
+           FROM (
+             SELECT limit_id, CONCAT(k, "=", v) AS config_text
+             FROM limit_config
+           ) AS limit_config_text
+           GROUP BY limit_id
+         ) AS limit_config_texts
+         ON limit_config_texts.limit_id = limits.id
          ORDER BY lim, class',
         $user);
     $table = [];
@@ -513,7 +525,8 @@ class Wasted {
       $table[] = [
           $row['lim'] ?? '',
           $row['class'] ?? '',
-          $row['CASE WHEN n = 1 THEN "" ELSE other_limits END']]; // can't alias CASE
+          $row['CASE WHEN n = 1 THEN "" ELSE other_limits END'], // can't alias CASE
+          $row['cfg'] ?? ''];
     }
     return $table;
   }

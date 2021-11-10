@@ -452,6 +452,8 @@ class Wasted {
   /**
    * Returns a table listing all limits, their classes and their configs. For each class, all other
    * limits affecting this class are also listed ("" if there are none).
+   *
+   * The total limit is omitted, except when a class is mapped only to this limit.
    */
   public function getLimitsToClassesTable($user) {
     $rows = DB::query(
@@ -504,6 +506,17 @@ class Wasted {
              HAVING limit_id != other_limit_id OR n = 1
            ) AS user_mappings_non_redundant
            GROUP BY limit_id, class_id, n
+           UNION
+           SELECT limit_id, class_id, "", ""
+           FROM mappings
+           JOIN limits ON mappings.limit_id = limits.id
+           WHERE limits.id = (SELECT total_limit_id FROM users WHERE id = %s0)
+           AND class_id NOT IN (
+             SELECT class_id FROM mappings
+             JOIN limits ON mappings.limit_id = limits.id
+             WHERE user = %s0
+             AND limits.id != (SELECT total_limit_id FROM users WHERE id = %s0)
+           )
          ) AS result
          JOIN classes ON class_id = classes.id
          JOIN limits ON limit_id = limits.id

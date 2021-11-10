@@ -1713,7 +1713,9 @@ final class WastedTest extends WastedTestBase {
         ['b3', 'c3', 'b2, b4', 'a=b, c=d'],
         ['b4', 'c3', 'b2, b3', ''],
         ['b4', 'c4', 'b5', ''],
-        ['b5', 'c4', 'b4', '']
+        ['b5', 'c4', 'b4', ''],
+        ['Total', 'c1', '', ''],
+        ['Total', DEFAULT_CLASS_NAME, '', '']
     ]);
   }
 

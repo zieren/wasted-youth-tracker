@@ -419,7 +419,7 @@ class Wasted {
    * Returns configs of all limits for the specified user. Returns a 2D array
    * $configs[$limitId][$key] = $value. The array is sorted by limit ID.
    *
-   * Two synthetic configs are injected: 'name' for the limit name, and 'is_total' (mapped to true)
+   * Two synthetic configs are injected: 'name' for the limit name, and 'is_total', mapped to true
    * for the single total limit.
    */
   public function getAllLimitConfigs($user) {
@@ -441,9 +441,7 @@ class Wasted {
         $configs[$limitId][$row['k']] = $row['v'];
       }
       $configs[$limitId]['name'] = $row['name'];
-      if ($row['total_limit_id']) {
-        $configs[$limitId]['is_total'] = true;
-      }
+      $configs[$limitId]['is_total'] = $row['total_limit_id'] ? true : false;
     }
     ksort($configs);
     return $configs;

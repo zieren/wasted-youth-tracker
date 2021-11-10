@@ -450,8 +450,8 @@ class Wasted {
   }
 
   /**
-   * Returns a table listing all limits and their classes. For each class the last column lists
-   * all other limits affecting this class ("" if there are none).
+   * Returns a table listing all limits, their classes and their configs. For each class, all other
+   * limits affecting this class are also listed ("" if there are none).
    */
   public function getLimitsToClassesTable($user) {
     $rows = DB::query(

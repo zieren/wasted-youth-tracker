@@ -44,10 +44,8 @@ final class WastedTest extends WastedTestBase {
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::WARNING);
     $this->wasted->clearForTest();
     // Most tests are easier to read if we count total time down from 0 instead of from 24.
-    $this->wasted->clearLimitConfig(
-        $this->totalLimitId['u1'], DAILY_LIMIT_MINUTES_PREFIX.'default');
-    $this->wasted->clearLimitConfig(
-        $this->totalLimitId['u2'], DAILY_LIMIT_MINUTES_PREFIX.'default');
+    $this->wasted->clearLimitConfig($this->totalLimitId['u1'], 'minutes_day');
+    $this->wasted->clearLimitConfig($this->totalLimitId['u2'], 'minutes_day');
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
     $this->mockTime = 1000;
   }
@@ -591,7 +589,7 @@ final class WastedTest extends WastedTestBase {
         [$totalLimitId => 0, $limitId => 0]);
 
     // Daily limit is 42 minutes.
-    $this->wasted->setLimitConfig($limitId, 'daily_limit_minutes_default', 42);
+    $this->wasted->setLimitConfig($limitId, 'minutes_day', 42);
     $this->assertEquals(
         $this->queryTimeLeftTodayAllLimitsOnlyCurrentSeconds(),
         [$totalLimitId => 0, $limitId => 42 * 60]);
@@ -736,7 +734,7 @@ final class WastedTest extends WastedTestBase {
         [$totalLimitId => 0, $limitId1 => 0]);
 
     // Provide 2 minutes.
-    $this->wasted->setLimitConfig($limitId1, 'daily_limit_minutes_default', 2);
+    $this->wasted->setLimitConfig($limitId1, 'minutes_day', 2);
     $this->assertEquals(
         $this->queryTimeLeftTodayAllLimitsOnlyCurrentSeconds(),
         [$totalLimitId => 0, $limitId1 => 120]);
@@ -779,7 +777,7 @@ final class WastedTest extends WastedTestBase {
     // Add a second limit for title 1 with only 1 minute.
     $limitId2 = $this->wasted->addLimit('u1', 'b2');
     $this->wasted->addMapping($classId, $limitId2);
-    $this->wasted->setLimitConfig($limitId2, 'daily_limit_minutes_default', 1);
+    $this->wasted->setLimitConfig($limitId2, 'minutes_day', 1);
     $this->mockTime += 1;
     $classification1['limits'][] = $limitId2;
     $this->assertEqualsIgnoreOrder(
@@ -967,7 +965,7 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->addClassification($classId1, 0, '1$');
     $limitId1 = $this->wasted->addLimit('u1', 'b1');
     $this->wasted->addMapping($classId1, $limitId1);
-    $this->wasted->setLimitConfig($limitId1, 'daily_limit_minutes_default', 5);
+    $this->wasted->setLimitConfig($limitId1, 'minutes_day', 5);
     $totalId = $this->totalLimitId['u1'];
     $totalName = TOTAL_LIMIT_NAME;
 
@@ -1003,7 +1001,7 @@ final class WastedTest extends WastedTestBase {
     $limitId2 = $this->wasted->addLimit('u1', 'b2');
     $this->wasted->addMapping($classId1, $limitId2);
     $this->wasted->addMapping($classId2, $limitId2);
-    $this->wasted->setLimitConfig($limitId2, 'daily_limit_minutes_default', 2);
+    $this->wasted->setLimitConfig($limitId2, 'minutes_day', 2);
 
     $this->mockTime++;
     $this->assertEquals(
@@ -1034,7 +1032,7 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->addClassification($classId, 0, '1$');
     $limitId1 = $this->wasted->addLimit('u1', 'b1');
     $this->wasted->addMapping($classId, $limitId1);
-    $this->wasted->setLimitConfig($limitId1, 'daily_limit_minutes_default', 1);
+    $this->wasted->setLimitConfig($limitId1, 'minutes_day', 1);
     $totalLimitId = $this->totalLimitId['u2'];
 
     $this->assertEquals(
@@ -1051,7 +1049,7 @@ final class WastedTest extends WastedTestBase {
 
     // Now map same class for user u2.
     $limitId2 = $this->wasted->addLimit('u2', 'b2');
-    $this->wasted->setLimitConfig($limitId2, 'daily_limit_minutes_default', 1);
+    $this->wasted->setLimitConfig($limitId2, 'minutes_day', 1);
     $this->wasted->addMapping($classId, $limitId2);
     $this->mockTime++;
     $this->assertEquals(
@@ -1075,7 +1073,7 @@ final class WastedTest extends WastedTestBase {
   public function testSetOverrideMinutesAndUnlock(): void {
     $limitId = $this->wasted->addLimit('u1', 'b1');
     $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId);
-    $this->wasted->setLimitConfig($limitId, 'daily_limit_minutes_default', 42);
+    $this->wasted->setLimitConfig($limitId, 'minutes_day', 42);
     $this->wasted->setLimitConfig($limitId, 'require_unlock', 1);
     $totalLimitId = $this->totalLimitId['u1'];
 
@@ -1821,7 +1819,7 @@ final class WastedTest extends WastedTestBase {
 
     // Empty when no class exists. (The default class is mapped to the total limit, which is
     // zeroed in the test setup.)
-    $this->wasted->setLimitConfig($limitId1, 'daily_limit_minutes_default', 3);
+    $this->wasted->setLimitConfig($limitId1, 'minutes_day', 3);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), []);
 
     // Empty when class is not mapped to a nonzero limit.
@@ -1829,8 +1827,7 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), []);
 
     // Set the total limit to 10 minutes.
-    $this->wasted->setLimitConfig(
-        $this->totalLimitId['u1'], DAILY_LIMIT_MINUTES_PREFIX.'default', 10);
+    $this->wasted->setLimitConfig($this->totalLimitId['u1'], 'minutes_day', 10);
     // This enables the default class, which will henceforth be present, and c1.
     $this->assertEquals(
         $this->wasted->queryClassesAvailableTodayTable('u1'),
@@ -1847,7 +1844,7 @@ final class WastedTest extends WastedTestBase {
 
     // Add another limit that requires unlocking. No change for now.
     $limitId2 = $this->wasted->addLimit('u1', 'b2');
-    $this->wasted->setLimitConfig($limitId2, 'daily_limit_minutes_default', 2);
+    $this->wasted->setLimitConfig($limitId2, 'minutes_day', 2);
     $this->wasted->setLimitConfig($limitId2, 'require_unlock', 1);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), ['c1 (0:03:00)']);
 
@@ -2366,7 +2363,7 @@ final class WastedTest extends WastedTestBase {
   public function testHandleNullInOverrideSlots(): void {
     $totalLimitId = $this->totalLimitId['u1'];
     $limitId = $this->wasted->addLimit('u1', 'L1');
-    $this->wasted->setLimitConfig($limitId, DAILY_LIMIT_MINUTES_PREFIX . 'default', '1');
+    $this->wasted->setLimitConfig($limitId, 'minutes_day', '1');
     // 23-23 should result in zero time left.
     $this->wasted->setLimitConfig($limitId, TIME_OF_DAY_LIMIT_PREFIX . 'default', '23-23');
     $this->wasted->setOverrideMinutes('u1', $this->dateString(), $limitId, 2);
@@ -2384,14 +2381,14 @@ final class WastedTest extends WastedTestBase {
         true);
 
     // Configure minutes only.
-    $this->wasted->setLimitConfig($totalLimitId, DAILY_LIMIT_MINUTES_PREFIX.'default', '2');
+    $this->wasted->setLimitConfig($totalLimitId, 'minutes_day', '2');
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1'),
         [$totalLimitId => self::timeLeft(120, 120, [], [])],
         true);
 
     // Configure slots only.
-    $this->wasted->clearLimitConfig($totalLimitId, DAILY_LIMIT_MINUTES_PREFIX.'default');
+    $this->wasted->clearLimitConfig($totalLimitId, 'minutes_day');
     $this->wasted->setLimitConfig($totalLimitId, TIME_OF_DAY_LIMIT_PREFIX.'default', '10-11');
     $now = $this->newDateTime()->setTime(10, 59);
     $this->mockTime = $now->getTimestamp();
@@ -2411,7 +2408,7 @@ final class WastedTest extends WastedTestBase {
         true);
 
     // Configure both minutes and slots, total is limited by minutes.
-    $this->wasted->setLimitConfig($totalLimitId, DAILY_LIMIT_MINUTES_PREFIX.'default', '3');
+    $this->wasted->setLimitConfig($totalLimitId, 'minutes_day', '3');
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1'),
         [$totalLimitId => self::timeLeft(
@@ -2419,7 +2416,7 @@ final class WastedTest extends WastedTestBase {
         true);
 
     // Configure both minutes and slots, total is limited by slots.
-    $this->wasted->setLimitConfig($totalLimitId, DAILY_LIMIT_MINUTES_PREFIX.'default', '99');
+    $this->wasted->setLimitConfig($totalLimitId, 'minutes_day', '99');
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1'),
         [$totalLimitId => self::timeLeft(
@@ -2472,7 +2469,7 @@ final class WastedTest extends WastedTestBase {
     }
   }
 
-  // TODO: Test computation of effective minutes (overrides etc.).
+  // TODO: Test computation of effective minutes (overrides, weekday etc.).
   // TODO: Test all minutes/slots absent/present combinations.
   // TODO: Test other recent changes.
   // TODO: Test invalid slot spec handling.

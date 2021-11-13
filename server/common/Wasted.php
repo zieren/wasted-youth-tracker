@@ -3,7 +3,7 @@
 require_once 'common.php';
 require_once 'db.class.php';
 
-define('DAILY_LIMIT_MINUTES_PREFIX', 'daily_limit_minutes_');
+define('DAILY_LIMIT_MINUTES_PREFIX', 'minutes_');
 define('TIME_OF_DAY_LIMIT_PREFIX', 'time_of_day_limit_');
 
 define('CHARSET_AND_COLLATION', 'latin1 COLLATE latin1_german1_ci');
@@ -326,7 +326,7 @@ class Wasted {
     DB::update('users', ['total_limit_id' => $limitId], 'id = %s', $user);
     // TODO: This is inaccurate when DST changes backward and the day has 25h, or for some other
     // reason the day isn't 24h long.
-    $this->setLimitConfig($limitId, DAILY_LIMIT_MINUTES_PREFIX . 'default', 24 * 60);
+    $this->setLimitConfig($limitId, DAILY_LIMIT_MINUTES_PREFIX . 'day', 24 * 60);
 
     // Map all existing classes to the total limit and install a trigger that adds each newly
     // added class to this limit.
@@ -1096,7 +1096,7 @@ class Wasted {
     $slots = getOrDefault($overrides, 'slots', $slots);
     // Compute the regular minutes for today: default, day-of-week or overridden. Zero if none set,
     // or in case of NULL (which can happen for overrides).
-    $minutesLimitToday = getOrDefault($config, DAILY_LIMIT_MINUTES_PREFIX.'default');
+    $minutesLimitToday = getOrDefault($config, DAILY_LIMIT_MINUTES_PREFIX.'day');
     $minutesLimitToday = getOrDefault($config, DAILY_LIMIT_MINUTES_PREFIX.$dow, $minutesLimitToday);
     $minutesLimitToday = getOrDefault($overrides, 'minutes', $minutesLimitToday);
     // Compute minutes limit in seconds, considering presence/absence of config.

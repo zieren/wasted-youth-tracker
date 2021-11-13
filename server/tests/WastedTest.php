@@ -2451,9 +2451,6 @@ final class WastedTest extends WastedTestBase {
     // Test slots.
     for ($i = 0; $i < count($cases); $i++) {
       $this->onFailMessage("slots, case: $i");
-      $this->wasted->clearLimitConfig($limitId, 'times');
-      $this->wasted->clearLimitConfig($limitId, "times_$dow");
-      $this->wasted->clearOverrides('u1', $this->dateString(), $limitId);
       if ($i & 1) {
         $this->wasted->setLimitConfig($limitId, 'times', '10-11');
       }
@@ -2469,17 +2466,14 @@ final class WastedTest extends WastedTestBase {
       } else {
         $this->assertEquals($timeLeft->nextSlot, []);
       }
+      $this->wasted->clearLimitConfig($limitId, 'times');
+      $this->wasted->clearLimitConfig($limitId, "times_$dow");
+      $this->wasted->clearOverrides('u1', $this->dateString(), $limitId);
     }
-
-    $this->wasted->clearLimitConfig($limitId, 'times');
-    $this->wasted->clearLimitConfig($limitId, "times_$dow");
 
     // Test minutes.
     for ($i = 0; $i < count($cases); $i++) {
       $this->onFailMessage("minutes, case: $i");
-      $this->wasted->clearLimitConfig($limitId, 'minutes_day');
-      $this->wasted->clearLimitConfig($limitId, "minutes_$dow");
-      $this->wasted->clearOverrides('u1', $this->dateString(), $limitId);
       if ($i & 1) {
         $this->wasted->setLimitConfig($limitId, 'minutes_day', '1');
       }
@@ -2495,7 +2489,23 @@ final class WastedTest extends WastedTestBase {
       } else {
         $this->assertEquals($timeLeft->currentSeconds, 0);
       }
+      $this->wasted->clearLimitConfig($limitId, 'minutes_day');
+      $this->wasted->clearLimitConfig($limitId, "minutes_$dow");
+      $this->wasted->clearOverrides('u1', $this->dateString(), $limitId);
     }
+  }
+
+  public function testTotalTimeLeft(): void {
+    $now = $this->newDateTime();
+    $this->mockTime = $now->setTime(9, 0)->getTimestamp();
+    $limitId = $this->totalLimitId['u1'];
+    // restore default cleared in setup
+    $this->wasted->setLimitConfig($limitId, 'minutes_day', '1440');
+
+    $seconds = (24 - 9) * 60 * 60;
+    $this->assertEquals(
+        $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
+        self::timeLeft($seconds, $seconds, [], []));
   }
 
   // TODO: Test other recent changes.

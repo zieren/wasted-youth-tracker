@@ -52,9 +52,6 @@ class Wasted {
     foreach (DB::tableList() as $table) {
       if ($table == 'limits') {
         DB::query('DELETE FROM limits WHERE id NOT IN (SELECT total_limit_id FROM users)');
-      } elseif ($table == 'limit_config') {
-        DB::query(
-            'DELETE FROM limit_config WHERE limit_id NOT IN (SELECT total_limit_id FROM users)');
       } elseif ($table == 'mappings') {
         DB::query('DELETE FROM mappings WHERE limit_id NOT IN (SELECT total_limit_id FROM users)');
       } elseif ($table == 'users') {
@@ -1101,22 +1098,24 @@ class Wasted {
         // When a limit is totally not configured, available time is zero.
         $secondsLimitToday = 0;
       } else {
-        // When no daily minutes are set, but slots are used, then set the minutes to "rest of day".
-        // They may later be further limited by the weekly minutes.
-        $tomorrow = (clone $now)->setTime(0, 0)->add(new DateInterval('P1D'));
-        $secondsLimitToday = $tomorrow->getTimestamp() - $now->getTimestamp();
+        // When no daily minutes are set, but slots are used, then set the minutes to "inf". They
+        // are later limited by the optional weekly minutes and always by the time left in the day.
+        $secondsLimitToday = PHP_INT_MAX;
       }
     } else {
       // Minutes are set.
       $secondsLimitToday = $minutesLimitToday * 60;
     }
-    // A weekly limit can further shorten the daily contingent, but not extend it.
+    // A weekly limit can further shorten the minute contingent, but not extend it.
     if (isset($config['weekly_limit_minutes'])) {
       $secondsLeftInWeek = $config['weekly_limit_minutes'] * 60 - array_sum($timeSpentByDate);
       $secondsLimitToday = min($secondsLimitToday, $secondsLeftInWeek);
     }
-    // Compute time left in the minutes contingent.
-    $totalSeconds = $secondsLimitToday - getOrDefault($timeSpentByDate, $nowString, 0);
+    // Compute time left in the minutes contingent. Can't exceed time left in the day.
+    $tomorrow = (clone $now)->setTime(0, 0)->add(new DateInterval('P1D'));
+    $secondsLeftInDay = $tomorrow->getTimestamp() - $now->getTimestamp();
+    $totalSeconds =
+        min($secondsLimitToday - getOrDefault($timeSpentByDate, $nowString, 0), $secondsLeftInDay);
     $timeLeft = new TimeLeft($locked, $totalSeconds);
 
     // Apply slots, if set.

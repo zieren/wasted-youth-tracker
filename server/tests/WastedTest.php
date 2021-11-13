@@ -2257,40 +2257,40 @@ final class WastedTest extends WastedTestBase {
     }
   }
 
-  public function testGetSlotsOrError(): void {
+  public function testSlotsSpecToEpochSlotsOrError(): void {
     $now = $this->newDateTime();
-    $this->assertEquals(Wasted::getSlotsOrError($now, ''), []);
+    $this->assertEquals(Wasted::slotsSpecToEpochSlotsOrError($now, ''), []);
     $this->assertEquals(
-        Wasted::getSlotsOrError($now, '11-13:30'), [
+        Wasted::slotsSpecToEpochSlotsOrError($now, '11-13:30'), [
             self::slot($now, 11, 0, 13, 30)]);
     $this->assertEquals(
-        Wasted::getSlotsOrError($now, '11-13:30, 2:01pm-4:15pm'), [
+        Wasted::slotsSpecToEpochSlotsOrError($now, '11-13:30, 2:01pm-4:15pm'), [
             self::slot($now, 11, 0, 13, 30),
             self::slot($now, 14, 1, 16, 15)]);
     $this->assertEquals(
-        Wasted::getSlotsOrError($now, '11-13:30, 2:01pm-4:15pm  ,  20:00-20:42'), [
+        Wasted::slotsSpecToEpochSlotsOrError($now, '11-13:30, 2:01pm-4:15pm  ,  20:00-20:42'), [
             self::slot($now, 11, 0, 13, 30),
             self::slot($now, 14, 1, 16, 15),
             self::slot($now, 20, 0, 20, 42)]);
     $this->assertEquals(
-        Wasted::getSlotsOrError($now, '0-1, 1:00-2, 20-21:00, 22:00-23:59'), [
+        Wasted::slotsSpecToEpochSlotsOrError($now, '0-1, 1:00-2, 20-21:00, 22:00-23:59'), [
             self::slot($now, 0, 0, 1, 0),
             self::slot($now, 1, 0, 2, 0),
             self::slot($now, 20, 0, 21, 0),
             self::slot($now, 22, 0, 23, 59)]);
     $this->assertEquals(
-        Wasted::getSlotsOrError($now, '7:30-12p, 12a-1'), [
+        Wasted::slotsSpecToEpochSlotsOrError($now, '7:30-12p, 12a-1'), [
             self::slot($now, 0, 0, 1, 0),
             self::slot($now, 7, 30, 12, 0)]);
 
     $this->assertEquals(
-        Wasted::getSlotsOrError($now, '1-2, 20-30'),
+        Wasted::slotsSpecToEpochSlotsOrError($now, '1-2, 20-30'),
         "Invalid time slot: '20-30'");
     $this->assertEquals(
-        Wasted::getSlotsOrError($now, '1-2, 17:60 - 18:10'),
+        Wasted::slotsSpecToEpochSlotsOrError($now, '1-2, 17:60 - 18:10'),
         "Invalid time slot: '17:60 - 18:10'");
     $this->assertEquals(
-        Wasted::getSlotsOrError($now, '1-2, 17:a - 18:10'),
+        Wasted::slotsSpecToEpochSlotsOrError($now, '1-2, 17:a - 18:10'),
         "Invalid time slot: '17:a - 18:10'");
   }
 
@@ -2534,7 +2534,8 @@ final class WastedTest extends WastedTestBase {
 
   public function testInvalidSlotSpec(): void {
     $limitId = $this->totalLimitId['u1'];
-    foreach (['invalid', '1-3, 2-4'] as $slots) {
+    $invalidSlotsList = ['invalid', '1-3, 2-4', '23-24:01', '23-25:00', '1:77-2', '2-1'];
+    foreach ($invalidSlotsList as $slots) {
       $this->onFailMessage("slot spec: $slots");
       try {
         $this->wasted->setLimitConfig($limitId, 'times', $slots);
@@ -2543,7 +2544,7 @@ final class WastedTest extends WastedTestBase {
         // expected
       }
       foreach (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as $dow) {
-        $this->onFailMessage("day of week: $dow");
+        $this->onFailMessage("slot spec: $slots; day of week: $dow");
         try {
           $this->wasted->setLimitConfig($limitId, "times_$dow", $slots);
           throw new AssertionError('Should not be able to set invalid slot');
@@ -2563,10 +2564,36 @@ final class WastedTest extends WastedTestBase {
     $this->wasted->setLimitConfig($limitId, 'times_foo', 'invalid');
   }
 
+  public function test24hSlot(): void {
+    $now = $this->newDateTime()->setTime(0, 0);
+    $this->mockTime = $now->getTimestamp();
+    $limitId = $this->totalLimitId['u1'];
+    $seconds = 24 * 60 * 60;
+
+    $this->wasted->setLimitConfig($limitId, 'times', '0-24');
+    $this->assertEquals(
+        $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
+        self::timeLeft($seconds, $seconds, self::slot($now, 0, 0, 24, 0), []));
+
+    $this->wasted->setLimitConfig($limitId, 'times', '0-12a');
+    $this->assertEquals(
+        $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
+        self::timeLeft($seconds, $seconds, self::slot($now, 0, 0, 24, 0), []));
+
+    $this->wasted->setLimitConfig($limitId, 'times', '12a-12a');
+    $this->assertEquals(
+        $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
+        self::timeLeft($seconds, $seconds, self::slot($now, 0, 0, 24, 0), []));
+
+    $seconds = 12 * 60 * 60;
+    $this->wasted->setLimitConfig($limitId, 'times', '12p-12a');
+    $this->assertEquals(
+        $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
+        self::timeLeft(0, $seconds, [], self::slot($now, 12, 0, 24, 0)));
+  }
+
   // TODO: Test other recent changes.
   // TODO: Test that the locked flag is returned and minutes are set correctly in that case.
-
-  // TODO: Special case slot config -> validate.
 
 }
 

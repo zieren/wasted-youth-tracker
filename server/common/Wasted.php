@@ -414,7 +414,7 @@ class Wasted {
 
   private function checkSlotsString($slotsString): void {
     $now = $this->newDateTime();
-    $e = self::getSlotsOrError($now, $slotsString);
+    $e = self::slotsSpecToEpochSlotsOrError($now, $slotsString);
     if (is_string($e)) {
       self::throwException($e);
     }
@@ -1095,9 +1095,9 @@ class Wasted {
     $locked =
         getOrDefault($config, 'locked', false) && !getOrDefault($overrides, 'unlocked', false);
     // Extract slots string.
-    $slots = getOrDefault($config, 'times');
-    $slots = getOrDefault($config, "times_$dow", $slots);
-    $slots = getOrDefault($overrides, 'slots', $slots);
+    $slotsSpec = getOrDefault($config, 'times');
+    $slotsSpec = getOrDefault($config, "times_$dow", $slotsSpec);
+    $slotsSpec = getOrDefault($overrides, 'slots', $slotsSpec);
     // Compute the regular minutes for today: default, day-of-week or overridden. Zero if none set,
     // or in case of NULL (which can happen for overrides).
     $minutesLimitToday = getOrDefault($config, 'minutes_day');
@@ -1105,7 +1105,7 @@ class Wasted {
     $minutesLimitToday = getOrDefault($overrides, 'minutes', $minutesLimitToday);
     // Compute minutes limit in seconds, considering presence/absence of config.
     if ($minutesLimitToday === null) {
-      if ($slots === null) {
+      if ($slotsSpec === null) {
         // When a limit is totally not configured, available time is zero.
         $secondsLimitToday = 0;
       } else {
@@ -1130,8 +1130,8 @@ class Wasted {
     $timeLeft = new TimeLeft($locked, $totalSeconds);
 
     // Apply slots, if set.
-    if ($slots !== null) {
-      self::applySlots($now, $slots, $timeLeft);
+    if ($slotsSpec !== null) {
+      self::applySlots($now, $slotsSpec, $timeLeft);
     }
 
     return $timeLeft;
@@ -1142,8 +1142,8 @@ class Wasted {
    * additional limitation to the specified TimeLeft instance. Also sets the computed current and
    * next slot.
    */
-  static function applySlots($now, $slotsString, $timeLeft) {
-    $slots = self::getSlotsOrError($now, $slotsString);
+  static function applySlots($now, $slotsSpec, $timeLeft) {
+    $slots = self::slotsSpecToEpochSlotsOrError($now, $slotsSpec);
     if (is_string($slots)) {
       self::throwException($slots);
     }
@@ -1180,8 +1180,8 @@ class Wasted {
    * Returns a sorted array of non-overlapping slots in the form
    * [[from_ts_0, to_ts_0], [from_ts_1, to_ts_1]]. On error returns an error message (string).
    */
-  static function getSlotsOrError($now, $configValue) {
-    $slotsStrings = explode(',', $configValue);
+  static function slotsSpecToEpochSlotsOrError($now, $slotsSpec) {
+    $slotsStrings = explode(',', $slotsSpec);
     $slots = [];
     foreach ($slotsStrings as $slotString) {
       $slotString = trim($slotString);
@@ -1189,23 +1189,37 @@ class Wasted {
         continue;
       }
       $m = [];
+      $valid = false;
       if (preg_match_all(self::$TIME_OF_DAY_PATTERN, $slotString, $m) && count($m[0]) == 2) {
         $fromHour = self::adjust12hFormat(intval($m[1][0]), strtolower($m[3][0]));
         $fromMinute = $m[2][0] ? intval($m[2][0]) : 0;
         $toHour = self::adjust12hFormat(intval($m[1][1]), strtolower($m[3][1]));
         $toMinute = $m[2][1] ? intval($m[2][1]) : 0;
-        $slots[] = [
-            (clone $now)->setTime($fromHour, $fromMinute)->getTimestamp(),
-            (clone $now)->setTime($toHour, $toMinute)->getTimestamp()];
-      } else {
+
+        // Special case: The 24h format has hours 0, 12 and 24:00, whereas the 12h format only has
+        // 12am (i.e. 0) and 12pm (i.e. 12). If 12am is specified as the end time, interpret it as
+        // 24:00 (which DateTime handles correctly).
+        if ($toHour == 0 && $toMinute == 0) {
+          $toHour = 24;
+        }
+
+        $valid = ($fromHour != 24 || $fromMinute == 0) && ($toHour != 24 || $toMinute == 0);
+      }
+      if ($valid) {
+        $fromTimestamp = (clone $now)->setTime($fromHour, $fromMinute)->getTimestamp();
+        $toTimestamp = (clone $now)->setTime($toHour, $toMinute)->getTimestamp();
+        $valid = $fromTimestamp <= $toTimestamp;
+      }
+      if (!$valid) {
         return "Invalid time slot: '$slotString'";
       }
+      $slots[] = [$fromTimestamp, $toTimestamp];
     }
     // Sort by from timestamp.
     usort($slots, function ($a, $b) { return $a[0] - $b[0]; });
     for ($i = 1; $i < count($slots); $i++) {
       if ($slots[$i][0] < $slots[$i - 1][1]) {
-        return "Time slots overlap: '$configValue'";
+        return "Time slots overlap: '$slotsSpec'";
       }
     }
     return $slots;
@@ -1463,5 +1477,5 @@ class Wasted {
       )';
 
   private static $TIME_OF_DAY_PATTERN =
-      '/\b((?:[01]?[0-9])|(?:2[0-3]))(?::([0-5][0-9]))?(?: *(a|p)[.m]*)? *(?:-|$)/i';
+      '/(?:^|-)((?:[01]?[0-9])|(?:2[0-4]))(?::([0-5]?[0-9]))?(?: *(a|p)[.m]*)? *(?=-|$)/i';
 }

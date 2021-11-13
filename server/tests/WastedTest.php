@@ -1074,7 +1074,7 @@ final class WastedTest extends WastedTestBase {
     $limitId = $this->wasted->addLimit('u1', 'b1');
     $this->wasted->addMapping(DEFAULT_CLASS_ID, $limitId);
     $this->wasted->setLimitConfig($limitId, 'minutes_day', 42);
-    $this->wasted->setLimitConfig($limitId, 'require_unlock', 1);
+    $this->wasted->setLimitConfig($limitId, 'locked', 1);
     $totalLimitId = $this->totalLimitId['u1'];
 
     $this->assertEqualsIgnoreOrder(
@@ -1845,7 +1845,7 @@ final class WastedTest extends WastedTestBase {
     // Add another limit that requires unlocking. No change for now.
     $limitId2 = $this->wasted->addLimit('u1', 'b2');
     $this->wasted->setLimitConfig($limitId2, 'minutes_day', 2);
-    $this->wasted->setLimitConfig($limitId2, 'require_unlock', 1);
+    $this->wasted->setLimitConfig($limitId2, 'locked', 1);
     $this->assertEquals($this->wasted->queryClassesAvailableTodayTable('u1'), ['c1 (0:03:00)']);
 
     // Map c1 to the new (zero) limit too. This removes the class from the response.
@@ -1917,10 +1917,10 @@ final class WastedTest extends WastedTestBase {
       $this->assertEquals($this->wasted->queryOverlappingLimits($limitId4), []);
 
       // Initially require unlock for all. No effect on repeating the above time queries.
-      $this->wasted->setLimitConfig($limitId1, 'require_unlock', '1');
-      $this->wasted->setLimitConfig($limitId2, 'require_unlock', '1');
-      $this->wasted->setLimitConfig($limitId3, 'require_unlock', '1');
-      $this->wasted->setLimitConfig($limitId4, 'require_unlock', '1');
+      $this->wasted->setLimitConfig($limitId1, 'locked', '1');
+      $this->wasted->setLimitConfig($limitId2, 'locked', '1');
+      $this->wasted->setLimitConfig($limitId3, 'locked', '1');
+      $this->wasted->setLimitConfig($limitId4, 'locked', '1');
     }
 
     // Query for unlock limitation.
@@ -1938,10 +1938,10 @@ final class WastedTest extends WastedTestBase {
         $this->wasted->queryOverlappingLimits($limitId1, '1974-09-29'), ['b2', 'b3']);
 
     // No more unlock required anywhere.
-    $this->wasted->clearLimitConfig($limitId1, 'require_unlock');
-    $this->wasted->clearLimitConfig($limitId2, 'require_unlock');
-    $this->wasted->clearLimitConfig($limitId3, 'require_unlock');
-    $this->wasted->clearLimitConfig($limitId4, 'require_unlock');
+    $this->wasted->clearLimitConfig($limitId1, 'locked');
+    $this->wasted->clearLimitConfig($limitId2, 'locked');
+    $this->wasted->clearLimitConfig($limitId3, 'locked');
+    $this->wasted->clearLimitConfig($limitId4, 'locked');
 
     // Query for unlock limitation.
     $this->assertEquals($this->wasted->queryOverlappingLimits($limitId1, $date), []);

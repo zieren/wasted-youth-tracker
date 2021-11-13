@@ -2264,16 +2264,16 @@ final class WastedTest extends WastedTestBase {
         Wasted::slotsSpecToEpochSlotsOrError($now, '11-13:30'), [
             self::slot($now, 11, 0, 13, 30)]);
     $this->assertEquals(
-        Wasted::slotsSpecToEpochSlotsOrError($now, '11-13:30, 2:01pm-4:15pm'), [
+        Wasted::slotsSpecToEpochSlotsOrError($now, '11- 13:30, 2:01pm-4:15pm'), [
             self::slot($now, 11, 0, 13, 30),
             self::slot($now, 14, 1, 16, 15)]);
     $this->assertEquals(
-        Wasted::slotsSpecToEpochSlotsOrError($now, '11-13:30, 2:01pm-4:15pm  ,  20:00-20:42'), [
+        Wasted::slotsSpecToEpochSlotsOrError($now, ' 11 - 13:30 , 2:01pm-4:15pm  ,  20:00-20:42'), [
             self::slot($now, 11, 0, 13, 30),
             self::slot($now, 14, 1, 16, 15),
             self::slot($now, 20, 0, 20, 42)]);
     $this->assertEquals(
-        Wasted::slotsSpecToEpochSlotsOrError($now, '0-1, 1:00-2, 20-21:00, 22:00-23:59'), [
+        Wasted::slotsSpecToEpochSlotsOrError($now, '0-1, 1:00-2, 20-21:00, 22:00  -  23:59  '), [
             self::slot($now, 0, 0, 1, 0),
             self::slot($now, 1, 0, 2, 0),
             self::slot($now, 20, 0, 21, 0),

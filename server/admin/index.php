@@ -59,56 +59,61 @@ $considerUnlocking = false;
 $furtherLimits = false;
 
 if (action('setUserConfig')) {
-  $user = postSanitized('configUser');
-  $wasted->setUserConfig($user, postSanitized('configKey'), postSanitized('configValue'));
+  $user = postString('configUser');
+  $wasted->setUserConfig($user, postString('configKey'), postString('configValue'));
 } else if (action('clearUserConfig')) {
-  $user = postSanitized('configUser');
-  $wasted->clearUserConfig($user, postSanitized('configKey'));
+  $user = postString('configUser');
+  $wasted->clearUserConfig($user, postString('configKey'));
 } else if (action('setGlobalConfig')) {
-  $wasted->setGlobalConfig(postSanitized('configKey'), postSanitized('configValue'));
+  $wasted->setGlobalConfig(postString('configKey'), postString('configValue'));
 } else if (action('clearGlobalConfig')) {
-  $wasted->clearGlobalConfig(postSanitized('configKey'));
+  $wasted->clearGlobalConfig(postString('configKey'));
 } else if (action('addLimit')) {
-  $user = postSanitized('user');
-  $wasted->addLimit($user, postSanitized('limitName'));
+  $user = postString('user');
+  $wasted->addLimit($user, postString('limitName'));
 } else if (action('renameLimit')) {
   $limitId = postInt('limitId');
-  $wasted->renameLimit($limitId, postSanitized('limitName'));
+  $wasted->renameLimit($limitId, postString('limitName'));
 } else if (action('addClass')) {
-  $wasted->addClass(postSanitized('className'));
+  $wasted->addClass(postString('className'));
 } else if (action('removeLimit')) {
   $limitId = postInt('limitId');
   $wasted->removeLimit($limitId);
 } else if (action('setLimitConfig')) {
   $limitId = postInt('limitId');
-  $wasted->setLimitConfig(
-      $limitId, postSanitized('limitConfigKey'), postSanitized('limitConfigValue'));
+  $wasted->setLimitConfig($limitId, postString('limitConfigKey'), postString('limitConfigValue'));
 } else if (action('clearLimitConfig')) {
   $limitId = postInt('limitId');
-  $wasted->clearLimitConfig($limitId, postSanitized('limitConfigKey'));
+  $wasted->clearLimitConfig($limitId, postString('limitConfigKey'));
 } else if (action('setMinutes')) {
-  $user = postSanitized('user');
-  $dateString = postSanitized('date');
+  $user = postString('user');
+  $dateString = postString('date');
   $limitId = postInt('limitId');
   $furtherLimits =
       $wasted->setOverrideMinutes($user, $dateString, $limitId, postInt('overrideMinutes', 0));
+} else if (action('setTimes')) {
+  $user = postString('user');
+  $dateString = postString('date');
+  $limitId = postInt('limitId');
+  $furtherLimits =
+      $wasted->setOverrideSlots($user, $dateString, $limitId, postString('overrideTimes', ''));
 } else if (action('unlock')) {
-  $user = postSanitized('user');
-  $dateString = postSanitized('date');
+  $user = postString('user');
+  $dateString = postString('date');
   $limitId = postInt('limitId');
   $considerUnlocking = $wasted->setOverrideUnlock($user, $dateString, $limitId);
 } else if (action('clearOverrides')) {
-  $user = postSanitized('user');
-  $dateString = postSanitized('date');
+  $user = postString('user');
+  $dateString = postString('date');
   $limitId = postInt('limitId');
   $wasted->clearOverrides($user, $dateString, $limitId);
 } else if (action('addMapping')) {
-  $user = postSanitized('user');
+  $user = postString('user');
   $limitId = postInt('limitId');
   $classId = postInt('classId');
   $wasted->addMapping($classId, $limitId);
 } else if (action('removeMapping')) {
-  $user = postSanitized('user');
+  $user = postString('user');
   $limitId = postInt('limitId');
   $classId = postInt('classId');
   $wasted->removeMapping($classId, $limitId);
@@ -128,24 +133,24 @@ if (action('setUserConfig')) {
   $wasted->removeClass($classId);
 } else if (action('renameClass')) {
   $classId = postInt('classId');
-  $wasted->renameClass($classId, postSanitized('className'));
+  $wasted->renameClass($classId, postString('className'));
 } else if (action('doReclassify')) {
   $days = postInt('reclassificationDays');
   $fromTime = (clone $now)->sub(new DateInterval('P' . $days . 'D'));
   $wasted->reclassify($fromTime);
 } else if (action('addUser')) {
-  $newUser = postSanitized('userId');
+  $newUser = postString('userId');
   $wasted->addUser($newUser);
 } else if (action('removeUser')) {
-  $newUser = postSanitized('userId');
+  $newUser = postString('userId');
   $wasted->removeUser($newUser);
 } else if (action('ackError')) {
-  $user = postSanitized('user');
-  $ackedError = postSanitized('ackedError');
+  $user = postString('user');
+  $ackedError = postString('ackedError');
   $wasted->ackError($user, $ackedError);
 } else if (action('prune')) {
   // Need to postfix 00:00:00 to not get current time of day.
-  $dateTime = DateTime::createFromFormat('Y-m-d H:i:s', postSanitized('datePrune') . ' 00:00:00');
+  $dateTime = DateTime::createFromFormat('Y-m-d H:i:s', postString('datePrune') . ' 00:00:00');
   $wasted->pruneTables($dateTime);
   echo '<b class="notice">Deleted data before ' . getDateString($dateTime) . '</b></hr>';
 }
@@ -153,7 +158,7 @@ if (action('setUserConfig')) {
 $users = $wasted->getUsers();
 
 if (!isset($user)) {
-  $user = get('user') ?? postSanitized('user') ?? getOrDefault($users, 0, '');
+  $user = get('user') ?? postString('user') ?? getOrDefault($users, 0, '');
 }
 if (!isset($dateString)) {
   $dateString = get('date') ?? date('Y-m-d');
@@ -219,13 +224,16 @@ echo '<p>
     '<label for="idOverrideMinutes">Minutes: </label>
     <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
     <input type="submit" value="Set minutes" name="setMinutes">
+    <label for="idOverrideTimes">Times: </label>
+    <input id="idOverrideTimes" name="overrideTimes" type="text" value="">
+    <input type="submit" value="Set times" name="setTimes">
     <input type="submit" value="Unlock" name="unlock">
     <input type="submit" value="Clear overrides" name="clearOverrides">
   </form>';
 
-echo '<h4>Current overrides</h4>';
+echo "<h4>This week's overrides</h4>";
 echoTable(
-    ['Date', 'Limit', 'Minutes', 'Lock'],
+    ['Date', 'Limit', 'Minutes', 'Times', 'Lock'],
     $wasted->queryRecentOverrides($user));
 
 $timeLeftByLimit = $wasted->queryTimeLeftTodayAllLimits($user);

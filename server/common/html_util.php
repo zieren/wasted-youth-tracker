@@ -26,7 +26,7 @@ function action($name) {
   return array_key_exists($name, $_POST);
 }
 
-function postSanitized($key) {
+function postString($key) {
   $s = filter_input(INPUT_POST, $key, FILTER_SANITIZE_STRING);
   return is_null($s) ? null : trim($s);
 }

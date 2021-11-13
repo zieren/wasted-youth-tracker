@@ -1341,20 +1341,22 @@ class Wasted {
 
   }
 
-  /** Returns recent overrides for the specified user. */
+  /** Returns this week's overrides for the specified user. */
   // TODO: Allow setting the date range.
   public function queryRecentOverrides($user) {
-    $fromDate = $this->newDateTime();
-    $fromDate->sub(new DateInterval('P0D'));
-    return DB::query(
-        'SELECT date, name,'
-        . ' CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,'
-        . ' CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END'
-        . ' FROM overrides'
-        . ' JOIN limits ON limit_id = id'
-        . ' WHERE overrides.user = %s0'
-        . ' AND date >= %s1'
-        . ' ORDER BY date DESC, name',
+    $fromDate = getWeekStart($this->newDateTime());
+    return DB::query('
+        SELECT
+          date,
+          name,
+          CASE WHEN minutes IS NOT NULL THEN minutes ELSE "default" END,
+          CASE WHEN slots IS NOT NULL THEN slots ELSE "default" END,
+          CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END
+        FROM overrides
+        JOIN limits ON limit_id = id
+        WHERE overrides.user = %s0
+        AND date >= %s1
+        ORDER BY date DESC, name',
         $user, $fromDate->format('Y-m-d'));
   }
 

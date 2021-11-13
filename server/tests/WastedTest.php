@@ -2532,8 +2532,38 @@ final class WastedTest extends WastedTestBase {
         self::timeLeft(0, 0, [], []));
   }
 
+  public function testInvalidSlotSpec(): void {
+    $limitId = $this->totalLimitId['u1'];
+    foreach (['invalid', '1-3, 2-4'] as $slots) {
+      $this->onFailMessage("slot spec: $slots");
+      try {
+        $this->wasted->setLimitConfig($limitId, 'times', $slots);
+        throw new AssertionError('Should not be able to set invalid slot');
+      } catch (Exception $e) {
+        // expected
+      }
+      foreach (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as $dow) {
+        $this->onFailMessage("day of week: $dow");
+        try {
+          $this->wasted->setLimitConfig($limitId, "times_$dow", $slots);
+          throw new AssertionError('Should not be able to set invalid slot');
+        } catch (Exception $e) {
+          // expected
+        }
+      }
+      try {
+        $this->wasted->setOverrideSlots('u1', $this->dateString(), $limitId, $slots);
+        throw new AssertionError('Should not be able to set invalid slot');
+      } catch (Exception $e) {
+        // expected
+      }
+    }
+    // Don't trigger for non-matching keys.
+    $this->onFailMessage(null);
+    $this->wasted->setLimitConfig($limitId, 'times_foo', 'invalid');
+  }
+
   // TODO: Test other recent changes.
-  // TODO: Test invalid slot spec handling.
   // TODO: Test that the locked flag is returned and minutes are set correctly in that case.
 
   // TODO: Special case slot config -> validate.

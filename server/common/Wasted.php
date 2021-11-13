@@ -399,14 +399,25 @@ class Wasted {
     return $classifications;
   }
 
-  /** Sets the specified limit config. */
+  /** Sets the specified limit config. Time slots are checked for validity. */
   public function setLimitConfig($limitId, $key, $value) {
+    if (preg_match('/^times(_(mon|tue|wed|thu|fri|sat|sun))?$/', $key)) {
+      self::checkSlotsString($value);
+    }
     DB::insertUpdate('limit_config', ['limit_id' => $limitId, 'k' => $key, 'v' => $value]);
   }
 
   /** Clears the specified limit config. */
   public function clearLimitConfig($limitId, $key) {
     DB::delete('limit_config', 'limit_id = %s AND k = %s', $limitId, $key);
+  }
+
+  private function checkSlotsString($slotsString): void {
+    $now = $this->newDateTime();
+    $e = self::getSlotsOrError($now, $slotsString);
+    if (is_string($e)) {
+      self::throwException($e);
+    }
   }
 
   /**
@@ -1285,6 +1296,7 @@ class Wasted {
 
   /** Overrides the time slots otherwise applicable for this date. */
   public function setOverrideSlots($user, $date, $limitId, $slots) {
+    $this->checkSlotsString($slots);
     DB::insertUpdate('overrides', [
         'user' => $user,
         'date' => $date,

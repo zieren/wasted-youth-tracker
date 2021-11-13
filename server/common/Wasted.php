@@ -699,7 +699,7 @@ class Wasted {
     // logged out and right back in without even rebooting, which can be viewed as a continuation.
     // Note that the sample interval can be much larger or smaller. In the latter case we simply
     // update measurements more frequently.
-    // ==========>>> KEEP THE DEFAULT IN SYNC WITH THE CLIENT!!! <<<==========
+    // ==========>>> KEEP THE DEFAULT IN SYNC WITH THE CLIENT CODE!!! <<<==========
     $maxInterval = getOrDefault($config, 'sample_interval_seconds', 15) + 30;
 
     // We use a pseudo-title of '' to indicate that nothing was running. In the unlikely event a

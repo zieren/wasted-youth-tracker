@@ -1127,10 +1127,9 @@ class Wasted {
   }
 
   /**
-   * Takes the current time, slots string from config/overrides (may be null) and the time left so
-   * far, i.e. computed for the minutes contingent.
-   *
-   * Updates current seconds, current slot and next slot in $timeLeft.
+   * Takes the current time and slots string from config/overrides and applies the resulting
+   * additional limitation to the specified TimeLeft instance. Also sets the computed current and
+   * next slot.
    */
   static function applySlots($now, $slotsString, $timeLeft) {
     $slots = self::getSlotsOrError($now, $slotsString);

@@ -2506,11 +2506,28 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
         self::timeLeft($seconds, $seconds, [], []));
+
+    $this->wasted->setLimitConfig($limitId, 'minutes_day', '42');
+    $seconds = 42 * 60;
+    $this->assertEquals(
+        $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
+        self::timeLeft($seconds, $seconds, [], []));
+
+    $this->wasted->setLimitConfig($limitId, 'minutes_week', '41');
+    $seconds = 41 * 60;
+    $this->assertEquals(
+        $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
+        self::timeLeft($seconds, $seconds, [], []));
+
+    $this->wasted->setLimitConfig($limitId, 'times', '8-9:40');
+    $seconds = 40 * 60;
+    $this->assertEquals(
+        $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
+        self::timeLeft($seconds, $seconds, self::slot($now, 8, 0, 9, 40), []));
   }
 
   // TODO: Test other recent changes.
   // TODO: Test invalid slot spec handling.
-  // TODO: Test total time returned.
   // TODO: Test that the locked flag is returned and minutes are set correctly in that case.
 
   // TODO: Special case slot config -> validate.

@@ -2,7 +2,7 @@
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 INI_FILE := USERPROFILE "\wasted.ini"
 global URL, HTTP_USER, HTTP_PASS, USER, LOGFILE, LAST_ERROR, APP_NAME
-APP_NAME := "Wasted Youth Tracker 0.0.0-7"
+APP_NAME := "Wasted Youth Tracker 0.0.0-8"
 IniRead, URL, %INI_FILE%, server, url
 IniRead, HTTP_USER, %INI_FILE%, server, username
 IniRead, HTTP_PASS, %INI_FILE%, server, password
@@ -53,7 +53,7 @@ CFG[WATCH_PROCESSES] := {}
 ; Allowed offline grace period. After this, all programs are closed.
 global OFFLINE_GRACE_PERIOD_SECONDS := "offline_grace_period_seconds"
 CFG[OFFLINE_GRACE_PERIOD_SECONDS] := 60
-; For debugging: Don't actually close windows.
+; For debugging: Don't actually close windows, and show the tray icon.
 global DISABLE_ENFORCEMENT := "disable_enforcement"
 CFG[DISABLE_ENFORCEMENT] := 0
 

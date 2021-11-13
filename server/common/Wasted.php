@@ -43,17 +43,17 @@ class Wasted {
     return new Wasted($dbName, $dbUser, $dbPass, $timeFunction, true);
   }
 
-  // TODO: Move this to the test class?
   /**
-   * Clear all data except for users. These should be deleted explicitly if needed, since their
-   * re-creation is expesive (because of CREATE TRIGGER).
+   * Clear all data except for users and total limits. Users should be deleted explicitly if needed,
+   * since their re-creation is expensive (because of CREATE TRIGGER).
+   *
+   * Note that the default minutes limit of 1d for the total limit is also deleted. This is
+   * intended; most tests are easier to read if we count total time down from 0 instead of from 24.
    */
   public function clearForTest(): void {
     foreach (DB::tableList() as $table) {
       if ($table == 'limits') {
         DB::query('DELETE FROM limits WHERE id NOT IN (SELECT total_limit_id FROM users)');
-      } elseif ($table == 'mappings') {
-        DB::query('DELETE FROM mappings WHERE limit_id NOT IN (SELECT total_limit_id FROM users)');
       } elseif ($table == 'users') {
         // Keep users.
       } else {

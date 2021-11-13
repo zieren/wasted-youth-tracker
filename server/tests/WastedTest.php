@@ -42,10 +42,12 @@ final class WastedTest extends WastedTestBase {
   protected function setUp(): void {
     parent::setUp();
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::WARNING);
+    foreach ($this->wasted->getUsers() as $user) {
+      if ($user != 'u1' && $user != 'u2') {
+        $this->wasted->removeUser($user);
+      }
+    }
     $this->wasted->clearForTest();
-    // Most tests are easier to read if we count total time down from 0 instead of from 24.
-    $this->wasted->clearLimitConfig($this->totalLimitId['u1'], 'minutes_day');
-    $this->wasted->clearLimitConfig($this->totalLimitId['u2'], 'minutes_day');
     Logger::Instance()->setLogLevelThreshold(\Psr\Log\LogLevel::DEBUG);
     $this->mockTime = 1000;
   }
@@ -1476,87 +1478,83 @@ final class WastedTest extends WastedTestBase {
     $user = 'user'.strval(rand());
     $totalLimitId = $this->wasted->addUser($user);
 
-    try {
-      // Start with default class mapped to total limit. This mapping was inserted by the user setup
-      // mapping all existing classes to the new user's total limit.
-      $this->assertEquals(
-          self::queryMappings($user), [
-          self::mapping($totalLimitId, DEFAULT_CLASS_ID)
-      ]);
+    // Start with default class mapped to total limit. This mapping was inserted by the user setup
+    // mapping all existing classes to the new user's total limit.
+    $this->assertEquals(
+        self::queryMappings($user), [
+        self::mapping($totalLimitId, DEFAULT_CLASS_ID)
+    ]);
 
-      // Added classes are mapped to total limit by the trigger.
-      $classId1 = $this->wasted->addClass('c1');
-      $this->assertEquals(
-          self::queryMappings($user), [
-          self::mapping($totalLimitId, DEFAULT_CLASS_ID),
-          self::mapping($totalLimitId, $classId1)
-      ]);
+    // Added classes are mapped to total limit by the trigger.
+    $classId1 = $this->wasted->addClass('c1');
+    $this->assertEquals(
+        self::queryMappings($user), [
+        self::mapping($totalLimitId, DEFAULT_CLASS_ID),
+        self::mapping($totalLimitId, $classId1)
+    ]);
 
-      // And again.
-      $classId2 = $this->wasted->addClass('c2');
-      $this->assertEquals(
-          self::queryMappings($user), [
-          self::mapping($totalLimitId, DEFAULT_CLASS_ID),
-          self::mapping($totalLimitId, $classId1),
-          self::mapping($totalLimitId, $classId2)
-      ]);
+    // And again.
+    $classId2 = $this->wasted->addClass('c2');
+    $this->assertEquals(
+        self::queryMappings($user), [
+        self::mapping($totalLimitId, DEFAULT_CLASS_ID),
+        self::mapping($totalLimitId, $classId1),
+        self::mapping($totalLimitId, $classId2)
+    ]);
 
-      // Adding a limit has not effect (yet).
-      $limitId1 = $this->wasted->addLimit($user, 'b1');
-      $this->assertEquals(
-          self::queryMappings($user), [
-          self::mapping($totalLimitId, DEFAULT_CLASS_ID),
-          self::mapping($totalLimitId, $classId1),
-          self::mapping($totalLimitId, $classId2)
-      ]);
+    // Adding a limit has not effect (yet).
+    $limitId1 = $this->wasted->addLimit($user, 'b1');
+    $this->assertEquals(
+        self::queryMappings($user), [
+        self::mapping($totalLimitId, DEFAULT_CLASS_ID),
+        self::mapping($totalLimitId, $classId1),
+        self::mapping($totalLimitId, $classId2)
+    ]);
 
-      // Mapping a class to the new limit shows up in the result. No change to the default limit's
-      // mappings.
-      $this->wasted->addMapping($classId1, $limitId1);
-      $this->assertEquals(
-          self::queryMappings($user), [
-          self::mapping($totalLimitId, DEFAULT_CLASS_ID),
-          self::mapping($totalLimitId, $classId1),
-          self::mapping($totalLimitId, $classId2),
-          self::mapping($limitId1, $classId1)
-      ]);
+    // Mapping a class to the new limit shows up in the result. No change to the default limit's
+    // mappings.
+    $this->wasted->addMapping($classId1, $limitId1);
+    $this->assertEquals(
+        self::queryMappings($user), [
+        self::mapping($totalLimitId, DEFAULT_CLASS_ID),
+        self::mapping($totalLimitId, $classId1),
+        self::mapping($totalLimitId, $classId2),
+        self::mapping($limitId1, $classId1)
+    ]);
 
-      // Add more classes to exercise the trigger.
-      $classId3 = $this->wasted->addClass('c3');
-      $classId4 = $this->wasted->addClass('c4');
-      $this->assertEquals(
-          self::queryMappings($user), [
-          self::mapping($totalLimitId, DEFAULT_CLASS_ID),
-          self::mapping($totalLimitId, $classId1),
-          self::mapping($totalLimitId, $classId2),
-          self::mapping($totalLimitId, $classId3),
-          self::mapping($totalLimitId, $classId4),
-          self::mapping($limitId1, $classId1)
-      ]);
+    // Add more classes to exercise the trigger.
+    $classId3 = $this->wasted->addClass('c3');
+    $classId4 = $this->wasted->addClass('c4');
+    $this->assertEquals(
+        self::queryMappings($user), [
+        self::mapping($totalLimitId, DEFAULT_CLASS_ID),
+        self::mapping($totalLimitId, $classId1),
+        self::mapping($totalLimitId, $classId2),
+        self::mapping($totalLimitId, $classId3),
+        self::mapping($totalLimitId, $classId4),
+        self::mapping($limitId1, $classId1)
+    ]);
 
-      // Remove a class to exercise ON DELETE CASCADE in mappings table.
-      $this->wasted->removeClass($classId2);
-      $this->assertEquals(
-          self::queryMappings($user), [
-          self::mapping($totalLimitId, DEFAULT_CLASS_ID),
-          self::mapping($totalLimitId, $classId1),
-          self::mapping($totalLimitId, $classId3),
-          self::mapping($totalLimitId, $classId4),
-          self::mapping($limitId1, $classId1)
-      ]);
+    // Remove a class to exercise ON DELETE CASCADE in mappings table.
+    $this->wasted->removeClass($classId2);
+    $this->assertEquals(
+        self::queryMappings($user), [
+        self::mapping($totalLimitId, DEFAULT_CLASS_ID),
+        self::mapping($totalLimitId, $classId1),
+        self::mapping($totalLimitId, $classId3),
+        self::mapping($totalLimitId, $classId4),
+        self::mapping($limitId1, $classId1)
+    ]);
 
-      // Removing a mapping has no effect beyond that mapping.
-      $this->wasted->removeMapping($classId1, $limitId1);
-      $this->assertEquals(
-          self::queryMappings($user), [
-          self::mapping($totalLimitId, DEFAULT_CLASS_ID),
-          self::mapping($totalLimitId, $classId1),
-          self::mapping($totalLimitId, $classId3),
-          self::mapping($totalLimitId, $classId4)
-      ]);
-    } finally {
-      $this->wasted->removeUser($user);
-    }
+    // Removing a mapping has no effect beyond that mapping.
+    $this->wasted->removeMapping($classId1, $limitId1);
+    $this->assertEquals(
+        self::queryMappings($user), [
+        self::mapping($totalLimitId, DEFAULT_CLASS_ID),
+        self::mapping($totalLimitId, $classId1),
+        self::mapping($totalLimitId, $classId3),
+        self::mapping($totalLimitId, $classId4)
+    ]);
   }
 
   public function testRemoveDefaultClass(): void {
@@ -1592,11 +1590,8 @@ final class WastedTest extends WastedTestBase {
     $user = 'user'.strval(rand());
     $this->wasted->addUser($user);
     // We added one trigger...
-    try {
-      $this->assertEquals(count(DB::query('SHOW TRIGGERS')), $n + 1);
-    } finally {
-      $this->wasted->removeUser($user);
-    }
+    $this->assertEquals(count(DB::query('SHOW TRIGGERS')), $n + 1);
+    $this->wasted->removeUser($user);
     // ... and removed it.
     $this->assertEquals(count(DB::query('SHOW TRIGGERS')), $n);
   }
@@ -2116,20 +2111,16 @@ final class WastedTest extends WastedTestBase {
 
     // Create new user that sorts at the end.
     $user = 'user'.strval(rand());
+    $this->wasted->addUser($user);
+    $this->assertEquals($this->wasted->getUsers(), ['u1', 'u2', $user]);
+    // Can't re-add the same user.
     try {
       $this->wasted->addUser($user);
-      $this->assertEquals($this->wasted->getUsers(), ['u1', 'u2', $user]);
-      // Can't re-add the same user.
-      try {
-        $this->wasted->addUser($user);
-        throw new AssertionError('Should not be able to create existing user');
-      } catch (Exception $e) { // expected
-        $s = "Duplicate entry '$user'";
-        $this->assertEquals(substr($e->getMessage(), 0, strlen($s)), $s);
-        WastedTestBase::$lastDbError = null; // don't fail the test
-      }
-    } finally {
-      $this->wasted->removeUser($user);
+      throw new AssertionError('Should not be able to create existing user');
+    } catch (Exception $e) { // expected
+      $s = "Duplicate entry '$user'";
+      $this->assertEquals(substr($e->getMessage(), 0, strlen($s)), $s);
+      WastedTestBase::$lastDbError = null; // don't fail the test
     }
   }
 

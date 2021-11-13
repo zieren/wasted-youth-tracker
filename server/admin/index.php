@@ -178,13 +178,11 @@ Credits:
 <a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, GNU LGPL v3;
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license';
 if ($unackedError) {
-  $m = [];
-  preg_match('/^\d{8} \d{6}/', $unackedError, $m);
-  $ackError = substr($unackedError, 0, 15);
+  $ackedError = substr($unackedError, 0, 15);
   echo '<p class="warning" style="display: inline; margin-right: 1em;">
     Last client error: '.html($unackedError).'</p>
     <form method="post" action="index.php"  style="display: inline;">
-      <input type="hidden" name="ackedError" value="'.getOrDefault($m, 0, '').'">
+      <input type="hidden" name="ackedError" value="'.html($ackedError).'">
       <input type="hidden" name="user" value="'.$user.'">
       <input type="submit" value="Acknowledge" name="ackError">
     </form>';

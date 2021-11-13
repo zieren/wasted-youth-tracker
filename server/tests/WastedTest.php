@@ -2424,17 +2424,19 @@ final class WastedTest extends WastedTestBase {
         true);
   }
 
-  public function testSlotOverrides(): void {
+  public function testTimesAndMinutesOverrides(): void {
     $now = $this->newDateTime();
     $this->mockTime = $now->setTime(9, 0)->getTimestamp();
     $limitId = $this->totalLimitId['u1'];
     $dow = strtolower($now->format('D'));
-    $slots = [ // default, day-of-week, override
+    // default, day-of-week, override
+    $slots = [
         self::slot($now, 10, 0, 11, 0),
         self::slot($now, 11, 0, 12, 0),
         self::slot($now, 12, 0, 13, 0)];
+    $minutes = [1, 2, 3];
     // pattern: override day-of-week default
-    // value is index in $slots
+    // value is index in $slots/$minutes
     $cases = [
         -1, // 000
         0, // 001
@@ -2446,8 +2448,9 @@ final class WastedTest extends WastedTestBase {
         2, // 111
     ];
 
+    // Test slots.
     for ($i = 0; $i < count($cases); $i++) {
-      $this->onFailMessage("case: $i");
+      $this->onFailMessage("slots, case: $i");
       $this->wasted->clearLimitConfig($limitId, 'times');
       $this->wasted->clearLimitConfig($limitId, "times_$dow");
       $this->wasted->clearOverrides('u1', $this->dateString(), $limitId);
@@ -2467,10 +2470,34 @@ final class WastedTest extends WastedTestBase {
         $this->assertEquals($timeLeft->nextSlot, []);
       }
     }
+
+    $this->wasted->clearLimitConfig($limitId, 'times');
+    $this->wasted->clearLimitConfig($limitId, "times_$dow");
+
+    // Test minutes.
+    for ($i = 0; $i < count($cases); $i++) {
+      $this->onFailMessage("minutes, case: $i");
+      $this->wasted->clearLimitConfig($limitId, 'minutes_day');
+      $this->wasted->clearLimitConfig($limitId, "minutes_$dow");
+      $this->wasted->clearOverrides('u1', $this->dateString(), $limitId);
+      if ($i & 1) {
+        $this->wasted->setLimitConfig($limitId, 'minutes_day', '1');
+      }
+      if ($i & 2) {
+        $this->wasted->setLimitConfig($limitId, "minutes_$dow", '2');
+      }
+      if ($i & 4) {
+        $this->wasted->setOverrideMinutes('u1', $this->dateString(), $limitId, '3');
+      }
+      $timeLeft = $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId];
+      if ($cases[$i] >= 0) {
+        $this->assertEquals($timeLeft->currentSeconds, 60 * $minutes[$cases[$i]]);
+      } else {
+        $this->assertEquals($timeLeft->currentSeconds, 0);
+      }
+    }
   }
 
-  // TODO: Test computation of effective minutes (overrides, weekday etc.).
-  // TODO: Test all minutes/slots absent/present combinations.
   // TODO: Test other recent changes.
   // TODO: Test invalid slot spec handling.
   // TODO: Test total time returned.

@@ -595,25 +595,25 @@ final class WastedTest extends WastedTestBase {
         [$totalLimitId => 0, $limitId => 42 * 60]);
 
     // The weekly limit cannot extend the daily limit.
-    $this->wasted->setLimitConfig($limitId, 'weekly_limit_minutes', 666);
+    $this->wasted->setLimitConfig($limitId, 'minutes_week', 666);
     $this->assertEquals(
         $this->queryTimeLeftTodayAllLimitsOnlyCurrentSeconds(),
         [$totalLimitId => 0, $limitId => 42 * 60]);
 
     // The weekly limit can shorten the daily limit.
-    $this->wasted->setLimitConfig($limitId, 'weekly_limit_minutes', 5);
+    $this->wasted->setLimitConfig($limitId, 'minutes_week', 5);
     $this->assertEquals(
         $this->queryTimeLeftTodayAllLimitsOnlyCurrentSeconds(),
         [$totalLimitId => 0, $limitId => 5 * 60]);
 
     // The weekly limit can also be zero.
-    $this->wasted->setLimitConfig($limitId, 'weekly_limit_minutes', 0);
+    $this->wasted->setLimitConfig($limitId, 'minutes_week', 0);
     $this->assertEquals(
         $this->queryTimeLeftTodayAllLimitsOnlyCurrentSeconds(),
         [$totalLimitId => 0, $limitId => 0]);
 
     // Clear the limit.
-    $this->wasted->clearLimitConfig($limitId, 'weekly_limit_minutes');
+    $this->wasted->clearLimitConfig($limitId, 'minutes_week');
     $this->assertEquals(
         $this->queryTimeLeftTodayAllLimitsOnlyCurrentSeconds(),
         [$totalLimitId => 0, $limitId => 42 * 60]);

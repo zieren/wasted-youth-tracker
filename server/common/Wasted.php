@@ -1107,8 +1107,8 @@ class Wasted {
       $secondsLimitToday = $minutesLimitToday * 60;
     }
     // A weekly limit can further shorten the minute contingent, but not extend it.
-    if (isset($config['weekly_limit_minutes'])) {
-      $secondsLeftInWeek = $config['weekly_limit_minutes'] * 60 - array_sum($timeSpentByDate);
+    if (isset($config['minutes_week'])) {
+      $secondsLeftInWeek = $config['minutes_week'] * 60 - array_sum($timeSpentByDate);
       $secondsLimitToday = min($secondsLimitToday, $secondsLeftInWeek);
     }
     // Compute time left in the minutes contingent. Can't exceed time left in the day.

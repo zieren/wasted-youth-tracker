@@ -2365,7 +2365,7 @@ final class WastedTest extends WastedTestBase {
     $limitId = $this->wasted->addLimit('u1', 'L1');
     $this->wasted->setLimitConfig($limitId, 'minutes_day', '1');
     // 23-23 should result in zero time left.
-    $this->wasted->setLimitConfig($limitId, TIME_OF_DAY_LIMIT_PREFIX . 'default', '23-23');
+    $this->wasted->setLimitConfig($limitId, 'times', '23-23');
     $this->wasted->setOverrideMinutes('u1', $this->dateString(), $limitId, 2);
     $this->assertEquals(
         $this->queryTimeLeftTodayAllLimitsOnlyCurrentSeconds(),
@@ -2389,7 +2389,7 @@ final class WastedTest extends WastedTestBase {
 
     // Configure slots only.
     $this->wasted->clearLimitConfig($totalLimitId, 'minutes_day');
-    $this->wasted->setLimitConfig($totalLimitId, TIME_OF_DAY_LIMIT_PREFIX.'default', '10-11');
+    $this->wasted->setLimitConfig($totalLimitId, 'times', '10-11');
     $now = $this->newDateTime()->setTime(10, 59);
     $this->mockTime = $now->getTimestamp();
     $this->assertEquals(
@@ -2399,7 +2399,7 @@ final class WastedTest extends WastedTestBase {
 
     // Add an upcoming slot.
     $this->wasted->setLimitConfig(
-        $totalLimitId, TIME_OF_DAY_LIMIT_PREFIX.'default', '10-11, 12-13');
+        $totalLimitId, 'times', '10-11, 12-13');
     $this->mockTime = $now->getTimestamp();
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1'),
@@ -2448,14 +2448,14 @@ final class WastedTest extends WastedTestBase {
 
     for ($i = 0; $i < count($cases); $i++) {
       $this->onFailMessage("case: $i");
-      $this->wasted->clearLimitConfig($limitId, TIME_OF_DAY_LIMIT_PREFIX.'default');
-      $this->wasted->clearLimitConfig($limitId, TIME_OF_DAY_LIMIT_PREFIX.$dow);
+      $this->wasted->clearLimitConfig($limitId, 'times');
+      $this->wasted->clearLimitConfig($limitId, "times_$dow");
       $this->wasted->clearOverrides('u1', $this->dateString(), $limitId);
       if ($i & 1) {
-        $this->wasted->setLimitConfig($limitId, TIME_OF_DAY_LIMIT_PREFIX.'default', '10-11');
+        $this->wasted->setLimitConfig($limitId, 'times', '10-11');
       }
       if ($i & 2) {
-        $this->wasted->setLimitConfig($limitId, TIME_OF_DAY_LIMIT_PREFIX.$dow, '11-12');
+        $this->wasted->setLimitConfig($limitId, "times_$dow", '11-12');
       }
       if ($i & 4) {
         $this->wasted->setOverrideSlots('u1', $this->dateString(), $limitId, '12-13');

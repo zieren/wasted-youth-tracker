@@ -3,8 +3,6 @@
 require_once 'common.php';
 require_once 'db.class.php';
 
-define('TIME_OF_DAY_LIMIT_PREFIX', 'time_of_day_limit_');
-
 define('CHARSET_AND_COLLATION', 'latin1 COLLATE latin1_german1_ci');
 
 // We use MySQL's RegExp library, which does not support utf8. So we have to fall back to latin1.
@@ -1089,8 +1087,8 @@ class Wasted {
     $locked =
         getOrDefault($config, 'locked', false) && !getOrDefault($overrides, 'unlocked', false);
     // Extract slots string.
-    $slots = getOrDefault($config, TIME_OF_DAY_LIMIT_PREFIX.'default');
-    $slots = getOrDefault($config, TIME_OF_DAY_LIMIT_PREFIX.$dow, $slots);
+    $slots = getOrDefault($config, 'times');
+    $slots = getOrDefault($config, "times_$dow", $slots);
     $slots = getOrDefault($overrides, 'slots', $slots);
     // Compute the regular minutes for today: default, day-of-week or overridden. Zero if none set,
     // or in case of NULL (which can happen for overrides).

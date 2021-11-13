@@ -2499,7 +2499,7 @@ final class WastedTest extends WastedTestBase {
     $now = $this->newDateTime();
     $this->mockTime = $now->setTime(9, 0)->getTimestamp();
     $limitId = $this->totalLimitId['u1'];
-    // restore default cleared in setup
+    // Restore default cleared in setup.
     $this->wasted->setLimitConfig($limitId, 'minutes_day', '1440');
 
     $seconds = (24 - 9) * 60 * 60;
@@ -2524,6 +2524,21 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals(
         $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
         self::timeLeft($seconds, $seconds, self::slot($now, 8, 0, 9, 40), []));
+  }
+
+  public function testOverrideWithEmptySlots(): void {
+    $limitId = $this->totalLimitId['u1'];
+    $this->wasted->setLimitConfig($limitId, 'minutes_day', '1');
+
+    $seconds = 60;
+    $this->assertEquals(
+        $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
+        self::timeLeft($seconds, $seconds, [], []));
+
+    $this->wasted->setOverrideSlots('u1', $this->dateString(), $limitId, '');
+    $this->assertEquals(
+        $this->wasted->queryTimeLeftTodayAllLimits('u1')[$limitId],
+        self::timeLeft(0, 0, [], []));
   }
 
   // TODO: Test other recent changes.

@@ -30,7 +30,7 @@ class TimeLeft {
     $this->nextSlot = [];
   }
 
-  /** Reflect the restrictions computed from time slots. */
+  /** Reflect the restrictions computed from time slots, and store current and next slot. */
   public function reflectSlots($currentSeconds, $totalSeconds, $currentSlot, $nextSlot): TimeLeft {
     $this->currentSeconds = min($this->currentSeconds, $currentSeconds);
     $this->totalSeconds = min($this->totalSeconds, $totalSeconds);

@@ -17,7 +17,6 @@ function logDbQueryErrorInTest($params) {
 class WastedTestBase extends TestCase {
 
   public static $lastDbError = null;
-  protected $mockTime; // epoch seconds, reset to 1000 before each test
 
   /**
    * This must happen after Wasted instantiation: Wasted also sets a DB error handler, and we need
@@ -38,22 +37,15 @@ class WastedTestBase extends TestCase {
     }
   }
 
-  protected function mockTime() {
-    return $this->mockTime;
+  protected static function advanceTime($seconds): void {
+    Wasted::$now->setTimestamp(Wasted::$now->getTimestamp() + $seconds);
   }
 
-  protected function newDateTime() {
-    $d = new DateTime();
-    // Specifying the timestamp on creation sets TZ=UTC, which clashes with the server code.
-    $d->setTimestamp($this->mockTime);
-    return $d;
+  protected static function dateString(): string {
+    return Wasted::$now->format('Y-m-d');
   }
 
-  protected function dateString() {
-    return $this->newDateTime()->format('Y-m-d');
-  }
-
-  protected function dateTimeString() {
-    return $this->newDateTime()->format('Y-m-d H:i:s');
+  protected static function dateTimeString(): string {
+    return Wasted::$now->format('Y-m-d H:i:s');
   }
 }

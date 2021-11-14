@@ -47,7 +47,7 @@ class RX {
    * 10,11
    * 12
    */
-  public static function handleRequest($wasted, $content): string {
+  public static function handleRequest($content): string {
     $lines = preg_split("/\r\n|\n|\r/", $content);
     $linesForLog = implode('\n', $lines);
     Logger::Instance()->debug("Received data: '$linesForLog'");
@@ -63,15 +63,15 @@ class RX {
     // support utf8. https://github.com/zieren/kids-freedom-control/issues/33
     $titles = array_map('utf8_decode', $titles);
 
-    $classifications = $wasted->insertActivity($user, $lastError, $titles);
+    $classifications = Wasted::insertActivity($user, $lastError, $titles);
 
     // Build response.
 
     // Part 1: Limits and TimeLeft.
     $response = [];
-    $configs = $wasted->getAllLimitConfigs($user);
+    $configs = Wasted::getAllLimitConfigs($user);
     $limitIdToName = getLimitIdToNameMap($configs);
-    $timeLeftByLimit = $wasted->queryTimeLeftTodayAllLimits($user);
+    $timeLeftByLimit = Wasted::queryTimeLeftTodayAllLimits($user);
     foreach ($timeLeftByLimit as $limitId => $timeLeft) {
       $response[] = $limitId.';'.$timeLeft->toClientResponse().';'.$limitIdToName[$limitId];
     }

@@ -52,110 +52,109 @@ function checkRequirements() {
 
 checkRequirements();
 
-$wasted = Wasted::create(true /* create missing tables */);
-$now = new DateTime();
+Wasted::initialize(true /* create missing tables */);
 
 $considerUnlocking = false;
 $furtherLimits = false;
 
 if (action('setUserConfig')) {
   $user = postString('configUser');
-  $wasted->setUserConfig($user, postString('configKey'), postString('configValue'));
+  Wasted::setUserConfig($user, postString('configKey'), postString('configValue'));
 } else if (action('clearUserConfig')) {
   $user = postString('configUser');
-  $wasted->clearUserConfig($user, postString('configKey'));
+  Wasted::clearUserConfig($user, postString('configKey'));
 } else if (action('setGlobalConfig')) {
-  $wasted->setGlobalConfig(postString('configKey'), postString('configValue'));
+  Wasted::setGlobalConfig(postString('configKey'), postString('configValue'));
 } else if (action('clearGlobalConfig')) {
-  $wasted->clearGlobalConfig(postString('configKey'));
+  Wasted::clearGlobalConfig(postString('configKey'));
 } else if (action('addLimit')) {
   $user = postString('user');
-  $wasted->addLimit($user, postString('limitName'));
+  Wasted::addLimit($user, postString('limitName'));
 } else if (action('renameLimit')) {
   $limitId = postInt('limitId');
-  $wasted->renameLimit($limitId, postString('limitName'));
+  Wasted::renameLimit($limitId, postString('limitName'));
 } else if (action('addClass')) {
-  $wasted->addClass(postString('className'));
+  Wasted::addClass(postString('className'));
 } else if (action('removeLimit')) {
   $limitId = postInt('limitId');
-  $wasted->removeLimit($limitId);
+  Wasted::removeLimit($limitId);
 } else if (action('setLimitConfig')) {
   $limitId = postInt('limitId');
-  $wasted->setLimitConfig($limitId, postString('limitConfigKey'), postString('limitConfigValue'));
+  Wasted::setLimitConfig($limitId, postString('limitConfigKey'), postString('limitConfigValue'));
 } else if (action('clearLimitConfig')) {
   $limitId = postInt('limitId');
-  $wasted->clearLimitConfig($limitId, postString('limitConfigKey'));
+  Wasted::clearLimitConfig($limitId, postString('limitConfigKey'));
 } else if (action('setMinutes')) {
   $user = postString('user');
   $dateString = postString('date');
   $limitId = postInt('limitId');
   $furtherLimits =
-      $wasted->setOverrideMinutes($user, $dateString, $limitId, postInt('overrideMinutes', 0));
+      Wasted::setOverrideMinutes($user, $dateString, $limitId, postInt('overrideMinutes', 0));
 } else if (action('setTimes')) {
   $user = postString('user');
   $dateString = postString('date');
   $limitId = postInt('limitId');
   $furtherLimits =
-      $wasted->setOverrideSlots($user, $dateString, $limitId, postString('overrideTimes', ''));
+      Wasted::setOverrideSlots($user, $dateString, $limitId, postString('overrideTimes', ''));
 } else if (action('unlock')) {
   $user = postString('user');
   $dateString = postString('date');
   $limitId = postInt('limitId');
-  $considerUnlocking = $wasted->setOverrideUnlock($user, $dateString, $limitId);
+  $considerUnlocking = Wasted::setOverrideUnlock($user, $dateString, $limitId);
 } else if (action('clearOverrides')) {
   $user = postString('user');
   $dateString = postString('date');
   $limitId = postInt('limitId');
-  $wasted->clearOverrides($user, $dateString, $limitId);
+  Wasted::clearOverrides($user, $dateString, $limitId);
 } else if (action('addMapping')) {
   $user = postString('user');
   $limitId = postInt('limitId');
   $classId = postInt('classId');
-  $wasted->addMapping($classId, $limitId);
+  Wasted::addMapping($classId, $limitId);
 } else if (action('removeMapping')) {
   $user = postString('user');
   $limitId = postInt('limitId');
   $classId = postInt('classId');
-  $wasted->removeMapping($classId, $limitId);
+  Wasted::removeMapping($classId, $limitId);
 } else if (action('removeClassification')) {
   $classificationId = postInt('classificationId');
-  $wasted->removeClassification($classificationId);
+  Wasted::removeClassification($classificationId);
 } else if (action('addClassification')) {
   $classId = postInt('classId');
-  $wasted->addClassification(
+  Wasted::addClassification(
       $classId, postInt('classificationPriority'), postRaw('classificationRegEx'));
 } else if (action('changeClassification')) {
   $classificationId = postInt('classificationId');
-  $wasted->changeClassification(
+  Wasted::changeClassification(
       $classificationId, postRaw('classificationRegEx'), postRaw('classificationPriority'));
 } else if (action('removeClass')) {
   $classId = postInt('classId');
-  $wasted->removeClass($classId);
+  Wasted::removeClass($classId);
 } else if (action('renameClass')) {
   $classId = postInt('classId');
-  $wasted->renameClass($classId, postString('className'));
+  Wasted::renameClass($classId, postString('className'));
 } else if (action('doReclassify')) {
   $days = postInt('reclassificationDays');
-  $fromTime = (clone $now)->sub(new DateInterval('P' . $days . 'D'));
-  $wasted->reclassify($fromTime);
+  $fromTime = (clone Wasted::$now)->sub(new DateInterval('P' . $days . 'D'));
+  Wasted::reclassify($fromTime);
 } else if (action('addUser')) {
   $newUser = postString('userId');
-  $wasted->addUser($newUser);
+  Wasted::addUser($newUser);
 } else if (action('removeUser')) {
   $newUser = postString('userId');
-  $wasted->removeUser($newUser);
+  Wasted::removeUser($newUser);
 } else if (action('ackError')) {
   $user = postString('user');
   $ackedError = postString('ackedError');
-  $wasted->ackError($user, $ackedError);
+  Wasted::ackError($user, $ackedError);
 } else if (action('prune')) {
   // Need to postfix 00:00:00 to not get current time of day.
   $dateTime = DateTime::createFromFormat('Y-m-d H:i:s', postString('datePrune') . ' 00:00:00');
-  $wasted->pruneTables($dateTime);
+  Wasted::pruneTables($dateTime);
   echo '<b class="notice">Deleted data before ' . getDateString($dateTime) . '</b></hr>';
 }
 
-$users = $wasted->getUsers();
+$users = Wasted::getUsers();
 
 if (!isset($user)) {
   $user = get('user') ?? postString('user') ?? getOrDefault($users, 0, '');
@@ -166,12 +165,12 @@ if (!isset($dateString)) {
 if (!isset($limitId)) {
   $limitId = 0; // never exists, MySQL index is 1-based
 }
-$unackedError = $user ? $wasted->getUnackedError($user) : '';
+$unackedError = $user ? Wasted::getUnackedError($user) : '';
 
-$limitConfigs = $wasted->getAllLimitConfigs($user);
-$classes = $wasted->getAllClasses();
-$configs = $wasted->getAllLimitConfigs($user);
-$classifications = $wasted->getAllClassifications();
+$limitConfigs = Wasted::getAllLimitConfigs($user);
+$classes = Wasted::getAllClasses();
+$configs = Wasted::getAllLimitConfigs($user);
+$classifications = Wasted::getAllClassifications();
 
 echo dateSelectorJs();
 echo classificationSelectorJs($classifications);
@@ -234,17 +233,17 @@ echo '<p>
 echo "<h4>This week's overrides</h4>";
 echoTable(
     ['Date', 'Limit', 'Minutes', 'Times', 'Lock'],
-    $wasted->queryRecentOverrides($user));
+    Wasted::queryRecentOverrides($user));
 
-$timeLeftByLimit = $wasted->queryTimeLeftTodayAllLimits($user);
+$timeLeftByLimit = Wasted::queryTimeLeftTodayAllLimits($user);
 
 echo '<h4>Available classes today</h4>
-<p>' . implode(', ', $wasted->queryClassesAvailableTodayTable($user, $timeLeftByLimit)) . '</p>';
+<p>' . implode(', ', Wasted::queryClassesAvailableTodayTable($user, $timeLeftByLimit)) . '</p>';
 
 // --- BEGIN duplicate code. TODO: Extract.
 $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-$timeSpentByLimitAndDate = $wasted->queryTimeSpentByLimitAndDate($user, $fromTime, $toTime);
+$timeSpentByLimitAndDate = Wasted::queryTimeSpentByLimitAndDate($user, $fromTime, $toTime);
 $timeSpentByLimit = [];
 foreach ($timeSpentByLimitAndDate as $id=>$timeSpentByDate) {
   $timeSpentByLimit[$id] = getOrDefault($timeSpentByDate, $dateString, 0);
@@ -266,8 +265,8 @@ echo '</span>';
 
 // TODO: This IGNORED the selected date. Add its own date selector?
 
-$fromTime = (clone $now)->sub(new DateInterval('P7D'));
-$topUnclassified = $wasted->queryTopUnclassified($user, $fromTime, false, 10);
+$fromTime = (clone Wasted::$now)->sub(new DateInterval('P7D'));
+$topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, false, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
@@ -275,8 +274,7 @@ echo '<br><span class="inlineBlockWithMargin"><h4>Top 10 unclassified last seven
 echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTableWithMargin limitTdWidth');
 echo '</span>';
 
-$fromTime = (clone $now)->sub(new DateInterval('P7D'));
-$topUnclassified = $wasted->queryTopUnclassified($user, $fromTime, true, 10);
+$topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, true, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
@@ -287,11 +285,11 @@ echo '</span>';
 echo '<h4>Classification (for all users)</h4>';
 echoTable(
     ['Class', 'Classification', 'Prio', 'Matches', 'Samples (click to expand)'],
-    $wasted->getClassesToClassificationTable(),
+    Wasted::getClassesToClassificationTable(),
     'titled collapsible limitTdWidth');
 
 echo '<hr><h4>Limits and classes</h4>';
-echoTable(['Limit', 'Class', 'Further limits', 'Config'], $wasted->getLimitsToClassesTable($user));
+echoTable(['Limit', 'Class', 'Further limits', 'Config'], Wasted::getLimitsToClassesTable($user));
 
 echo '<h4>Map class to limit</h4>
 <form method="post" action="index.php">
@@ -372,10 +370,10 @@ echo '
 ';
 
 echo '<h3>User config</h3>';
-echoTableAssociative($wasted->getUserConfig($user));
+echoTableAssociative(Wasted::getUserConfig($user));
 
 echo '<h3>Global config</h3>';
-echoTableAssociative($wasted->getGlobalConfig());
+echoTableAssociative(Wasted::getGlobalConfig());
 
 echo '<h3>Update config</h3>
 <form method="post" enctype="multipart/form-data">
@@ -399,7 +397,7 @@ echo '<h3>Users</h3>
 
 <hr />';
 
-$pruneFromDate = (clone $now)->sub(new DateInterval('P4W'));
+$pruneFromDate = (clone Wasted::$now)->sub(new DateInterval('P4W'));
 
 echo '<h2>Manage Database</h2>
 <form method="post">

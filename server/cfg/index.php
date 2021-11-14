@@ -9,7 +9,8 @@ if (!$user) {
   return;
 }
 
-$response = Config::handleRequest(Wasted::create(), $user);
+Wasted::initialize();
+$response = Config::handleRequest($user);
 echo $response;
 Logger::Instance()->debug(
-    'Config response for user "' . $user . '": ' . str_replace("\n", '\n', $response));
+    "Config response for user '$user': " . str_replace("\n", '\n', $response));

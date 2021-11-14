@@ -31,16 +31,21 @@ function logDbQueryError($params) {
 }
 
 class Wasted {
+  /**
+   * Public for testing.
+   *
+   * @var DateTime
+   */
+  public static $now;
 
-  /** Creates a new instance for use in production, using parameters from config.php. */
-  public static function create($createMissingTables = false): Wasted {
-    return new Wasted(
-        DB_NAME, DB_USER, DB_PASS, function() { return time(); }, $createMissingTables);
+  /** Initializes the singleton for use in production, using DB config from config.php. */
+  public static function initialize($initializeTables = false): void {
+    self::initializeInternal(DB_NAME, DB_USER, DB_PASS, $initializeTables);
   }
 
-  /** Creates a new instance for use in tests. $timeFunction is used in place of system time(). */
-  public static function createForTest($dbName, $dbUser, $dbPass, $timeFunction): Wasted {
-    return new Wasted($dbName, $dbUser, $dbPass, $timeFunction, true);
+  /** Creates a new instance for use in tests. */
+  public static function initializeForTest($dbName, $dbUser, $dbPass): void {
+    self::initializeInternal($dbName, $dbUser, $dbPass, true);
   }
 
   /**
@@ -50,7 +55,7 @@ class Wasted {
    * Note that the default minutes limit of 1d for the total limit is also deleted. This is
    * intended; most tests are easier to read if we count total time down from 0 instead of from 24.
    */
-  public function clearForTest(): void {
+  public static function clearForTest(): void {
     foreach (DB::tableList() as $table) {
       if ($table == 'limits') {
         DB::query('DELETE FROM limits WHERE id NOT IN (SELECT total_limit_id FROM users)');
@@ -60,35 +65,31 @@ class Wasted {
         DB::query("DELETE FROM `$table`");
       }
     }
-    $this->insertDefaultRows();
+    self::insertDefaultRows();
   }
 
-  /**
-   * Connects to the database, or exits on error. $timeFunction is used in place of system time().
-   */
-  private function __construct($dbName, $dbUser, $dbPass, $timeFunction, $createMissingTables) {
+  /** Connects to the database, or exits on error. */
+  private static function initializeInternal($dbName, $dbUser, $dbPass, $initializeTables): void {
+    self::$now = new DateTime();
     DB::$dbName = $dbName;
     DB::$user = $dbUser;
     DB::$password = $dbPass;
     DB::$encoding = 'latin1'; // aka iso-8859-1
     DB::query('SET NAMES ' . CHARSET_AND_COLLATION); // for 'SET @foo = "bar"'
-    $this->timeFunction = $timeFunction;
-    if ($createMissingTables) {
-      $this->createMissingTables();
+    if ($initializeTables) {
+      self::initializeTables();
     }
+    $globalConfig = self::getGlobalConfig();
     // Configure global logger.
     // TODO: Report a proper error if we crash here because we weren't initialized
     // (e.g. new install and never visited the admin page).
-    $config = $this->getGlobalConfig();
-    if (array_key_exists('log_level', $config)) {
-      Logger::Instance()->setLogLevelThreshold(strtolower($config['log_level']));
-    }  // else: defaults to debug
+    Logger::Instance()->setLogLevelThreshold(
+        strtolower(getOrDefault($globalConfig, 'log_level', 'debug')));
   }
 
   // ---------- TABLE MANAGEMENT ----------
 
-  // TODO: This also inserts a few default rows. Reflect that in the name.
-  public function createMissingTables() {
+  private static function initializeTables(): void {
     DB::query('SET default_storage_engine=INNODB');
     DB::query(
         'CREATE TABLE IF NOT EXISTS users ('
@@ -189,10 +190,13 @@ class Wasted {
         . 'FOREIGN KEY (limit_id) REFERENCES limits(id) ON DELETE CASCADE '
         . ') '
         . CREATE_TABLE_SUFFIX);
-    $this->insertDefaultRows();
+    self::insertDefaultRows();
   }
 
-  private function insertDefaultRows() {
+  private static function insertDefaultRows(): void {
+    // Set up a default class that matches everything with the lowest priority, to catch any title
+    // that doesn't match a user specified class. This allows the code to assume that any title will
+    // be classified.
     DB::insertIgnore('classes', ['id' => DEFAULT_CLASS_ID, 'name' => DEFAULT_CLASS_NAME]);
     DB::insertIgnore('classification', [
         'id' => DEFAULT_CLASSIFICATION_ID,
@@ -202,7 +206,7 @@ class Wasted {
   }
 
   /** Delete all activity of all users, and all server log files, prior to DateTime $date. */
-  public function pruneTables($date) {
+  public static function pruneTables($date): void {
     $pruneTimestamp = $date->getTimestamp();
     Logger::Instance()->notice('prune timestamp: '.$pruneTimestamp);
     DB::delete('activity', 'to_ts < %i', $pruneTimestamp);
@@ -227,30 +231,30 @@ class Wasted {
 
   // ---------- LIMIT/CLASS QUERIES ----------
 
-  public function addLimit($user, $limitName) {
+  public static function addLimit($user, $limitName): int {
     DB::insert('limits', ['user' => $user, 'name' => $limitName]);
     return intval(DB::insertId());
   }
 
-  public function removeLimit($limitId) {
+  public static function removeLimit($limitId): void {
     // It shouldn't be possible to specifiy the total limit ID here in the first place. Easiest
     // solution is to do nothing.
     DB::delete('limits', 'id = %i AND id NOT IN (SELECT total_limit_id FROM users)', $limitId);
   }
 
-  public function renameLimit($limitId, $newName) {
+  public static function renameLimit($limitId, $newName): void {
     DB::update('limits',
         ['name' => $newName],
         'id = %s AND id NOT IN (SELECT total_limit_id FROM users)',
         $limitId);
   }
 
-  public function addClass($className) {
+  public static function addClass($className): int {
     DB::insert('classes', ['name' => $className]);
-    return DB::insertId();
+    return intval(DB::insertId());
   }
 
-  public function removeClass($classId) {
+  public static function removeClass($classId): void {
     if ($classId == DEFAULT_CLASS_ID) {
       self::throwException('Cannot delete default class "' . DEFAULT_CLASS_NAME . '"');
     }
@@ -258,69 +262,70 @@ class Wasted {
     // insertion against the class deletion.
     DB::delete('classification', 'class_id = %i', $classId);
 
-    $this->reclassifyForRemoval($classId);
+    self::reclassifyForRemoval($classId);
     DB::delete('classes', 'id = %i', $classId);
   }
 
-  public function renameClass($classId, $newName) {
+  public static function renameClass($classId, $newName): void {
     // There should be no harm in renaming the default class.
     DB::update('classes', ['name' => $newName], 'id = %s', $classId);
   }
 
-  public function addClassification($classId, $priority, $regEx) {
-    DB::query("SELECT 'test' REGEXP %s", $regEx);
+  public static function addClassification($classId, $priority, $regEx): int {
+    DB::query("SELECT 'test' REGEXP %s", $regEx); // validation
     DB::insert('classification', [
         'class_id' => $classId,
         'priority' => $priority,
         're' => $regEx,
         ]);
-    return DB::insertId();
+    return intval(DB::insertId());
   }
 
-  public function removeClassification($classificationId) {
+  public static function removeClassification($classificationId): void {
     if ($classificationId == DEFAULT_CLASSIFICATION_ID) {
       self::throwException('Cannot delete default classification');
     }
     DB::delete('classification', 'id = %i', $classificationId);
   }
 
-  public function changeClassification($classificationId, $newRegEx, $newPriority) {
+  public static function changeClassification($classificationId, $newRegEx, $newPriority): void {
     if ($classificationId == DEFAULT_CLASSIFICATION_ID) {
       self::throwException('Cannot change default classification');
     }
+    DB::query("SELECT 'test' REGEXP %s", $newRegEx); // validation
     DB::update(
         'classification',
         ['re' => $newRegEx, 'priority' => $newPriority],
         'id = %s', $classificationId);
   }
 
-  public function addMapping($classId, $limitId) {
-    // This will fail when trying to add a mapping for the total limit.
+  public static function addMapping($classId, $limitId): void {
+    // This will fail when trying to add a mapping for the total limit, because the trigger and
+    // the initial setup ensure that all classes are already mapped to it.
     DB::insert('mappings', ['class_id' => $classId, 'limit_id' => $limitId]);
   }
 
-  public function removeMapping($classId, $limitId) {
+  public static function removeMapping($classId, $limitId): void {
     // It shouldn't be possible to specifiy the total limit ID here in the first place. Easiest
     // solution is to do nothing.
     DB::delete(
-        'mappings', '
-        class_id = %i AND limit_id = %i
-        AND limit_id NOT IN (SELECT total_limit_id FROM users)',
+        'mappings',
+        'class_id = %i AND limit_id = %i AND limit_id NOT IN (SELECT total_limit_id FROM users)',
         $classId, $limitId);
   }
 
   private static function getTotalLimitTriggerName($user) {
-    return 'total_limit_'.$user;
+    return "total_limit_$user";
   }
 
   /** Set up the specified new user and create their 'Total' limit. Returns that limit's ID. */
-  public function addUser($user) {
+  public static function addUser($user): int {
     DB::insert('users', ['id' => $user]);
-    $limitId = $this->addLimit($user, TOTAL_LIMIT_NAME);
+    $limitId = self::addLimit($user, TOTAL_LIMIT_NAME);
     DB::update('users', ['total_limit_id' => $limitId], 'id = %s', $user);
-    // TODO: This is inaccurate when DST changes backward and the day has 25h, or for some other
-    // reason the day isn't 24h long.
-    $this->setLimitConfig($limitId, 'minutes_day', 24 * 60);
+    // Use 25h to cover for the one day when DST changes backward. We wouldn't want to kill programs
+    // at 23:00 on that day. Since leap seconds don't happen on the same day they're covered too.
+    self::setLimitConfig($limitId, 'minutes_day', 25 * 60);
 
     // Map all existing classes to the total limit and install a trigger that adds each newly
     // added class to this limit.
@@ -341,7 +346,7 @@ class Wasted {
     return $limitId;
   }
 
-  public function removeUser($user) {
+  public static function removeUser($user): void {
     DB::delete('users', 'id = %s', $user);
     $triggerName = self::getTotalLimitTriggerName($user);
     DB::query("DROP TRIGGER `$triggerName`");
@@ -350,9 +355,9 @@ class Wasted {
   /**
    * Returns an array the size of $titles that contains, at the corresponding position, an array
    * with keys 'class_id' and 'limits'. The latter is again an array and contains the list of
-   * limit IDs to which the class_id maps, where 0 indicates "limit to zero".
+   * limit IDs to which the class_id maps. This will always contain at least the user's total limit.
    */
-  public function classify($user, $titles) {
+  public static function classify($user, $titles): array {
     /* We would need to select the highest priority for each title. I don't know how to do that
      * in a way that is ultimately more elegant than repeated queries. Some background:
      * cf. https://dba.stackexchange.com/questions/24327/
@@ -385,7 +390,7 @@ class Wasted {
           ORDER BY limit_id',
           $user, $title);
       if (!$rows) { // This should never happen, the default class catches all.
-        self::throwException("Failed to classify '$title'");
+        self::throwException("Failed to classify '$title' (default class missing?)");
       }
 
       $classification = [];
@@ -400,7 +405,7 @@ class Wasted {
   }
 
   /** Sets the specified limit config. Time slots are checked for validity. */
-  public function setLimitConfig($limitId, $key, $value) {
+  public static function setLimitConfig($limitId, $key, $value): void {
     if (preg_match('/^times(_(mon|tue|wed|thu|fri|sat|sun))?$/', $key)) {
       self::checkSlotsString($value);
     }
@@ -408,13 +413,12 @@ class Wasted {
   }
 
   /** Clears the specified limit config. */
-  public function clearLimitConfig($limitId, $key) {
+  public static function clearLimitConfig($limitId, $key): void {
     DB::delete('limit_config', 'limit_id = %s AND k = %s', $limitId, $key);
   }
 
-  private function checkSlotsString($slotsString): void {
-    $now = $this->newDateTime();
-    $e = self::slotsSpecToEpochSlotsOrError($now, $slotsString);
+  private static function checkSlotsString($slotsString): void {
+    $e = self::slotsSpecToEpochSlotsOrError($slotsString);
     if (is_string($e)) {
       self::throwException($e);
     }
@@ -424,12 +428,12 @@ class Wasted {
    * Returns configs of all limits for the specified user. Returns a 2D array
    * $configs[$limitId][$key] = $value. The array is sorted by limit ID.
    *
-   * Two synthetic configs are injected: 'name' for the limit name, and 'is_total', mapped to true
+   * Two synthetic configs are injected: 'name' for the limit name, and 'is_total', which is true
    * for the single total limit.
    */
-  public function getAllLimitConfigs($user) {
-    $rows = DB::query(
-        'SELECT limits.id, name, k, v, total_limit_id
+  public static function getAllLimitConfigs($user): array {
+    $rows = DB::query('
+        SELECT limits.id, name, k, v, total_limit_id
           FROM limit_config
           RIGHT JOIN limits ON limit_config.limit_id = limits.id
           LEFT JOIN users ON users.total_limit_id = limits.id
@@ -458,7 +462,7 @@ class Wasted {
    *
    * The total limit is omitted, except when a class is mapped only to this limit.
    */
-  public function getLimitsToClassesTable($user) {
+  public static function getLimitsToClassesTable($user): array {
     $rows = DB::query(
         'SELECT
            limits.name as lim,
@@ -552,25 +556,25 @@ class Wasted {
    *
    * TODO: Add time limit.
    */
-  public function getClassesToClassificationTable() {
+  public static function getClassesToClassificationTable(): array {
     DB::query('SET @prev_title = ""');
-    $rows = DB::query(
-        'SELECT
-            classes.id AS id,
-            name,
-            re,
-            priority,
-            COUNT(DISTINCT title) AS n,
-            LEFT(GROUP_CONCAT(title ORDER BY title SEPARATOR "\n"), 1025) AS samples
-          FROM classes
-          LEFT JOIN classification ON classes.id = classification.class_id
-          LEFT JOIN (
-            SELECT DISTINCT title, class_id FROM activity WHERE title != ""
-          ) samples
-          ON samples.class_id = classification.class_id
-          WHERE classes.id != %i0
-          GROUP BY id, name, re, priority
-          ORDER BY name, priority DESC',
+    $rows = DB::query('
+        SELECT
+          classes.id AS id,
+          name,
+          re,
+          priority,
+          COUNT(DISTINCT title) AS n,
+          LEFT(GROUP_CONCAT(title ORDER BY title SEPARATOR "\n"), 1025) AS samples
+        FROM classes
+        LEFT JOIN classification ON classes.id = classification.class_id
+        LEFT JOIN (
+          SELECT DISTINCT title, class_id FROM activity WHERE title != ""
+        ) samples
+        ON samples.class_id = classification.class_id
+        WHERE classes.id != %i0
+        GROUP BY id, name, re, priority
+        ORDER BY name, priority DESC',
         DEFAULT_CLASS_ID);
     $table = [];
     foreach ($rows as $r) {
@@ -583,13 +587,13 @@ class Wasted {
   }
 
   /** Returns an array of class names keyed by class ID. */
-  public function getAllClasses() {
+  public static function getAllClasses(): array {
     $rows = DB::query('SELECT id, name FROM classes ORDER BY name');
-    $table = [];
+    $classes = [];
     foreach ($rows as $row) {
-      $table[$row['id']] = $row['name'];
+      $classes[$row['id']] = $row['name'];
     }
-    return $table;
+    return $classes;
   }
 
   /**
@@ -597,42 +601,42 @@ class Wasted {
    * regular expression (key 're') and priority (key 'priority'). The default classification is not
    * returned.
    */
-  public function getAllClassifications() {
-    $rows = DB::query(
-        'SELECT classification.id, name, re, priority
+  public static function getAllClassifications(): array {
+    $rows = DB::query('
+        SELECT classification.id, name, re, priority
           FROM classification
           JOIN classes on classification.class_id = classes.id
           WHERE classes.id != %i
           ORDER BY name',
         DEFAULT_CLASS_ID);
-    $table = [];
+    $classifications = [];
     foreach ($rows as $row) {
-      $table[$row['id']] = [
+      $classifications[$row['id']] = [
           'name' => $row['name'],
           're' => $row['re'],
           'priority' => intval($row['priority'])];
     }
-    return $table;
+    return $classifications;
   }
 
   /** Reclassify all activity for all users, starting at the specified time. */
-  public function reclassify($fromTime) {
+  public static function reclassify($fromTime): void {
     DB::query('SET @prev_title = ""');
-    DB::query($this->reclassifyQuery(false), $fromTime->getTimestamp());
+    DB::query(self::reclassifyQuery(false), $fromTime->getTimestamp());
   }
 
   /** Reclassify all activity for all users to prepare removal of the specified class. */
-  public function reclassifyForRemoval($classToRemove) {
+  public static function reclassifyForRemoval($classToRemove): void {
     DB::query('SET @prev_title = ""');
-    DB::query($this->reclassifyQuery(true), $classToRemove);
+    DB::query(self::reclassifyQuery(true), $classToRemove);
   }
 
-  private function reclassifyQuery($forRemoval) {
+  private static function reclassifyQuery($forRemoval): string {
     // Activity to reclassify.
     $conditionActivity = $forRemoval ? 'activity.class_id = %i0' : 'to_ts > %i0';
     // Classes available for reclassification.
     $conditionClassification = $forRemoval ? 'classification.class_id != %i0' : 'true';
-    return '
+    return "
         REPLACE INTO activity (user, seq, from_ts, to_ts, class_id, title)
           SELECT user, seq, from_ts, to_ts, reclassification.class_id, activity.title
           FROM (
@@ -645,25 +649,25 @@ class Wasted {
                 SELECT title, classification.class_id, priority
                 FROM (
                   SELECT DISTINCT title FROM activity
-                  WHERE title != ""
-                  AND '.$conditionActivity.'
+                  WHERE title != ''
+                  AND $conditionActivity
                 ) distinct_titles
                 JOIN classification ON title REGEXP re
-                WHERE '.$conditionClassification.'
+                WHERE $conditionClassification
                 ORDER BY title, priority DESC
               ) reclassification_all_prios
               HAVING first = 1
             ) reclassification
           JOIN activity ON reclassification.title = activity.title
-          WHERE '.$conditionActivity;
+          WHERE $conditionActivity";
   }
 
   /**
    * Returns the top $num titles since $fromTime that were classified as default. Order is by time
    * spent ($orderBySum = true) or else by recency.
    */
-  public function queryTopUnclassified($user, $fromTime, $orderBySum, $num) {
-    $rows = $this->queryTimeSpentByTitleInternal(
+  public static function queryTopUnclassified($user, $fromTime, $orderBySum, $num): array {
+    $rows = self::queryTimeSpentByTitleInternal(
         $user, $fromTime->getTimestamp(), MYSQL_SIGNED_BIGINT_MAX, $orderBySum, $num);
     $table = [];
     foreach ($rows as $r) {
@@ -687,12 +691,12 @@ class Wasted {
    * If no windows are open, $titles should be an empty array. In this case the timestamp is
    * recorded for the computation of the previous interval.
    */
-  public function insertActivity($user, $lastError, $titles) {
-    $ts = $this->time();
+  public static function insertActivity($user, $lastError, $titles): array {
+    $ts = self::$now->getTimestamp();
     if ($lastError) {
       DB::update('users', ['last_error' => $lastError], 'id = %s', $user);
     }
-    $config = $this->getClientConfig($user);
+    $config = self::getClientConfig($user);
     // Grace period is always 30s. It accounts for the client being slow to send its request. A
     // higher value means that we tend towards interpreting an observation as a continuation of the
     // current session rather than a gap and a new session. We argue that 30s means at most the user
@@ -708,7 +712,7 @@ class Wasted {
       $titles = [''];
       $classifications = self::$NO_TITLES_PSEUDO_CLASSIFICATION; // info on limits is not used
     } else {
-      $classifications = $this->classify($user, $titles); // no harm classifying the original ''
+      $classifications = self::classify($user, $titles); // no harm classifying the original ''
       foreach ($titles as $i => $title) {
         if (!$title) {
           $titles[$i] = '(no title)';
@@ -808,43 +812,41 @@ class Wasted {
   // ---------- CONFIG QUERIES ----------
 
   /** Updates the specified user config value. */
-  public function setUserConfig($user, $key, $value) {
+  public static function setUserConfig($user, $key, $value): void {
     DB::replace('user_config', ['user' => $user, 'k' => $key, 'v' => $value]);
   }
 
   /** Updates the specified global config value. */
-  public function setGlobalConfig($key, $value) {
+  public static function setGlobalConfig($key, $value): void {
     DB::replace('global_config', ['k' => $key, 'v' => $value]);
   }
 
   /** Deletes the specified user config value. */
-  public function clearUserConfig($user, $key) {
+  public static function clearUserConfig($user, $key): void {
     DB::delete('user_config', 'user = %s AND k = %s', $user, $key);
   }
 
   /** Deletes the specified global config value. */
-  public function clearGlobalConfig($key) {
+  public static function clearGlobalConfig($key): void {
     DB::delete('global_config', 'k = %s', $key);
   }
 
-  // TODO: Consider caching the config(s).
-
   /** Returns user config. */
-  public function getUserConfig($user) {
-    return Wasted::parseKvRows(DB::query('SELECT k, v FROM user_config WHERE user = %s', $user));
+  public static function getUserConfig($user): array {
+    return self::parseKvRows(DB::query('SELECT k, v FROM user_config WHERE user = %s', $user));
   }
 
   /** Returns the global config. */
-  public function getGlobalConfig() {
-    return Wasted::parseKvRows(DB::query('SELECT k, v FROM global_config'));
+  public static function getGlobalConfig(): array {
+    return self::parseKvRows(DB::query('SELECT k, v FROM global_config'));
   }
 
   /**
    * Returns the config for the client of the specified user. This is the global config merged with
    * the user specific config.
    */
-  public function getClientConfig($user) {
-    return Wasted::parseKvRows(DB::query('
+  public static function getClientConfig($user): array {
+    return self::parseKvRows(DB::query('
         SELECT k, v FROM global_config
         WHERE k NOT IN (SELECT k FROM user_config WHERE user = %s0)
         UNION
@@ -852,7 +854,7 @@ class Wasted {
         $user));
   }
 
-  private static function parseKvRows($rows) {
+  private static function parseKvRows($rows): array {
     $config = [];
     foreach ($rows as $row) {
       $config[$row['k']] = $row['v'];
@@ -861,7 +863,7 @@ class Wasted {
   }
 
   /** Returns all users ordered by user ID. */
-  public function getUsers() {
+  public static function getUsers(): array {
     $rows = DB::query('SELECT id FROM users ORDER BY id');
     $users = [];
     foreach ($rows as $row) {
@@ -871,7 +873,7 @@ class Wasted {
   }
 
   /** Returns an unacknowledged error, if any. */
-  public function getUnackedError($user) {
+  public static function getUnackedError($user): string {
     $rows = DB::query('
         SELECT last_error FROM users
         WHERE id = %s
@@ -880,7 +882,7 @@ class Wasted {
   }
 
   /** Acknowledges the specified error. Only the first 15 characters are relevant. */
-  public function ackError($user, $error) {
+  public static function ackError($user, $error): void {
     DB::update('users', ['acked_error' => $error], 'id = %s', $user);
   }
 
@@ -890,7 +892,7 @@ class Wasted {
    * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by limit
    * ID and then date. $toTime may be null to omit the upper limit.
    */
-  public function queryTimeSpentByLimitAndDate($user, $fromTime, $toTime = null) {
+  public static function queryTimeSpentByLimitAndDate($user, $fromTime, $toTime = null): array {
     $fromTimestamp = $fromTime->getTimestamp();
     $toTimestamp = $toTime ? $toTime->getTimestamp() : MYSQL_SIGNED_BIGINT_MAX;
     $rows = DB::query('
@@ -935,7 +937,7 @@ class Wasted {
       // new classes to the total limit. Theoretically these mappings could be removed by hand. In
       // that unlikely event, bail out because the code doesn't expect null as a limit ID.
       if ($limitId == null) {
-        self::throwException('Missing total limit in row:  '.dumpArrayToString($row));
+        self::throwException('Missing total limit in row: '.dumpArrayToString($row));
       }
       getOrCreate(getOrCreate($timestamps, $fromTs, []), 'starting', [])[] = $limitId;
       getOrCreate(getOrCreate($timestamps, $toTs, []), 'ending', [])[] = $limitId;
@@ -944,9 +946,9 @@ class Wasted {
     }
 
     // Insert timestamps for each new day, with the string representation of the previous day. At
-    // this timestamp we need to store the accumulated times for that previous day.
-    $dateTime = (new DateTime())->setTimestamp($minTs);
-    $dateTime->setTime(0, 0);
+    // this timestamp we need to store the accumulated times for that previous day. Need to use
+    // no-arg ctor to pick up TZ.
+    $dateTime = (new DateTime())->setTimestamp($minTs)->setTime(0, 0);
     do {
       $dateString = getDateString($dateTime);
       $dateTime->add(new DateInterval('P1D'));
@@ -1001,8 +1003,8 @@ class Wasted {
     return $timeByLimitAndDate;
   }
 
-  public function queryTimeSpentByTitleInternal(
-      $user, $fromTimestamp, $toTimestamp, $orderBySum, $topUnclassified = 0) {
+  public static function queryTimeSpentByTitleInternal(
+      $user, $fromTimestamp, $toTimestamp, $orderBySum, $topUnclassified = 0): array {
     $orderBy = $orderBySum
         ? 'ORDER BY sum_s DESC, title'
         : 'ORDER BY ts_last_seen DESC, title';
@@ -1033,9 +1035,9 @@ class Wasted {
    *
    * TODO: Semantics, parameter names.
    */
-  public function queryTimeSpentByTitle($user, $fromTime, $orderBySum = true) {
+  public static function queryTimeSpentByTitle($user, $fromTime, $orderBySum = true): array {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-    $rows = $this->queryTimeSpentByTitleInternal(
+    $rows = self::queryTimeSpentByTitleInternal(
         $user, $fromTime->getTimestamp(), $toTime->getTimestamp(), $orderBySum);
     $timeByTitle = [];
     foreach ($rows as $row) {
@@ -1053,14 +1055,11 @@ class Wasted {
    * Returns an array keyed by limit ID that holds TimeLeft instances. All limits for the user are
    * present. The result is sorted by key (for consistency, as the ID is not meaningful).
    */
-  public function queryTimeLeftTodayAllLimits($user) {
-    $configs = $this->getAllLimitConfigs($user);
-    $now = $this->newDateTime();
-
-    $overridesByLimit = $this->queryOverridesByLimit($user, $now);
-
+  public static function queryTimeLeftTodayAllLimits($user): array {
+    $configs = self::getAllLimitConfigs($user);
+    $overridesByLimit = self::queryOverridesByLimit($user);
     $timeSpentByLimitAndDate =
-        $this->queryTimeSpentByLimitAndDate($user, getWeekStart($now), null);
+        self::queryTimeSpentByLimitAndDate($user, getWeekStart(self::$now), null);
 
     $timeLeftByLimit = [];
     foreach (array_keys($configs) as $limitId) {
@@ -1068,7 +1067,7 @@ class Wasted {
       $timeSpentByDate = getOrDefault($timeSpentByLimitAndDate, $limitId, []);
       $overrides = getOrDefault($overridesByLimit, $limitId, []);
       $timeLeftByLimit[$limitId] =
-          $this->computeTimeLeftToday($now, $config, $overrides, $timeSpentByDate, $limitId);
+          self::computeTimeLeftToday($config, $overrides, $timeSpentByDate, $limitId);
     }
     ksort($timeLeftByLimit, SORT_NUMERIC);
     return $timeLeftByLimit;
@@ -1087,9 +1086,9 @@ class Wasted {
    * - No minutes, but slots: the slots
    * - Minutes and slots: minimum from both
    */
-  private function computeTimeLeftToday($now, $config, $overrides, $timeSpentByDate) {
-    $nowString = getDateString($now);
-    $dow = strtolower($now->format('D'));
+  private static function computeTimeLeftToday($config, $overrides, $timeSpentByDate): TimeLeft {
+    $nowString = getDateString(self::$now);
+    $dow = strtolower(self::$now->format('D'));
 
     // Limit is locked if unlock is required and it's not unlocked.
     $locked =
@@ -1123,15 +1122,15 @@ class Wasted {
       $secondsLimitToday = min($secondsLimitToday, $secondsLeftInWeek);
     }
     // Compute time left in the minutes contingent. Can't exceed time left in the day.
-    $tomorrow = (clone $now)->setTime(0, 0)->add(new DateInterval('P1D'));
-    $secondsLeftInDay = $tomorrow->getTimestamp() - $now->getTimestamp();
+    $tomorrow = (clone self::$now)->setTime(0, 0)->add(new DateInterval('P1D'));
+    $secondsLeftInDay = $tomorrow->getTimestamp() - self::$now->getTimestamp();
     $totalSeconds =
         min($secondsLimitToday - getOrDefault($timeSpentByDate, $nowString, 0), $secondsLeftInDay);
     $timeLeft = new TimeLeft($locked, $totalSeconds);
 
     // Apply slots, if set.
     if ($slotsSpec !== null) {
-      self::applySlots($now, $slotsSpec, $timeLeft);
+      self::applySlots($slotsSpec, $timeLeft);
     }
 
     return $timeLeft;
@@ -1141,14 +1140,16 @@ class Wasted {
    * Takes the current time and slots string from config/overrides and applies the resulting
    * additional limitation to the specified TimeLeft instance. Also sets the computed current and
    * next slot.
+   *
+   * Public for testing.
    */
-  static function applySlots($now, $slotsSpec, $timeLeft) {
-    $slots = self::slotsSpecToEpochSlotsOrError($now, $slotsSpec);
+  public static function applySlots($slotsSpec, $timeLeft): void {
+    $slots = self::slotsSpecToEpochSlotsOrError($slotsSpec);
     if (is_string($slots)) {
       self::throwException($slots);
     }
 
-    $ts = $now->getTimestamp();
+    $ts = self::$now->getTimestamp();
     $slots[] = []; // avoids next slot extraction special case
     $currentSeconds = 0;
     $totalSeconds = 0;
@@ -1180,7 +1181,7 @@ class Wasted {
    * Returns a sorted array of non-overlapping slots in the form
    * [[from_ts_0, to_ts_0], [from_ts_1, to_ts_1]]. On error returns an error message (string).
    */
-  static function slotsSpecToEpochSlotsOrError($now, $slotsSpec) {
+  static function slotsSpecToEpochSlotsOrError($slotsSpec) /* mixed - only in PHP 8 */ {
     $slotsStrings = explode(',', $slotsSpec);
     $slots = [];
     foreach ($slotsStrings as $slotString) {
@@ -1206,8 +1207,10 @@ class Wasted {
         $valid = ($fromHour != 24 || $fromMinute == 0) && ($toHour != 24 || $toMinute == 0);
       }
       if ($valid) {
-        $fromTimestamp = (clone $now)->setTime($fromHour, $fromMinute)->getTimestamp();
-        $toTimestamp = (clone $now)->setTime($toHour, $toMinute)->getTimestamp();
+        $d = clone self::$now;
+        $fromTimestamp = $d->setTime($fromHour, $fromMinute)->getTimestamp();
+        $toTimestamp = $d->setTime($toHour, $toMinute)->getTimestamp();
+        // If $toHour was 24 then $d is now at the next day, so it's wasted!
         $valid = $fromTimestamp <= $toTimestamp;
       }
       if (!$valid) {
@@ -1225,7 +1228,7 @@ class Wasted {
     return $slots;
   }
 
-  private static function adjust12hFormat($h, $amOrPm) {
+  private static function adjust12hFormat($h, $amOrPm): int {
     if ($amOrPm == 'a') {
       return $h == 12 ? 0 : $h;
     } else if ($amOrPm == 'p') {
@@ -1240,9 +1243,9 @@ class Wasted {
    * (which might count towards a shared limit and thus reduce time for other classes). Classes with
    * zero time are omitted.
    */
-  public function queryClassesAvailableTodayTable($user, $timeLeftTodayAllLimits = null) {
-    $timeLeftTodayAllLimits =
-        $timeLeftTodayAllLimits ?? $this->queryTimeLeftTodayAllLimits($user);
+  public static function queryClassesAvailableTodayTable(
+      $user, $timeLeftTodayAllLimits = null): array {
+    $timeLeftTodayAllLimits = $timeLeftTodayAllLimits ?? self::queryTimeLeftTodayAllLimits($user);
     $rows = DB::query(
         'SELECT classes.name, class_id, limit_id FROM limits
          JOIN mappings on limits.id = mappings.limit_id
@@ -1283,14 +1286,14 @@ class Wasted {
    *
    * Returns queryOverlappingLimits().
    */
-  public function setOverrideMinutes($user, $date, $limitId, $minutes) {
+  public static function setOverrideMinutes($user, $date, $limitId, $minutes): array {
     DB::insertUpdate('overrides', [
         'user' => $user,
         'date' => $date,
         'limit_id' => $limitId,
         'minutes' => $minutes],
         'minutes=%i', $minutes);
-    return $this->queryOverlappingLimits($limitId);
+    return self::queryOverlappingLimits($limitId);
   }
 
   /**
@@ -1298,33 +1301,33 @@ class Wasted {
    *
    * Returns queryOverlappingLimits().
    */
-  public function setOverrideUnlock($user, $date, $limitId) {
+  public static function setOverrideUnlock($user, $date, $limitId): array {
     DB::insertUpdate('overrides', [
         'user' => $user,
         'date' => $date,
         'limit_id' => $limitId,
         'unlocked' => 1],
         'unlocked=%i', 1);
-    return $this->queryOverlappingLimits($limitId, $date);
+    return self::queryOverlappingLimits($limitId, $date);
   }
 
   /** Overrides the time slots otherwise applicable for this date. */
-  public function setOverrideSlots($user, $date, $limitId, $slots) {
-    $this->checkSlotsString($slots);
+  public static function setOverrideSlots($user, $date, $limitId, $slots): array {
+    self::checkSlotsString($slots);
     DB::insertUpdate('overrides', [
         'user' => $user,
         'date' => $date,
         'limit_id' => $limitId,
         'slots' => $slots],
         'slots=%s', $slots);
-    return $this->queryOverlappingLimits($limitId, $date);
+    return self::queryOverlappingLimits($limitId, $date);
   }
 
   /**
    * Clears all overrides for the specified limit for $date, which is a String in the format
    * 'YYYY-MM-DD'.
    */
-  public function clearOverrides($user, $date, $limitId) {
+  public static function clearOverrides($user, $date, $limitId): void {
     DB::delete('overrides', 'user=%s AND date=%s AND limit_id=%i', $user, $date, $limitId);
   }
 
@@ -1335,7 +1338,7 @@ class Wasted {
    * If $dateForUnlock (as a string in 'YYYY-MM-DD' format) is specified, the query is restricted to
    * limits that are locked on that day, taking overrides into consideration.
    */
-  public function queryOverlappingLimits($limitId, $dateForUnlock = null) {
+  public static function queryOverlappingLimits($limitId, $dateForUnlock = null): array {
     return array_map(
         function($a) { return $a['name']; },
         DB::query('
@@ -1369,8 +1372,8 @@ class Wasted {
 
   /** Returns this week's overrides for the specified user. */
   // TODO: Allow setting the date range.
-  public function queryRecentOverrides($user) {
-    $fromDate = getWeekStart($this->newDateTime());
+  public static function queryRecentOverrides($user): array {
+    $fromDate = getWeekStart(self::$now);
     return DB::query('
         SELECT
           date,
@@ -1387,13 +1390,13 @@ class Wasted {
   }
 
   /** Returns all overrides as a 2D array keyed first by limit ID, then by override. */
-  private function queryOverridesByLimit($user, $now) {
+  private static function queryOverridesByLimit($user): array {
     $rows = DB::query('
         SELECT limit_id, unlocked , minutes, slots
         FROM overrides
         WHERE user = %s
         AND date = %s',
-        $user, getDateString($now));
+        $user, getDateString(self::$now));
     $overridesByLimit = [];
     // PK is (user, date, limit_id), so there is at most one row per limit_id.
     foreach ($rows as $row) {
@@ -1412,7 +1415,7 @@ class Wasted {
    * Returns the sequence of window titles for the specified user and date. This will typically be
    * a long array and is intended for debugging.
    */
-  public function queryTitleSequence($user, $fromTime) {
+  public static function queryTitleSequence($user, $fromTime): array {
     $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     $rows = DB::query('
       SELECT from_ts, to_ts, name, title
@@ -1434,31 +1437,9 @@ class Wasted {
     return $windowTitles;
   }
 
-  private static function throwException($message) {
+  private static function throwException($message): void {
     Logger::Instance()->critical($message);
     throw new Exception($message);
-  }
-
-  /**
-   * Returns epoch time in seconds. Allows manual dependency injection in test.
-   *
-   * TODO: It is probably cleaner to pass this in instead.
-   */
-  private function time() {
-    return ($this->timeFunction)();
-  }
-
-  /**
-   * Helper method to return a new DateTime object representing $this->time() in the server's
-   * timezone.
-   *
-   * TODO: Timestamp for "now" should be set on construction, to ensure it remains constant during
-   * the entire request. But that requires changing the code in the test that advances time.
-   */
-  private function newDateTime() {
-    $d = new DateTime();
-    $d->setTimestamp($this->time());
-    return $d;
   }
 
   private static $NO_TITLES_PSEUDO_CLASSIFICATION = [['class_id' => DEFAULT_CLASS_ID]];

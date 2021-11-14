@@ -11,8 +11,8 @@ class Config {
    * value2
    * ...
    */
-  public static function handleRequest(Wasted $wasted, string $user): string {
-    $config = $wasted->getClientConfig($user);
+  public static function handleRequest(string $user): string {
+    $config = Wasted::getClientConfig($user);
     $response = [];
     foreach ($config as $k => $v) {
       $response[] = $k;

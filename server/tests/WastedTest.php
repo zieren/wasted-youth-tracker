@@ -610,6 +610,14 @@ final class WastedTest extends WastedTestBase {
         $this->queryTimeLeftTodayAllLimitsOnlyCurrentSeconds(),
         [$totalLimitId => 0, $limitId => 0]);
 
+    // Overrides have priority over the weekly limit.
+    $dateString = getDateString(Wasted::$now);
+    Wasted::setOverrideMinutes('u1', $dateString, $limitId, 123);
+    $this->assertEquals(
+        $this->queryTimeLeftTodayAllLimitsOnlyCurrentSeconds(),
+        [$totalLimitId => 0, $limitId => 123 * 60]);
+    Wasted::clearOverrides('u1', $dateString, $limitId);
+
     // Clear the limit.
     Wasted::clearLimitConfig($limitId, 'minutes_week');
     $this->assertEquals(

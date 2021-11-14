@@ -1102,11 +1102,11 @@ class Wasted {
     $slotsSpec = getOrDefault($config, 'times');
     $slotsSpec = getOrDefault($config, "times_$dow", $slotsSpec);
     $slotsSpec = getOrDefault($overrides, 'slots', $slotsSpec);
-    // Compute the regular minutes for today: default, day-of-week or overridden. Zero if none set,
-    // or in case of NULL (which can happen for overrides).
+    // Compute the regular minutes for today: default or day-of-week specific. Overrides are
+    // considered below.
     $minutesLimitToday = getOrDefault($config, 'minutes_day');
     $minutesLimitToday = getOrDefault($config, "minutes_$dow", $minutesLimitToday);
-    $minutesLimitToday = getOrDefault($overrides, 'minutes', $minutesLimitToday);
+
     // Compute minutes limit in seconds, considering presence/absence of config.
     if ($minutesLimitToday === null) {
       if ($slotsSpec === null) {
@@ -1121,8 +1121,11 @@ class Wasted {
       // Minutes are set.
       $secondsLimitToday = $minutesLimitToday * 60;
     }
-    // A weekly limit can further shorten the minute contingent, but not extend it.
-    if (isset($config['minutes_week'])) {
+    // No matter what we derived until now, an override takes precedence.
+    if (isset($overrides['minutes'])) {
+      $secondsLimitToday = $overrides['minutes'] * 60;
+    } elseif (isset($config['minutes_week'])) {
+      // A weekly limit can further shorten the minute contingent, but not extend it.
       $secondsLeftInWeek = $config['minutes_week'] * 60 - array_sum($timeSpentByDate);
       $secondsLimitToday = min($secondsLimitToday, $secondsLeftInWeek);
     }

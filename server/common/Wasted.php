@@ -229,6 +229,49 @@ class Wasted {
     }
   }
 
+  /** Reclassify all activity for all users, starting at the specified time. */
+  public static function reclassify($fromTime): void {
+    DB::query('SET @prev_title = ""');
+    DB::query(self::reclassifyQuery(false), $fromTime->getTimestamp());
+  }
+
+  /** Reclassify all activity for all users to prepare removal of the specified class. */
+  public static function reclassifyForRemoval($classToRemove): void {
+    DB::query('SET @prev_title = ""');
+    DB::query(self::reclassifyQuery(true), $classToRemove);
+  }
+
+  private static function reclassifyQuery($forRemoval): string {
+    // Activity to reclassify.
+    $conditionActivity = $forRemoval ? 'activity.class_id = %i0' : 'to_ts > %i0';
+    // Classes available for reclassification.
+    $conditionClassification = $forRemoval ? 'classification.class_id != %i0' : 'true';
+    return "
+        REPLACE INTO activity (user, seq, from_ts, to_ts, class_id, title)
+          SELECT user, seq, from_ts, to_ts, reclassification.class_id, activity.title
+          FROM (
+            SELECT
+              title,
+              class_id,
+              IF (@prev_title = title, 0, 1) AS first,
+              @prev_title := title
+              FROM (
+                SELECT title, classification.class_id, priority
+                FROM (
+                  SELECT DISTINCT title FROM activity
+                  WHERE title != ''
+                  AND $conditionActivity
+                ) distinct_titles
+                JOIN classification ON title REGEXP re
+                WHERE $conditionClassification
+                ORDER BY title, priority DESC
+              ) reclassification_all_prios
+              HAVING first = 1
+            ) reclassification
+          JOIN activity ON reclassification.title = activity.title
+          WHERE $conditionActivity";
+  }
+
   // ---------- LIMIT/CLASS QUERIES ----------
 
   public static function addLimit($user, $limitName): int {
@@ -314,6 +357,93 @@ class Wasted {
         $classId, $limitId);
   }
 
+  /** Sets the specified limit config. Time slots are checked for validity. */
+  public static function setLimitConfig($limitId, $key, $value): void {
+    if (preg_match('/^times(_(mon|tue|wed|thu|fri|sat|sun))?$/', $key)) {
+      self::checkSlotsString($value);
+    }
+    DB::insertUpdate('limit_config', ['limit_id' => $limitId, 'k' => $key, 'v' => $value]);
+  }
+
+  /** Clears the specified limit config. */
+  public static function clearLimitConfig($limitId, $key): void {
+    DB::delete('limit_config', 'limit_id = %s AND k = %s', $limitId, $key);
+  }
+
+  /**
+   * Returns configs of all limits for the specified user. Returns a 2D array
+   * $configs[$limitId][$key] = $value. The array is sorted by limit ID.
+   *
+   * Two synthetic configs are injected: 'name' for the limit name, and 'is_total', which is true
+   * for the single total limit.
+   */
+  public static function getAllLimitConfigs($user): array {
+    $rows = DB::query('
+        SELECT limits.id, name, k, v, total_limit_id
+          FROM limit_config
+          RIGHT JOIN limits ON limit_config.limit_id = limits.id
+          LEFT JOIN users ON users.total_limit_id = limits.id
+          WHERE user = %s
+          ORDER BY id, k',
+        $user);
+    $configs = [];
+    foreach ($rows as $row) {
+      $limitId = $row['id'];
+      if (!array_key_exists($limitId, $configs)) {
+        $configs[$limitId] = [];
+      }
+      if ($row['k']) { // May be absent due to RIGHT JOIN if limit has no config at all.
+        $configs[$limitId][$row['k']] = $row['v'];
+      }
+      $configs[$limitId]['name'] = $row['name'];
+      $configs[$limitId]['is_total'] = $row['total_limit_id'] ? true : false;
+    }
+    ksort($configs);
+    return $configs;
+  }
+
+  /** Returns an array of class names keyed by class ID. */
+  public static function getAllClasses(): array {
+    $rows = DB::query('SELECT id, name FROM classes ORDER BY name');
+    $classes = [];
+    foreach ($rows as $row) {
+      $classes[$row['id']] = $row['name'];
+    }
+    return $classes;
+  }
+
+  /**
+   * Returns an array keyed by classification ID containing arrays with the class name (key 'name'),
+   * regular expression (key 're') and priority (key 'priority'). The default classification is not
+   * returned.
+   */
+  public static function getAllClassifications(): array {
+    $rows = DB::query('
+        SELECT classification.id, name, re, priority
+          FROM classification
+          JOIN classes on classification.class_id = classes.id
+          WHERE classes.id != %i
+          ORDER BY name',
+        DEFAULT_CLASS_ID);
+    $classifications = [];
+    foreach ($rows as $row) {
+      $classifications[$row['id']] = [
+          'name' => $row['name'],
+          're' => $row['re'],
+          'priority' => intval($row['priority'])];
+    }
+    return $classifications;
+  }
+
+  private static function checkSlotsString($slotsString): void {
+    $e = self::slotsSpecToEpochSlotsOrError($slotsString);
+    if (is_string($e)) {
+      self::throwException($e);
+    }
+  }
+
+  // ---------- USER MANAGEMENT ----------
+
   private static function getTotalLimitTriggerName($user) {
     return "total_limit_$user";
   }
@@ -353,109 +483,7 @@ class Wasted {
     DB::query("DROP TRIGGER `$triggerName`");
   }
 
-  /**
-   * Returns an array the size of $titles that contains, at the corresponding position, an array
-   * with keys 'class_id' and 'limits'. The latter is again an array and contains the list of
-   * limit IDs to which the class_id maps. This will always contain at least the user's total limit.
-   */
-  public static function classify($user, $titles): array {
-    /* We would need to select the highest priority for each title. I don't know how to do that
-     * in a way that is ultimately more elegant than repeated queries. Some background:
-     * cf. https://dba.stackexchange.com/questions/24327/
-    $query = 'SELECT title FROM (';
-    foreach (array_keys($titles) as $i) {
-      if ($query) {
-        $query .= ' UNION ALL ';
-      }
-      $query .= 'SELECT %s_'.$i.' AS title';
-    }
-    $query .= ') titles ';
-    */
-
-    $classifications = [];
-    foreach ($titles as $title) {
-      $rows = DB::query(
-          'SELECT classification.id, limit_id FROM (
-            SELECT classes.id, classes.name
-            FROM classification
-            JOIN classes ON classes.id = classification.class_id
-            WHERE %s1 REGEXP re
-            ORDER BY priority DESC
-            LIMIT 1) AS classification
-          LEFT JOIN (
-            SELECT class_id, limit_id
-            FROM mappings
-            JOIN limits ON mappings.limit_id = limits.id
-            WHERE user = %s0
-          ) user_mappings ON classification.id = user_mappings.class_id
-          ORDER BY limit_id',
-          $user, $title);
-      if (!$rows) { // This should never happen, the default class catches all.
-        self::throwException("Failed to classify '$title' (default class missing?)");
-      }
-
-      $classification = [];
-      $classification['class_id'] = intval($rows[0]['id']);
-      $classification['limits'] = [];
-      foreach ($rows as $row) {
-        $classification['limits'][] = intval($row['limit_id']);
-      }
-      $classifications[] = $classification;
-    }
-    return $classifications;
-  }
-
-  /** Sets the specified limit config. Time slots are checked for validity. */
-  public static function setLimitConfig($limitId, $key, $value): void {
-    if (preg_match('/^times(_(mon|tue|wed|thu|fri|sat|sun))?$/', $key)) {
-      self::checkSlotsString($value);
-    }
-    DB::insertUpdate('limit_config', ['limit_id' => $limitId, 'k' => $key, 'v' => $value]);
-  }
-
-  /** Clears the specified limit config. */
-  public static function clearLimitConfig($limitId, $key): void {
-    DB::delete('limit_config', 'limit_id = %s AND k = %s', $limitId, $key);
-  }
-
-  private static function checkSlotsString($slotsString): void {
-    $e = self::slotsSpecToEpochSlotsOrError($slotsString);
-    if (is_string($e)) {
-      self::throwException($e);
-    }
-  }
-
-  /**
-   * Returns configs of all limits for the specified user. Returns a 2D array
-   * $configs[$limitId][$key] = $value. The array is sorted by limit ID.
-   *
-   * Two synthetic configs are injected: 'name' for the limit name, and 'is_total', which is true
-   * for the single total limit.
-   */
-  public static function getAllLimitConfigs($user): array {
-    $rows = DB::query('
-        SELECT limits.id, name, k, v, total_limit_id
-          FROM limit_config
-          RIGHT JOIN limits ON limit_config.limit_id = limits.id
-          LEFT JOIN users ON users.total_limit_id = limits.id
-          WHERE user = %s
-          ORDER BY id, k',
-        $user);
-    $configs = [];
-    foreach ($rows as $row) {
-      $limitId = $row['id'];
-      if (!array_key_exists($limitId, $configs)) {
-        $configs[$limitId] = [];
-      }
-      if ($row['k']) { // May be absent due to RIGHT JOIN if limit has no config at all.
-        $configs[$limitId][$row['k']] = $row['v'];
-      }
-      $configs[$limitId]['name'] = $row['name'];
-      $configs[$limitId]['is_total'] = $row['total_limit_id'] ? true : false;
-    }
-    ksort($configs);
-    return $configs;
-  }
+  // ---------- UI QUERIES ----------
 
   /**
    * Returns a table listing all limits, their classes and their configs. For each class, all other
@@ -587,82 +615,6 @@ class Wasted {
     return $table;
   }
 
-  /** Returns an array of class names keyed by class ID. */
-  public static function getAllClasses(): array {
-    $rows = DB::query('SELECT id, name FROM classes ORDER BY name');
-    $classes = [];
-    foreach ($rows as $row) {
-      $classes[$row['id']] = $row['name'];
-    }
-    return $classes;
-  }
-
-  /**
-   * Returns an array keyed by classification ID containing arrays with the class name (key 'name'),
-   * regular expression (key 're') and priority (key 'priority'). The default classification is not
-   * returned.
-   */
-  public static function getAllClassifications(): array {
-    $rows = DB::query('
-        SELECT classification.id, name, re, priority
-          FROM classification
-          JOIN classes on classification.class_id = classes.id
-          WHERE classes.id != %i
-          ORDER BY name',
-        DEFAULT_CLASS_ID);
-    $classifications = [];
-    foreach ($rows as $row) {
-      $classifications[$row['id']] = [
-          'name' => $row['name'],
-          're' => $row['re'],
-          'priority' => intval($row['priority'])];
-    }
-    return $classifications;
-  }
-
-  /** Reclassify all activity for all users, starting at the specified time. */
-  public static function reclassify($fromTime): void {
-    DB::query('SET @prev_title = ""');
-    DB::query(self::reclassifyQuery(false), $fromTime->getTimestamp());
-  }
-
-  /** Reclassify all activity for all users to prepare removal of the specified class. */
-  public static function reclassifyForRemoval($classToRemove): void {
-    DB::query('SET @prev_title = ""');
-    DB::query(self::reclassifyQuery(true), $classToRemove);
-  }
-
-  private static function reclassifyQuery($forRemoval): string {
-    // Activity to reclassify.
-    $conditionActivity = $forRemoval ? 'activity.class_id = %i0' : 'to_ts > %i0';
-    // Classes available for reclassification.
-    $conditionClassification = $forRemoval ? 'classification.class_id != %i0' : 'true';
-    return "
-        REPLACE INTO activity (user, seq, from_ts, to_ts, class_id, title)
-          SELECT user, seq, from_ts, to_ts, reclassification.class_id, activity.title
-          FROM (
-            SELECT
-              title,
-              class_id,
-              IF (@prev_title = title, 0, 1) AS first,
-              @prev_title := title
-              FROM (
-                SELECT title, classification.class_id, priority
-                FROM (
-                  SELECT DISTINCT title FROM activity
-                  WHERE title != ''
-                  AND $conditionActivity
-                ) distinct_titles
-                JOIN classification ON title REGEXP re
-                WHERE $conditionClassification
-                ORDER BY title, priority DESC
-              ) reclassification_all_prios
-              HAVING first = 1
-            ) reclassification
-          JOIN activity ON reclassification.title = activity.title
-          WHERE $conditionActivity";
-  }
-
   /**
    * Returns the top $num titles since $fromTime that were classified as default. Order is by time
    * spent ($orderBySum = true) or else by recency.
@@ -677,7 +629,101 @@ class Wasted {
     return $table;
   }
 
+  /**
+   * Returns a list of strings describing all available classes by name and seconds left today.
+   * This considers the most restrictive limit and assumes that no time is spent on any other class
+   * (which might count towards a shared limit and thus reduce time for other classes). Classes with
+   * zero time are omitted.
+   */
+  public static function queryClassesAvailableTodayTable(
+      $user, $timeLeftTodayAllLimits = null): array {
+    $timeLeftTodayAllLimits = $timeLeftTodayAllLimits ?? self::queryTimeLeftTodayAllLimits($user);
+    $rows = DB::query(
+        'SELECT classes.name, class_id, limit_id FROM limits
+         JOIN mappings on limits.id = mappings.limit_id
+         JOIN classes ON mappings.class_id = classes.id
+         WHERE user = %s
+         ORDER BY class_id, limit_id',
+        $user);
+    $classes = [];
+    foreach ($rows as $row) {
+      $classId = $row['class_id'];
+      if (!array_key_exists($classId, $classes)) {
+        $classes[$classId] = [$row['name'], PHP_INT_MAX];
+      }
+      $newLimit = $timeLeftTodayAllLimits[$row['limit_id']]->currentSeconds;
+      $classes[$classId][1] = min($classes[$classId][1], $newLimit);
+    }
+    // Remove classes for which no time is left.
+    $classes = array_filter($classes, function($c) { return $c[1] > 0; });
+    // Sort by time left, then by name.
+    usort($classes, function($a, $b) { return $b[1] - $a[1] ?: strcasecmp($a[0], $b[0]); });
+
+    // List classes, adding time left to last class of a sequence that have this much time left.
+    $classesList = [];
+    for ($i = 0; $i < count($classes); $i++) {
+      $s = $classes[$i][0];
+      if ($i == count($classes) - 1 || $classes[$i + 1][1] != $classes[$i][1]) {
+        $s .= ' (' . secondsToHHMMSS($classes[$i][1]) . ')';
+      }
+      $classesList[] = $s;
+    }
+    return $classesList;
+  }
+
   // ---------- WRITE ACTIVITY QUERIES ----------
+
+  /**
+   * Returns an array the size of $titles that contains, at the corresponding position, an array
+   * with keys 'class_id' and 'limits'. The latter is again an array and contains the list of
+   * limit IDs to which the class_id maps. This will always contain at least the user's total limit.
+   */
+  public static function classify($user, $titles): array {
+    /* We would need to select the highest priority for each title. I don't know how to do that
+     * in a way that is ultimately more elegant than repeated queries. Some background:
+     * cf. https://dba.stackexchange.com/questions/24327/
+    $query = 'SELECT title FROM (';
+    foreach (array_keys($titles) as $i) {
+      if ($query) {
+        $query .= ' UNION ALL ';
+      }
+      $query .= 'SELECT %s_'.$i.' AS title';
+    }
+    $query .= ') titles ';
+    */
+
+    $classifications = [];
+    foreach ($titles as $title) {
+      $rows = DB::query(
+          'SELECT classification.id, limit_id FROM (
+            SELECT classes.id, classes.name
+            FROM classification
+            JOIN classes ON classes.id = classification.class_id
+            WHERE %s1 REGEXP re
+            ORDER BY priority DESC
+            LIMIT 1) AS classification
+          LEFT JOIN (
+            SELECT class_id, limit_id
+            FROM mappings
+            JOIN limits ON mappings.limit_id = limits.id
+            WHERE user = %s0
+          ) user_mappings ON classification.id = user_mappings.class_id
+          ORDER BY limit_id',
+          $user, $title);
+      if (!$rows) { // This should never happen, the default class catches all.
+        self::throwException("Failed to classify '$title' (default class missing?)");
+      }
+
+      $classification = [];
+      $classification['class_id'] = intval($rows[0]['id']);
+      $classification['limits'] = [];
+      foreach ($rows as $row) {
+        $classification['limits'][] = intval($row['limit_id']);
+      }
+      $classifications[] = $classification;
+    }
+    return $classifications;
+  }
 
   /**
    * Records the specified window titles (array). Return value is that of classify().
@@ -1246,48 +1292,6 @@ class Wasted {
     return $h;
   }
 
-  /**
-   * Returns a list of strings describing all available classes by name and seconds left today.
-   * This considers the most restrictive limit and assumes that no time is spent on any other class
-   * (which might count towards a shared limit and thus reduce time for other classes). Classes with
-   * zero time are omitted.
-   */
-  public static function queryClassesAvailableTodayTable(
-      $user, $timeLeftTodayAllLimits = null): array {
-    $timeLeftTodayAllLimits = $timeLeftTodayAllLimits ?? self::queryTimeLeftTodayAllLimits($user);
-    $rows = DB::query(
-        'SELECT classes.name, class_id, limit_id FROM limits
-         JOIN mappings on limits.id = mappings.limit_id
-         JOIN classes ON mappings.class_id = classes.id
-         WHERE user = %s
-         ORDER BY class_id, limit_id',
-        $user);
-    $classes = [];
-    foreach ($rows as $row) {
-      $classId = $row['class_id'];
-      if (!array_key_exists($classId, $classes)) {
-        $classes[$classId] = [$row['name'], PHP_INT_MAX];
-      }
-      $newLimit = $timeLeftTodayAllLimits[$row['limit_id']]->currentSeconds;
-      $classes[$classId][1] = min($classes[$classId][1], $newLimit);
-    }
-    // Remove classes for which no time is left.
-    $classes = array_filter($classes, function($c) { return $c[1] > 0; });
-    // Sort by time left, then by name.
-    usort($classes, function($a, $b) { return $b[1] - $a[1] ?: strcasecmp($a[0], $b[0]); });
-
-    // List classes, adding time left to last class of a sequence that have this much time left.
-    $classesList = [];
-    for ($i = 0; $i < count($classes); $i++) {
-      $s = $classes[$i][0];
-      if ($i == count($classes) - 1 || $classes[$i + 1][1] != $classes[$i][1]) {
-        $s .= ' (' . secondsToHHMMSS($classes[$i][1]) . ')';
-      }
-      $classesList[] = $s;
-    }
-    return $classesList;
-  }
-
   // ---------- OVERRIDE QUERIES ----------
 
   /**
@@ -1445,6 +1449,8 @@ class Wasted {
     }
     return $windowTitles;
   }
+
+  // ---------- INTERNALS ----------
 
   private static function throwException($message): void {
     Logger::Instance()->critical($message);

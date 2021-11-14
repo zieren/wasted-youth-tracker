@@ -321,11 +321,11 @@ class Wasted {
   /** Set up the specified new user and create their 'Total' limit. Returns that limit's ID. */
   public static function addUser($user): int {
     DB::insert('users', ['id' => $user]);
-    $limitId = self::addLimit($user, TOTAL_LIMIT_NAME);
-    DB::update('users', ['total_limit_id' => $limitId], 'id = %s', $user);
+    $totalLimitId = self::addLimit($user, TOTAL_LIMIT_NAME);
+    DB::update('users', ['total_limit_id' => $totalLimitId], 'id = %s', $user);
     // Use 25h to cover for the one day when DST changes backward. We wouldn't want to kill programs
     // at 23:00 on that day. Since leap seconds don't happen on the same day they're covered too.
-    self::setLimitConfig($limitId, 'minutes_day', 25 * 60);
+    self::setLimitConfig($totalLimitId, 'minutes_day', 25 * 60);
 
     // Map all existing classes to the total limit and install a trigger that adds each newly
     // added class to this limit.
@@ -335,18 +335,19 @@ class Wasted {
           FOR EACH ROW
           INSERT INTO mappings
           SET limit_id = %i, class_id = NEW.id",
-        $limitId);
+        $totalLimitId);
     // INSERT IGNORE is just paranoia: A mapping could have been added right now, i.e. after
     // creation of the trigger.
     DB::query('
         INSERT IGNORE INTO mappings (limit_id, class_id)
           SELECT %i AS limit_id, classes.id AS class_id
           FROM classes',
-        $limitId);
-    return $limitId;
+        $totalLimitId);
+    return $totalLimitId;
   }
 
   public static function removeUser($user): void {
+    // Deleting the user cascades to other tables.
     DB::delete('users', 'id = %s', $user);
     $triggerName = self::getTotalLimitTriggerName($user);
     DB::query("DROP TRIGGER `$triggerName`");

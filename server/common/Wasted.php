@@ -986,15 +986,20 @@ class Wasted {
       if (isset($events['day'])) {
         $dateString = $events['day'];
         foreach (array_keys($limitIds) as $limitId) {
-          if (getOrDefault($limitCount, $limitId, 0)) {
+          if (getOrDefault($limitCount, $limitId)) {
             // Limit is active: Accumulate time until end of day, then reset start time.
             $t = &getOrCreate($limitTime, $limitId, 0);
             $t += $ts - $limitStart[$limitId];
             $limitStart[$limitId] = $ts;
+          } // else: Count may be zero, or the key does not exist yet because the limit was not
+            // observed yet.
+
+          // The limit is used in the considered time interval, but may not have been observed yet.
+          if (isset($limitTime[$limitId])) {
+            // Record accumulated time for this limit on this day.
+            getOrCreate($timeByLimitAndDate, $limitId, [])[$dateString] = $limitTime[$limitId];
+            $limitTime[$limitId] = 0;
           }
-          // Record accumulated time for this limit on this day.
-          getOrCreate($timeByLimitAndDate, $limitId, [])[$dateString] = $limitTime[$limitId];
-          $limitTime[$limitId] = 0;
         }
       }
     }

@@ -2576,6 +2576,32 @@ final class WastedTest extends WastedTestBase {
         self::timeLeft(0, $seconds, [], self::slot(12, 0, 24, 0)));
   }
 
+  public function testLimitUnseenBeforeDayMarker(): void {
+    $fromTime = clone Wasted::$now;
+    $day1 = getDateString($fromTime);
+
+    // Use limits L1 and Total on day 2, but only Total on day 1.
+    $limitId = Wasted::addLimit('u1', 'L1');
+    $classId = Wasted::addClass('c1');
+    Wasted::addClassification($classId, 0, '1$');
+    Wasted::addMapping($classId, $limitId);
+    Wasted::insertActivity('u1', '', ['-> Total']);
+    self::advanceTime(1);
+    Wasted::insertActivity('u1', '', ['-> Total']);
+
+    Wasted::$now->add(new DateInterval('P1D'));
+    $day2 = getDateString(Wasted::$now);
+
+    Wasted::insertActivity('u1', '', ['-> Total', '-> L1']);
+    self::advanceTime(2);
+    Wasted::insertActivity('u1', '', ['-> Total', '-> L1']);
+
+    $this->assertEquals(
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
+        $this->totalLimitId['u1'] => [$day1 => 1, $day2 => 2],
+        $limitId => [$day2 => 2]]);
+  }
+
   // TODO: Test other recent changes.
   // TODO: Test that the locked flag is returned and minutes are set correctly in that case.
 

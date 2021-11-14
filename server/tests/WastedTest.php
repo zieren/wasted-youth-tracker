@@ -65,14 +65,18 @@ final class WastedTest extends WastedTestBase {
         $user);
   }
 
+  private static function day(): string {
+    return getDateString(Wasted::$now);
+  }
+
   private function total($seconds, $user = 'u1'): array {
-    return [$this->totalLimitId[$user] => ['1970-01-01' => $seconds]];
+    return [$this->totalLimitId[$user] => [self::day() => $seconds]];
   }
 
   private function limit($limitId, $seconds, $user = 'u1'): array {
     return [
-        $this->totalLimitId[$user] => ['1970-01-01' => $seconds],
-        $limitId => ['1970-01-01' => $seconds]];
+        $this->totalLimitId[$user] => [self::day() => $seconds],
+        $limitId => [self::day() => $seconds]];
   }
 
   private function insertActivity($user, $titles): array {
@@ -297,9 +301,9 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
         [
-            $this->totalLimitId['u1'] => ['1970-01-01' => 18],
-            $limitId1 => ['1970-01-01' => 18],
-            $limitId2 => ['1970-01-01' => 0]
+            $this->totalLimitId['u1'] => [self::day() => 18],
+            $limitId1 => [self::day() => 18],
+            $limitId2 => [self::day() => 0]
     ]);
   }
 
@@ -342,60 +346,60 @@ final class WastedTest extends WastedTestBase {
     $totalLimitId = $this->totalLimitId['u1'];
     $this->assertEquals(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
-        $totalLimitId => ['1970-01-01' => 5],
-        $limitId1 => ['1970-01-01' => 5],
-        $limitId2 => ['1970-01-01' => 0],
-        $limitId3 => ['1970-01-01' => 0]]);
+        $totalLimitId => [self::day() => 5],
+        $limitId1 => [self::day() => 5],
+        $limitId2 => [self::day() => 0],
+        $limitId3 => [self::day() => 0]]);
 
     // Observe both again after 5 seconds.
     self::advanceTime(5);
     $this->insertActivity('u1', ['window 1', 'window 2']);
     $this->assertEquals(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
-        $totalLimitId => ['1970-01-01' => 10],
-        $limitId1 => ['1970-01-01' => 10],
-        $limitId2 => ['1970-01-01' => 5],
-        $limitId3 => ['1970-01-01' => 5]]);
+        $totalLimitId => [self::day() => 10],
+        $limitId1 => [self::day() => 10],
+        $limitId2 => [self::day() => 5],
+        $limitId3 => [self::day() => 5]]);
 
     // Advance 5 seconds and observe 'window 1' only.
     self::advanceTime(5);
     $this->insertActivity('u1', ['window 1']);
     $this->assertEquals(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
-        $totalLimitId => ['1970-01-01' => 15],
-        $limitId1 => ['1970-01-01' => 15],
-        $limitId2 => ['1970-01-01' => 10],
-        $limitId3 => ['1970-01-01' => 10]]);
+        $totalLimitId => [self::day() => 15],
+        $limitId1 => [self::day() => 15],
+        $limitId2 => [self::day() => 10],
+        $limitId3 => [self::day() => 10]]);
 
     // Add 6 seconds and start two windows of class 1.
     self::advanceTime(6);
     $this->insertActivity('u1', ['window 1', 'another window 1']);
     $this->assertEquals(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
-        $totalLimitId => ['1970-01-01' => 21],
-        $limitId1 => ['1970-01-01' => 21],
-        $limitId2 => ['1970-01-01' => 10],
-        $limitId3 => ['1970-01-01' => 10]]);
+        $totalLimitId => [self::day() => 21],
+        $limitId1 => [self::day() => 21],
+        $limitId2 => [self::day() => 10],
+        $limitId3 => [self::day() => 10]]);
 
     // Add 7 seconds and observe both windows of class 1 again.
     self::advanceTime(7);
     $this->insertActivity('u1', ['window 1', 'window 2']);
     $this->assertEquals(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
-        $totalLimitId => ['1970-01-01' => 28],
-        $limitId1 => ['1970-01-01' => 28],
-        $limitId2 => ['1970-01-01' => 10],
-        $limitId3 => ['1970-01-01' => 10]]);
+        $totalLimitId => [self::day() => 28],
+        $limitId1 => [self::day() => 28],
+        $limitId2 => [self::day() => 10],
+        $limitId3 => [self::day() => 10]]);
 
     // Add 8 seconds and observe 'window 2'.
     self::advanceTime(8);
     $this->insertActivity('u1', ['window 2']);
     $this->assertEquals(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
-        $totalLimitId => ['1970-01-01' => 36],
-        $limitId1 => ['1970-01-01' => 36],
-        $limitId2 => ['1970-01-01' => 18],
-        $limitId3 => ['1970-01-01' => 18]]);
+        $totalLimitId => [self::day() => 36],
+        $limitId1 => [self::day() => 36],
+        $limitId2 => [self::day() => 18],
+        $limitId3 => [self::day() => 18]]);
   }
 
   public function testTimeSpentByTitle_singleWindow(): void {
@@ -611,12 +615,11 @@ final class WastedTest extends WastedTestBase {
         [$totalLimitId => 0, $limitId => 0]);
 
     // Overrides have priority over the weekly limit.
-    $dateString = getDateString(Wasted::$now);
-    Wasted::setOverrideMinutes('u1', $dateString, $limitId, 123);
+    Wasted::setOverrideMinutes('u1', self::day(), $limitId, 123);
     $this->assertEquals(
         $this->queryTimeLeftTodayAllLimitsOnlyCurrentSeconds(),
         [$totalLimitId => 0, $limitId => 123 * 60]);
-    Wasted::clearOverrides('u1', $dateString, $limitId);
+    Wasted::clearOverrides('u1', self::day(), $limitId);
 
     // Clear the limit.
     Wasted::clearLimitConfig($limitId, 'minutes_week');
@@ -857,7 +860,7 @@ final class WastedTest extends WastedTestBase {
     // Used 2 seconds.
     $this->assertEqualsIgnoreOrder(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
-        [$totalLimitId => ['1970-01-01' => 2], $limitId => ['1970-01-01' => 2]]);
+        [$totalLimitId => [self::day() => 2], $limitId => [self::day() => 2]]);
 
     // Time advances.
     self::advanceTime(1);
@@ -868,7 +871,7 @@ final class WastedTest extends WastedTestBase {
     // Still only used 2 seconds because nothing was open.
     $this->assertEqualsIgnoreOrder(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
-        [$totalLimitId => ['1970-01-01' => 2], $limitId => ['1970-01-01' => 2]]);
+        [$totalLimitId => [self::day() => 2], $limitId => [self::day() => 2]]);
   }
 
   public function testTimeSpent_handleNoWindows(): void {
@@ -909,7 +912,7 @@ final class WastedTest extends WastedTestBase {
         [$lastSeenWindow2, 2, DEFAULT_CLASS_NAME, 'window 2']]);
     $this->assertEquals(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
-        [$this->totalLimitId['u1'] => ['1970-01-01' => 8]]);
+        [$this->totalLimitId['u1'] => [self::day() => 8]]);
   }
 
   public function testCaseHandling(): void {
@@ -1152,8 +1155,8 @@ final class WastedTest extends WastedTestBase {
         $this->insertActivity('u1', ['title 2', 'title 1']),
         $classification2and1);
     $timeSpent2and1 = [
-        $totalLimitId => ['1970-01-01' => 1],
-        $limitId1 => ['1970-01-01' => 0]];
+        $totalLimitId => [self::day() => 1],
+        $limitId1 => [self::day() => 0]];
     $this->assertEqualsIgnoreOrder(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
         $timeSpent2and1);
@@ -1180,8 +1183,8 @@ final class WastedTest extends WastedTestBase {
     // Records are updated.
     $this->assertEqualsIgnoreOrder(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
-        $totalLimitId => ['1970-01-01' => 1],
-        $limitId2 => ['1970-01-01' => 0]]);
+        $totalLimitId => [self::day() => 1],
+        $limitId2 => [self::day() => 0]]);
 
     // Accumulate time.
     self::advanceTime(1);
@@ -1203,8 +1206,8 @@ final class WastedTest extends WastedTestBase {
         [self::dateTimeString(), 2, 'c2', 'title 1']]);
     $this->assertEqualsIgnoreOrder(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
-        $totalLimitId => ['1970-01-01' => 3],
-        $limitId2 => ['1970-01-01' => 2]]);
+        $totalLimitId => [self::day() => 3],
+        $limitId2 => [self::day() => 2]]);
   }
 
   function testUpdateClassification_noTimeElapsed(): void {
@@ -1257,8 +1260,8 @@ final class WastedTest extends WastedTestBase {
     $this->assertEqualsIgnoreOrder(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
         // concluded record is not updated
-        $this->totalLimitId['u1'] => ['1970-01-01' => 3],
-        $limitId => ['1970-01-01' => 3]]);
+        $this->totalLimitId['u1'] => [self::day() => 3],
+        $limitId => [self::day() => 3]]);
   }
 
   function testUmlauts(): void {
@@ -2070,7 +2073,7 @@ final class WastedTest extends WastedTestBase {
 
       $t0 = (new DateTime())->setTimestamp($fromTs + $t[0]);
       $t1 = (new DateTime())->setTimestamp($fromTs + $t[1]);
-      $expectation = count($t) == 4 ? [$this->totalLimitId['u1'] => ['1970-01-01' => $t[2]]] : [];
+      $expectation = count($t) == 4 ? [$this->totalLimitId['u1'] => [self::day() => $t[2]]] : [];
       $this->assertEquals(
           Wasted::queryTimeSpentByLimitAndDate('u1', $t0, $t1),
           $expectation);
@@ -2237,7 +2240,7 @@ final class WastedTest extends WastedTestBase {
     $limitId = Wasted::addLimit('u1', 'foo');
     Wasted::setLimitConfig($limitId, 'a', 'b');
     Wasted::addMapping($classId, $limitId);
-    Wasted::setOverrideUnlock('u1', '1970-01-01', $limitId);
+    Wasted::setOverrideUnlock('u1', self::day(), $limitId);
 
     foreach ([[2, 1, 1], [1, 0, 0]] as $expected) {
       $this->onFailMessage('expected: ' . implode(', ', $expected));
@@ -2598,7 +2601,7 @@ final class WastedTest extends WastedTestBase {
     Wasted::insertActivity('u1', '', ['-> Total']);
 
     Wasted::$now->add(new DateInterval('P1D'));
-    $day2 = getDateString(Wasted::$now);
+    $day2 = self::day();
 
     Wasted::insertActivity('u1', '', ['-> Total', '-> L1']);
     self::advanceTime(2);

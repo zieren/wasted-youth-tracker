@@ -19,7 +19,7 @@ abstract class TestCase {
   private $onFailMessage = [];
 
   /** Set while running a test. */
-  private $test = "";
+  private $test = '';
 
   protected function setUpTestCase(): void {
   }
@@ -35,7 +35,7 @@ abstract class TestCase {
 
   private function dumpAndClearLog(): void {
     if (file_exists(TESTS_LOG)) {
-      echo '<pre>' . file_get_contents(TESTS_LOG) . "</pre>";
+      echo '<pre>' . file_get_contents(TESTS_LOG) . '</pre>';
     } else {
       echo 'No log output.';
     }
@@ -117,7 +117,7 @@ abstract class TestCase {
     if ($this->failedTests) {
       echo 'TESTS FAILED: ' . count($this->failedTests) . '<hr>';
       foreach ($this->failedTests as $test => $e) {
-        $message = $e->getMessage();
+        $message = "$e";
         if (isset($this->onFailMessage[$test])) {
           $message = '[' . $this->onFailMessage[$test] . '] ' . $message;
         }

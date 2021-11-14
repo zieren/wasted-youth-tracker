@@ -21,10 +21,10 @@ Logger::Instance();
 function wastedErrorHandler($errno, $errstr, $errfile, $errline) {
   $msg = "Error $errno: $errstr @ $errfile:$errline";
   Logger::Instance()->critical($msg);
-  // In general we have already output body bytes, so we can't set the response code to 500.
-  // Output something that both a human and the client will recognize as an error. This isn't
-  // trivial; we exceed the number of sections (which are initiated by blank lines) to avoid
-  // handling this case explicitly.
+  // In general we have already output body bytes, so we can't set the response code to 500 anymore
+  // (as headers were already sent). Output something that both a human and the client will
+  // recognize as an error. This isn't trivial; we exceed the number of sections (which are
+  // initiated by blank lines) to avoid handling this case explicitly.
   exit("\n\n<hr>$msg");
 }
 

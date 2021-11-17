@@ -582,11 +582,13 @@ class Wasted {
 
   /**
    * Returns a table listing all classes, their classification rules and samples from all users.
+   * Time range is the last 30 days.
    *
-   * TODO: Add time limit.
+   * TODO: Add custom time limit.
    */
   public static function getClassesToClassificationTable(): array {
-    DB::query('SET @prev_title = ""');
+    // The fixed time limit is mainly to limit query cost.
+    $fromTime = (clone self::$now)->sub(new DateInterval('P30D'));
     $rows = DB::query('
         SELECT
           classes.id AS id,
@@ -598,12 +600,17 @@ class Wasted {
         FROM classes
         LEFT JOIN classification ON classes.id = classification.class_id
         LEFT JOIN (
-          SELECT DISTINCT title, class_id FROM activity WHERE title != ""
+          SELECT DISTINCT title, id AS classification_id FROM activity
+          LEFT JOIN classification ON
+            (activity.class_id = classification.class_id AND title REGEXP re)
+          WHERE title != ""
+          AND to_ts >= %i
         ) samples
-        ON samples.class_id = classification.class_id
-        WHERE classes.id != %i0
+        ON samples.classification_id = classification.id
+        WHERE classes.id != %i
         GROUP BY id, name, re, priority
         ORDER BY name, priority DESC',
+        $fromTime->getTimestamp(),
         DEFAULT_CLASS_ID);
     $table = [];
     foreach ($rows as $r) {

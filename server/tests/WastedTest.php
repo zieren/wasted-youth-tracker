@@ -2613,6 +2613,7 @@ final class WastedTest extends WastedTestBase {
         $limitId => [$day2 => 2]]);
   }
 
+  // TODO: Test getClassesToClassificationTable.
   // TODO: Test other recent changes.
   // TODO: Test that the locked flag is returned and minutes are set correctly in that case.
 

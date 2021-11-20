@@ -183,6 +183,7 @@ Credits:
 <a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license';
 if ($unackedError) {
   $ackedError = substr($unackedError, 0, 15);
+  // TODO: Probably just htmlentities() instead of html() below.
   echo '<p class="warning" style="display: inline; margin-right: 1em;">
     Last client error: '.html($unackedError).'</p>
     <form method="post" action="index.php"  style="display: inline;">

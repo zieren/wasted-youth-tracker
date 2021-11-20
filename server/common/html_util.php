@@ -52,6 +52,7 @@ function userSelector($users, $selectedUser) {
       <select id="idUsers" name="user" onChange="if (this.value != 0) { this.form.submit(); }">';
   foreach ($users as $u) {
     $selected = $selectedUser == $u ? 'selected="selected"' : '';
+    // TODO: Quote user.
     $select .= '<option value="' . $u . '" ' . $selected . '>' . $u . '</option>';
   }
   $select .= "</select>\n";

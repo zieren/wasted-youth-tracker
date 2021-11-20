@@ -1479,6 +1479,7 @@ class Wasted {
         (from_ts < %i1 AND %i2 <= to_ts)
       )';
 
+  /** Compiling and matching this pattern once takes about 20 microseconds on my server. */
   private static $TIME_OF_DAY_PATTERN =
       '/(?:^|-) *((?:[01]?[0-9])|(?:2[0-4]))(?::([0-5]?[0-9]))?(?: *(a|p)[.m]*)? *(?=-|$)/i';
 }

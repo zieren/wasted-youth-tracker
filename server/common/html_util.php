@@ -47,9 +47,9 @@ function get($key) {
 }
 
 function userSelector($users, $selectedUser) {
-  $select =
-      '<label for="idUsers">User:</label>
-      <select id="idUsers" name="user" onChange="if (this.value != 0) { this.form.submit(); }">';
+  $select = '
+      <label for="idUsers">User:</label>
+      <select id="idUsers" name="user" onChange="switchUser(this)">';
   foreach ($users as $u) {
     $selected = $selectedUser == $u ? 'selected="selected"' : '';
     // TODO: Quote user.

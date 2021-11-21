@@ -31,13 +31,20 @@ function setWeekStart() {
   var d = new Date(document.querySelector("#idDateReference").value);
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // 0 = Sun
   var date =
-          d.getFullYear() + '-'
-          + String(d.getMonth() + 1).padStart(2, '0') + '-'
-          + String(d.getDate()).padStart(2, '0');
+      d.getFullYear() + '-'
+      + String(d.getMonth() + 1).padStart(2, '0') + '-'
+      + String(d.getDate()).padStart(2, '0');
   document.querySelector("#idDateSince").value = date;
 }
 function setSameDay() {
   document.querySelector("#idDateSince").value = document.querySelector("#idDateReference").value;
+}
+function switchUser(select) {
+  if (select.value) {
+    document.querySelector('#idSelectedTab').value =
+        document.querySelector('input.tabRadio:checked').id;
+    select.form.submit();
+  }
 }
 </script>
 <?php
@@ -65,7 +72,8 @@ Wasted::initialize(true);
 
 $considerUnlocking = false;
 $furtherLimits = false;
-$tab = 'idTabControl'; // TODO: Use this everywhere, or drop it.
+$tab = get('selectedTab') ?? 'idTabControl';
+// TODO: Set this in action handlers, or hidden directly in forms.
 
 if (action('setUserConfig')) {
   $user = postString('configUser');
@@ -218,7 +226,11 @@ if ($considerUnlocking) {
 }
 echo '
   <p>
-    <form action="index.php" method="get">'.userSelector($users, $user).'</form>
+    <form action="index.php" method="get">
+      <input type="hidden" id="idSelectedTab" name="selectedTab" value="idTabControl">'
+      .userSelector($users, $user).'
+    </form>
+
   </p>';
 
 // ----- Tab setup -----
@@ -226,7 +238,8 @@ echo '
 function inputRadioTab($id) {
   global $tab;
   echo
-      '<input type="radio" id="'.$id.'" name="tabs" '.($id == $tab ? 'checked="checked"' : '').'/>';
+      '<input class="tabRadio" type="radio" id="'.$id.'" name="tabs" '
+      .($id == $tab ? 'checked="checked"' : '').'>';
 }
 
 echo '

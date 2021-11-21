@@ -86,12 +86,14 @@ nav label:active { background: #ffffff; }
 
 #idTabOverrides:checked ~ figure .tabOverrides,
 #idTabLimits:checked ~ figure .tabLimits,
+#idTabActivity:checked ~ figure .tabActivity,
 #idTabClassification:checked ~ figure .tabClassification {
   display: block;
 }
 
 #idTabOverrides:checked ~ nav label[for="tabOverrides"],
 #idTabLimits:checked ~ nav label[for="tabLimits"],
+#idTabActivity:checked ~ nav label[for="tabActivity"],
 #idTabClassification:checked ~ nav label[for="tabClasification"] {
   background: white;
   color: #111;
@@ -101,6 +103,7 @@ nav label:active { background: #ffffff; }
 
 #idTabOverrides:checked ~ nav label[for="tabOverrides"]:after,
 #idTabLimits:checked ~ nav label[for="tabLimits"]:after,
+#idTabActivity:checked ~ nav label[for="tabActivity"]:after,
 #idTabClassification:checked ~ nav label[for="tabClassification"]:after {
   content: "";
   display: block;

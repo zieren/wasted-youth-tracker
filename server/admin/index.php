@@ -208,10 +208,7 @@ echo '
   <form action="index.php" method="get" style="display: inline; margin-right: 1em;">'
     .userSelector($users, $user).'
   </form>
-  <span style="display: inline; margin-right: 1em;">
-  <a href="../view/index.php?user=' . $user . '">View activity</a>
-  </span>
-  <form style="display: inline; margin-right: 1em;">
+  <form>
     <input type="checkbox" name="confirm" id="idWastedEnableDestructive"
       onclick="enableDestructiveButtons(false)"/>
     <span onclick="enableDestructiveButtons(true)">Enable destructive actions
@@ -232,11 +229,13 @@ echo '
 inputRadioTab('idTabOverrides');
 inputRadioTab('idTabLimits');
 inputRadioTab('idTabClassification');
+inputRadioTab('idTabActivity');
 echo '
    <nav>
       <label for="idTabOverrides">Overrides</label>
       <label for="idTabLimits">Limits</label>
       <label for="idTabClassification">Classification</label>
+      <label for="idTabActivity">Activity</label>
    </nav>
 
    <figure>';
@@ -446,6 +445,32 @@ echoTable(
     ['Class', 'Classification', 'Prio', 'Matches', 'Samples (click to expand)'],
     Wasted::getClassesToClassificationTable(),
     'titled collapsible limitTdWidth');
+echo '</div>'; // tab
+
+// ----- TAB: Activity -----
+echo '<div class="tabActivity">';
+
+echo '<h3>Most Recently Used</h3>';
+// TODO: Evaluate date selector.
+$fromTime = (clone Wasted::$now)->setTime(0, 0);
+$timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime, false);
+for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
+  $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);
+}
+echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
+
+echo '<h3>Most Time Spent</h3>';
+$timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime);
+for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
+  $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);
+}
+echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
+
+if (get('debug')) {
+  echo '<h2>Window title sequence</h2>';
+  echoTable(['From', 'To', 'Class', 'Title'], Wasted::queryTitleSequence($user, $fromTime));
+}
+
 echo '</div>'; // tab
 
 // ----- Tabs: closing tags -----

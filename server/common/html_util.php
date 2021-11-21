@@ -59,24 +59,6 @@ function userSelector($users, $selectedUser) {
   return $select;
 }
 
-function dateSelector($dateString, $submitOnInput) {
-  $onInput = $submitOnInput ? ' onInput="this.form.submit()"' : '';
-  $type = $submitOnInput ? 'submit' : 'button';
-  return
-      '<label for="idDate">Date:</label><input id="idDate" type="date" value="' . $dateString
-      . '" name="date"' . $onInput . '/>
-      <button onClick="setToday()" type="' . $type . '">Today</button>' . "\n";
-}
-
-function dateSelectorJs() {
-  return '<script>
-            function setToday() {
-              var dateInput = document.querySelector("#idDate");
-              dateInput.value = "' . date('Y-m-d') . '";
-            }
-          </script>';
-}
-
 function limitSelector($limitConfigs, $selectedLimitId, $skipTotal = false) {
   $select =
       '<label for="idLimit">Limit: </label>

@@ -1390,10 +1390,8 @@ class Wasted {
 
   }
 
-  /** Returns this week's overrides for the specified user. */
-  // TODO: Allow setting the date range.
-  public static function queryRecentOverrides($user): array {
-    $fromDate = getWeekStart(self::$now);
+  /** Returns overrides for the specified user. Dates are strings. */
+  public static function queryRecentOverrides($user, $fromDate, $toDate): array {
     return DB::query('
         SELECT
           date,
@@ -1403,10 +1401,11 @@ class Wasted {
           CASE WHEN unlocked = 1 THEN "unlocked" ELSE "default" END
         FROM overrides
         JOIN limits ON limit_id = id
-        WHERE overrides.user = %s0
-        AND date >= %s1
+        WHERE overrides.user = %s
+        AND date >= %s
+        AND date <= %s
         ORDER BY date DESC, name',
-        $user, $fromDate->format('Y-m-d'));
+        $user, $fromDate, $toDate);
   }
 
   /** Returns all overrides as a 2D array keyed first by limit ID, then by override. */

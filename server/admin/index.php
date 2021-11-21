@@ -19,6 +19,23 @@ function setup() {
     tr.addEventListener("click", function() { toggleCollapsed(tr); });
   });
 }
+function setReferenceToday() {
+  var today = new Date();
+  var dateReference =
+      today.getFullYear() + '-'
+      + String(today.getMonth() + 1).padStart(2, '0') + '-'
+      + String(today.getDate()).padStart(2, '0');
+  document.querySelector("#idDateReference").value = dateReference;
+}
+function setWeekStart() {
+  var d = new Date(document.querySelector("#idDateReference").value);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // 0 = Sun
+  var date =
+          d.getFullYear() + '-'
+          + String(d.getMonth() + 1).padStart(2, '0') + '-'
+          + String(d.getDate()).padStart(2, '0');
+  document.querySelector("#idDateSince").value = date;
+}
 </script>
 <?php
 require_once '../common/common.php';
@@ -147,27 +164,30 @@ if (action('setUserConfig')) {
 
 $users = Wasted::getUsers();
 
+// Set UI parameters from what was posted, or else to defaults.
 if (!isset($user)) {
   $user = get('user') ?? postString('user') ?? getOrDefault($users, 0, '');
 }
 if (!isset($dateString)) {
-  $dateString = get('date') ?? date('Y-m-d');
+  $dateString = postString('dateReference') ?? date('Y-m-d');
+}
+$dateSince = postString('dateSince');
+if (!$dateSince || $dateSince > $dateString) {
+  $dateSince = getDateString(getWeekStart(new DateTime($dateString)));
 }
 if (!isset($limitId)) {
   $limitId = 0; // never exists, MySQL index is 1-based
 }
-$unackedError = $user ? Wasted::getUnackedError($user) : '';
 
+$unackedError = $user ? Wasted::getUnackedError($user) : '';
 $limitConfigs = Wasted::getAllLimitConfigs($user);
 $classes = Wasted::getAllClasses();
 $configs = Wasted::getAllLimitConfigs($user);
 $classifications = Wasted::getAllClassifications();
 
-echo dateSelectorJs();
 echo classificationSelectorJs($classifications);
 
 // ----- Header and global settings -----
-// TODO: Move credits to their own tab, or to the bottom.
 
 echo '<h1>'.WASTED_SERVER_HEADING.'</h1>';
 if ($unackedError) {
@@ -229,25 +249,39 @@ echo '
 echo '
 <div class="tabOverrides">
   <form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '">'
-  . dateSelector($dateString, false).
-  '<h3>Overrides</h3>'
-    . limitSelector($limitConfigs, $limitId) .
-    '<input type="submit" value="Unlock" name="unlock">
-    <input type="submit" value="Clear overrides" name="clearOverrides">
-    <p>
-      <label for="idOverrideMinutes">Minutes: </label>
-      <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
-      <input type="submit" value="Set minutes" name="setMinutes">
-    </p>
-    <p>
-      <label for="idOverrideTimes">Times: </label>
-      <input id="idOverrideTimes" name="overrideTimes" type="text" value="">
-      <input type="submit" value="Set times" name="setTimes">
-    </p>
-  <h4>This week\'s overrides</h4>';
+  <input type="hidden" name="user" value="' . $user . '">
 
-$recentOverrides = Wasted::queryRecentOverrides($user);
+  <label for="idDateReference">Date:</label>
+  <input id="idDateReference" type="date" value="'.$dateString.'" name="dateReference"
+      oninput="this.form.submit()" />
+  <button onClick="setReferenceToday()" type="submit">Today</button>
+
+  <p>'.limitSelector($limitConfigs, $limitId).'</p>
+  <p>
+    <input type="submit" value="Unlock" name="unlock">
+    <input type="submit" value="Clear overrides" name="clearOverrides">
+  </p>
+  <p>
+    <label for="idOverrideMinutes">Minutes: </label>
+    <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
+    <input type="submit" value="Set minutes" name="setMinutes">
+  </p>
+  <p>
+    <label for="idOverrideTimes">Times: </label>
+    <input id="idOverrideTimes" name="overrideTimes" type="text" value="">
+    <input type="submit" value="Set times" name="setTimes">
+  </p>
+
+  <p>
+    <label for="idDateSince">View since:</label>
+    <input id="idDateSince" type="date" value="'.$dateSince.'" name="dateSince"
+        oninput="this.form.submit()" />
+    <button onClick="setWeekStart(\'idDateSince\')" type="submit">Start of week</button>
+  </p>
+
+<h3>Overrides</h3>';
+
+$recentOverrides = Wasted::queryRecentOverrides($user, $dateSince, $dateString);
 if ($recentOverrides) {
   echoTable(['Date', 'Limit', 'Minutes', 'Times', 'Lock'], $recentOverrides);
 } else {

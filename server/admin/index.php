@@ -228,25 +228,31 @@ echo '
 
 echo '
 <div class="tabOverrides">
-  <h3>Overrides</h3>
   <form method="post" action="index.php">
-    <input type="hidden" name="user" value="' . $user . '">'
-    . dateSelector($dateString, false)
+  <input type="hidden" name="user" value="' . $user . '">'
+  . dateSelector($dateString, false).
+  '<h3>Overrides</h3>'
     . limitSelector($limitConfigs, $limitId) .
-    '<label for="idOverrideMinutes">Minutes: </label>
-    <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
-    <input type="submit" value="Set minutes" name="setMinutes">
-    <label for="idOverrideTimes">Times: </label>
-    <input id="idOverrideTimes" name="overrideTimes" type="text" value="">
-    <input type="submit" value="Set times" name="setTimes">
-    <input type="submit" value="Unlock" name="unlock">
+    '<input type="submit" value="Unlock" name="unlock">
     <input type="submit" value="Clear overrides" name="clearOverrides">
-  </form>
+    <p>
+      <label for="idOverrideMinutes">Minutes: </label>
+      <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
+      <input type="submit" value="Set minutes" name="setMinutes">
+    </p>
+    <p>
+      <label for="idOverrideTimes">Times: </label>
+      <input id="idOverrideTimes" name="overrideTimes" type="text" value="">
+      <input type="submit" value="Set times" name="setTimes">
+    </p>
   <h4>This week\'s overrides</h4>';
 
-echoTable(
-    ['Date', 'Limit', 'Minutes', 'Times', 'Lock'],
-    Wasted::queryRecentOverrides($user));
+$recentOverrides = Wasted::queryRecentOverrides($user);
+if ($recentOverrides) {
+  echoTable(['Date', 'Limit', 'Minutes', 'Times', 'Lock'], $recentOverrides);
+} else {
+  echo 'no overrides';
+}
 
 $timeLeftByLimit = Wasted::queryTimeLeftTodayAllLimits($user);
 
@@ -274,6 +280,7 @@ echo count($timeSpentByLimit) > 0
     : 'no time spent';
 
 // TODO: This IGNORED the selected date. Add its own date selector?
+echo '</form>';
 
 echo '</div>'; // tab
 

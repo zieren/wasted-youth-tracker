@@ -65,7 +65,7 @@ Wasted::initialize(true);
 
 $considerUnlocking = false;
 $furtherLimits = false;
-$tab = 'idTabControl';
+$tab = 'idTabControl'; // TODO: Use this everywhere, or drop it.
 
 if (action('setUserConfig')) {
   $user = postString('configUser');
@@ -218,9 +218,7 @@ if ($considerUnlocking) {
 }
 echo '
   <p>
-  <form action="index.php" method="get" style="display: inline; margin-right: 1em;">'
-    .userSelector($users, $user).'
-  </form>
+    <form action="index.php" method="get">'.userSelector($users, $user).'</form>
   </p>';
 
 // ----- Tab setup -----
@@ -237,12 +235,14 @@ inputRadioTab('idTabControl');
 inputRadioTab('idTabLimits');
 inputRadioTab('idTabClassification');
 inputRadioTab('idTabActivity');
+inputRadioTab('idTabSystem');
 echo '
    <nav>
       <label for="idTabControl">Control</label>
       <label for="idTabLimits">Limits</label>
       <label for="idTabClassification">Classification</label>
       <label for="idTabActivity">Activity</label>
+      <label for="idTabSystem">System</label>
    </nav>
 
    <figure>';
@@ -380,45 +380,6 @@ echo '
 </form>
 ';
 
-echo '<h3>User config</h3>';
-echoTableAssociative(Wasted::getUserConfig($user));
-
-echo '<h3>Global config</h3>';
-echoTableAssociative(Wasted::getGlobalConfig());
-
-echo '<h3>Update config</h3>
-<form method="post" enctype="multipart/form-data">
-  <input type="hidden" name="configUser" value="' . $user . '">
-  <input type="text" name="configKey" placeholder="key">
-  <input type="text" name="configValue" placeholder="value">
-  <input type="submit" name="setUserConfig" value="Set User Config">
-  <input type="submit" name="clearUserConfig" value="Clear User Config">
-  <input type="submit" name="setGlobalConfig" value="Set Global Config">
-  <input type="submit" name="clearGlobalConfig" value="Clear Global Config">
-</form>
-
-<hr />';
-
-echo '<h3>Users</h3>
-<form method="post" enctype="multipart/form-data">
-  <input type="text" name="userId" required="required" placeholder="id">
-  <input type="submit" name="addUser" value="Add">
-  <input type="submit" name="removeUser" value="Remove"
-      onclick="return confirm(\'Remove user and all their data?\');">
-</form>
-
-<hr />';
-
-$pruneFromDate = (clone Wasted::$now)->sub(new DateInterval('P4W'));
-
-echo '<h2>Manage Database</h2>
-<form method="post">
-  Delete activity (of all users!) and server logs older than
-  <input type="date" name="datePrune" value="' . $pruneFromDate->format('Y-m-d') . '">
-  <input type="submit" value="DELETE" name="prune"
-      onclick="return confirm(\'Delete activity and server logs?\');" />
-</form>';
-
 echo '</div>'; // tab
 
 // ----- TAB: Classification -----
@@ -510,6 +471,54 @@ if (get('debug')) {
   echo '<h2>Window title sequence</h2>';
   echoTable(['From', 'To', 'Class', 'Title'], Wasted::queryTitleSequence($user, $fromTime));
 }
+
+echo '</div>'; // tab
+
+// ----- TAB: System -----
+echo '<div class="tabSystem">';
+
+echo '<h3>User config</h3>';
+echoTableAssociative(Wasted::getUserConfig($user));
+
+echo '<h3>Global config</h3>';
+echoTableAssociative(Wasted::getGlobalConfig());
+
+echo '<h3>Update config</h3>
+<form method="post" enctype="multipart/form-data">
+  <p>
+    <input type="hidden" name="configUser" value="' . $user . '">
+    <input type="text" name="configKey" placeholder="key">
+    <input type="text" name="configValue" placeholder="value">
+  </p>
+
+  <p>
+    <input type="submit" name="setUserConfig" value="Set User Config">
+    <input type="submit" name="clearUserConfig" value="Clear User Config">
+  </p>
+
+  <p>
+    <input type="submit" name="setGlobalConfig" value="Set Global Config">
+    <input type="submit" name="clearGlobalConfig" value="Clear Global Config">
+  </p>
+</form>
+
+<h3>Users</h3>
+<form method="post" enctype="multipart/form-data">
+  <input type="text" name="userId" required="required" placeholder="id">
+  <input type="submit" name="addUser" value="Add">
+  <input type="submit" name="removeUser" value="Remove"
+      onclick="return confirm(\'Remove user and all their data?\');">
+</form>';
+
+$pruneFromDate = (clone Wasted::$now)->sub(new DateInterval('P4W'));
+
+echo '<h3>Manage Database</h3>
+<form method="post">
+  Delete activity (of all users!) and server logs older than
+  <input type="date" name="datePrune" value="' . $pruneFromDate->format('Y-m-d') . '">
+  <input type="submit" value="DELETE" name="prune"
+      onclick="return confirm(\'Delete activity and server logs?\');" />
+</form>';
 
 echo '</div>'; // tab
 

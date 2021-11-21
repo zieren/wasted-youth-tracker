@@ -87,6 +87,7 @@ nav label:active { background: #ffffff; }
 #idTabControl:checked ~ figure .tabControl,
 #idTabLimits:checked ~ figure .tabLimits,
 #idTabActivity:checked ~ figure .tabActivity,
+#idTabSystem:checked ~ figure .tabSystem,
 #idTabClassification:checked ~ figure .tabClassification {
   display: block;
 }
@@ -94,6 +95,7 @@ nav label:active { background: #ffffff; }
 #idTabControl:checked ~ nav label[for="tabControl"],
 #idTabLimits:checked ~ nav label[for="tabLimits"],
 #idTabActivity:checked ~ nav label[for="tabActivity"],
+#idTabSystem:checked ~ nav label[for="tabSystem"],
 #idTabClassification:checked ~ nav label[for="tabClasification"] {
   background: white;
   color: #111;
@@ -104,6 +106,7 @@ nav label:active { background: #ffffff; }
 #idTabControl:checked ~ nav label[for="tabControl"]:after,
 #idTabLimits:checked ~ nav label[for="tabLimits"]:after,
 #idTabActivity:checked ~ nav label[for="tabActivity"]:after,
+#idTabSystem:checked ~ nav label[for="tabSystem"]:after,
 #idTabClassification:checked ~ nav label[for="tabClassification"]:after {
   content: "";
   display: block;

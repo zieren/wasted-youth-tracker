@@ -6,16 +6,6 @@
 </head>
 <body onload="setup()">
 <script>
-function enableDestructiveButtons(toggleCheckbox) {
-  var checkbox = document.getElementById('idWastedEnableDestructive');
-  if (toggleCheckbox) {
-    checkbox.checked = !checkbox.checked;
-  }
-  var buttons = document.getElementsByClassName('wastedDestructive');
-  for (var i = 0; i < buttons.length; i++) {
-    buttons[i].disabled = !checkbox.checked;
-  }
-}
 function toggleCollapsed(tr) {
   if (tr.classList.contains("expanded")) {
     tr.classList.remove("expanded");
@@ -208,12 +198,6 @@ echo '
   <form action="index.php" method="get" style="display: inline; margin-right: 1em;">'
     .userSelector($users, $user).'
   </form>
-  <form>
-    <input type="checkbox" name="confirm" id="idWastedEnableDestructive"
-      onclick="enableDestructiveButtons(false)"/>
-    <span onclick="enableDestructiveButtons(true)">Enable destructive actions
-      (e.g. delete class/limit, prune activity)</span>
-  </form>
   </p>';
 
 // ----- Tab setup -----
@@ -270,7 +254,6 @@ echo '
   <h4>Available classes today</h4>
   <p>'.implode(', ', Wasted::queryClassesAvailableTodayTable($user, $timeLeftByLimit)).'</p>';
 
-// --- BEGIN duplicate code. TODO: Extract.
 $fromTime = new DateTime($dateString);
 $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
 $timeSpentByLimitAndDate = Wasted::queryTimeSpentByLimitAndDate($user, $fromTime, $toTime);
@@ -289,8 +272,6 @@ echo count($timeSpentByLimit) > 0
         limitIdsToNames(array_keys($timeSpentByLimit), $configs),
         [array_map("secondsToHHMMSS", array_values($timeSpentByLimit))])
     : 'no time spent';
-
-// --- END duplicate code
 
 // TODO: This IGNORED the selected date. Add its own date selector?
 
@@ -333,8 +314,8 @@ echo '
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '"> '
   . limitSelector($limitConfigs, $limitId, true) .
-  '<input type="submit" value="Remove (incl. config!)" name="removeLimit"
-    class="wastedDestructive" disabled>
+  '<input type="submit" value="Remove" name="removeLimit"
+      onclick="return confirm(\'Remove selected limit and its configuration?\');">
   <label for="idLimitName">Name: </label>
   <input id="idLimitName" name="limitName" type="text" value="">
   <input type="submit" value="Rename" name="renameLimit">
@@ -365,7 +346,8 @@ echo '<h3>Users</h3>
 <form method="post" enctype="multipart/form-data">
   <input type="text" name="userId" required="required" placeholder="id">
   <input type="submit" name="addUser" value="Add">
-  <input type="submit" name="removeUser" value="Remove" class="wastedDestructive" disabled>
+  <input type="submit" name="removeUser" value="Remove"
+      onclick="return confirm(\'Remove user and all their data?\');">
 </form>
 
 <hr />';
@@ -376,7 +358,8 @@ echo '<h2>Manage Database</h2>
 <form method="post">
   Delete activity (of all users!) and server logs older than
   <input type="date" name="datePrune" value="' . $pruneFromDate->format('Y-m-d') . '">
-  <input class="wastedDestructive" type="submit" value="DELETE" name="prune" disabled />
+  <input type="submit" value="DELETE" name="prune"
+      onclick="return confirm(\'Delete activity and server logs?\');" />
 </form>';
 
 echo '</div>'; // tab
@@ -389,8 +372,8 @@ echo '<h4>Classification</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '"> '
   . classSelector($classes, false) .
-  '<input type="submit" value="Remove (incl. classification!)" name="removeClass"
-    class="wastedDestructive" disabled>
+  '<input type="submit" value="Remove" name="removeClass"
+      onclick="return confirm(\'Remove class and its classification rules?\');">
   <label for="idClassName">Name: </label>
   <input id="idClassName" name="className" type="text" value="">
   <input type="submit" value="Rename" name="renameClass">
@@ -408,8 +391,8 @@ echo '<h4>Classification</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
   . classificationSelector($classifications) . '
-  <input type="submit" value="Remove" name="removeClassification" class="wastedDestructive"
-      disabled>
+  <input type="submit" value="Remove" name="removeClassification"
+      onclick="return confirm(\'Remove classification?\');">
   <input type="text" id="idClassificationRegEx" name="classificationRegEx" value="">
   Prio: <input type="number" name="classificationPriority" id="idClassificationPriority" value="0">
   <input type="submit" value="Change" name="changeClassification">

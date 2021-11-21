@@ -45,8 +45,7 @@ function checkRequirements() {
   if (!$unmet) {
     return;
   }
-  // TODO: Fix this wording.
-  echo '<p><b>Please follow these steps to complete the installation:</b></p>'
+  echo '<p><b>The following requirements are not met:</b></p>'
   . '<ul><li>' . implode('</li><li>', $unmet) . '</li></ul><hr />';
   throw new Exception(implode($unmet));
 }

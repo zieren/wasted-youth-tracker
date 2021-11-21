@@ -33,7 +33,7 @@ input[type="number"] {
 }
 
 .limitTdWidth td {
-  max-width: 50em;
+  max-width: 60em;
   word-wrap: break-word;
 }
 

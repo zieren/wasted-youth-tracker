@@ -593,7 +593,7 @@ class Wasted {
         SELECT
           classes.id AS id,
           name,
-          re,
+          LEFT(re, 151) AS re,
           priority,
           COUNT(DISTINCT title) AS n,
           LEFT(GROUP_CONCAT(title ORDER BY title SEPARATOR "\n"), 1025) AS samples
@@ -615,9 +615,9 @@ class Wasted {
     $table = [];
     foreach ($rows as $r) {
       $samples = strlen($r['samples']) <= 1024
-          ? $r['samples']
-          : (substr($r['samples'], 0, 1021) . '...');
-      $table[] = [$r['name'], $r['re'], intval($r['priority']), intval($r['n']), $samples];
+          ? $r['samples'] : (substr($r['samples'], 0, 1021) . '...');
+      $re = strlen($r['re']) <= 150 ? $r['re'] : (substr($r['re'], 0, 147) . '...');
+      $table[] = [$r['name'], $re, intval($r['priority']), intval($r['n']), $samples];
     }
     return $table;
   }

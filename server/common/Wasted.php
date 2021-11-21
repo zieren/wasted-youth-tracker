@@ -944,7 +944,8 @@ class Wasted {
 
   /**
    * Returns the time in seconds spent between $fromTime and $toTime, as a 2D array keyed by limit
-   * ID and then date. $toTime may be null to omit the upper limit.
+   * ID and then date. $toTime may be null to omit the upper limit. Contains only limits that were
+   * used.
    */
   public static function queryTimeSpentByLimitAndDate($user, $fromTime, $toTime = null): array {
     $fromTimestamp = $fromTime->getTimestamp();

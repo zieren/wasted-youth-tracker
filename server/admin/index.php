@@ -19,13 +19,13 @@ function setup() {
     tr.addEventListener("click", function() { toggleCollapsed(tr); });
   });
 }
-function setReferenceToday() {
+function setToday(id) {
   var today = new Date();
   var dateReference =
       today.getFullYear() + '-'
       + String(today.getMonth() + 1).padStart(2, '0') + '-'
       + String(today.getDate()).padStart(2, '0');
-  document.querySelector("#idDateReference").value = dateReference;
+  document.querySelector("#" + id).value = dateReference;
 }
 function setWeekStart() {
   var d = new Date(document.querySelector("#idDateReference").value);
@@ -35,6 +35,9 @@ function setWeekStart() {
           + String(d.getMonth() + 1).padStart(2, '0') + '-'
           + String(d.getDate()).padStart(2, '0');
   document.querySelector("#idDateSince").value = date;
+}
+function setSameDay() {
+  document.querySelector("#idDateSince").value = document.querySelector("#idDateReference").value;
 }
 </script>
 <?php
@@ -62,7 +65,7 @@ Wasted::initialize(true);
 
 $considerUnlocking = false;
 $furtherLimits = false;
-$tab = 'idTabOverrides';
+$tab = 'idTabControl';
 
 if (action('setUserConfig')) {
   $user = postString('configUser');
@@ -93,26 +96,26 @@ if (action('setUserConfig')) {
   Wasted::clearLimitConfig($limitId, postString('limitConfigKey'));
 } else if (action('setMinutes')) {
   $user = postString('user');
-  $dateString = postString('date');
+  $dateReference = postString('dateReference');
   $limitId = postInt('limitId');
   $furtherLimits =
-      Wasted::setOverrideMinutes($user, $dateString, $limitId, postInt('overrideMinutes', 0));
+      Wasted::setOverrideMinutes($user, $dateReference, $limitId, postInt('overrideMinutes', 0));
 } else if (action('setTimes')) {
   $user = postString('user');
-  $dateString = postString('date');
+  $dateReference = postString('dateReference');
   $limitId = postInt('limitId');
   $furtherLimits =
-      Wasted::setOverrideSlots($user, $dateString, $limitId, postString('overrideTimes', ''));
+      Wasted::setOverrideSlots($user, $dateReference, $limitId, postString('overrideTimes', ''));
 } else if (action('unlock')) {
   $user = postString('user');
-  $dateString = postString('date');
+  $dateReference = postString('dateReference');
   $limitId = postInt('limitId');
-  $considerUnlocking = Wasted::setOverrideUnlock($user, $dateString, $limitId);
+  $considerUnlocking = Wasted::setOverrideUnlock($user, $dateReference, $limitId);
 } else if (action('clearOverrides')) {
   $user = postString('user');
-  $dateString = postString('date');
+  $dateReference = postString('dateReference');
   $limitId = postInt('limitId');
-  Wasted::clearOverrides($user, $dateString, $limitId);
+  Wasted::clearOverrides($user, $dateReference, $limitId);
 } else if (action('addMapping')) {
   $user = postString('user');
   $limitId = postInt('limitId');
@@ -168,12 +171,12 @@ $users = Wasted::getUsers();
 if (!isset($user)) {
   $user = get('user') ?? postString('user') ?? getOrDefault($users, 0, '');
 }
-if (!isset($dateString)) {
-  $dateString = postString('dateReference') ?? date('Y-m-d');
+if (!isset($dateReference)) {
+  $dateReference = postString('dateReference') ?? date('Y-m-d');
 }
 $dateSince = postString('dateSince');
-if (!$dateSince || $dateSince > $dateString) {
-  $dateSince = getDateString(getWeekStart(new DateTime($dateString)));
+if (!$dateSince || $dateSince > $dateReference) {
+  $dateSince = getDateString(getWeekStart(new DateTime($dateReference)));
 }
 if (!isset($limitId)) {
   $limitId = 0; // never exists, MySQL index is 1-based
@@ -230,13 +233,13 @@ function inputRadioTab($id) {
 
 echo '
 <div class="tabbed">';
-inputRadioTab('idTabOverrides');
+inputRadioTab('idTabControl');
 inputRadioTab('idTabLimits');
 inputRadioTab('idTabClassification');
 inputRadioTab('idTabActivity');
 echo '
    <nav>
-      <label for="idTabOverrides">Overrides</label>
+      <label for="idTabControl">Control</label>
       <label for="idTabLimits">Limits</label>
       <label for="idTabClassification">Classification</label>
       <label for="idTabActivity">Activity</label>
@@ -247,14 +250,14 @@ echo '
 // ----- TAB: Overrides -----
 
 echo '
-<div class="tabOverrides">
+<div class="tabControl">
   <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">
 
   <label for="idDateReference">Date:</label>
-  <input id="idDateReference" type="date" value="'.$dateString.'" name="dateReference"
+  <input id="idDateReference" type="date" value="'.$dateReference.'" name="dateReference"
       oninput="this.form.submit()" />
-  <button onClick="setReferenceToday()" type="submit">Today</button>
+  <button onClick="setToday(\'idDateReference\')" type="submit">Today</button>
 
   <p>'.limitSelector($limitConfigs, $limitId).'</p>
   <p>
@@ -277,11 +280,12 @@ echo '
     <input id="idDateSince" type="date" value="'.$dateSince.'" name="dateSince"
         oninput="this.form.submit()" />
     <button onClick="setWeekStart(\'idDateSince\')" type="submit">Start of week</button>
+    <button onClick="setSameDay(\'idDateSince\')" type="submit">Single day</button>
   </p>
 
 <h3>Overrides</h3>';
 
-$recentOverrides = Wasted::queryRecentOverrides($user, $dateSince, $dateString);
+$recentOverrides = Wasted::queryRecentOverrides($user, $dateSince, $dateReference);
 if ($recentOverrides) {
   echoTable(['Date', 'Limit', 'Minutes', 'Times', 'Lock'], $recentOverrides);
 } else {
@@ -294,12 +298,16 @@ echo '
   <h4>Available classes today</h4>
   <p>'.implode(', ', Wasted::queryClassesAvailableTodayTable($user, $timeLeftByLimit)).'</p>';
 
-$fromTime = new DateTime($dateString);
-$toTime = (clone $fromTime)->add(new DateInterval('P1D'));
-$timeSpentByLimitAndDate = Wasted::queryTimeSpentByLimitAndDate($user, $fromTime, $toTime);
-$timeSpentByLimit = [];
-foreach ($timeSpentByLimitAndDate as $id=>$timeSpentByDate) {
-  $timeSpentByLimit[$id] = getOrDefault($timeSpentByDate, $dateString, 0);
+$timeSpentByLimitAndDate =
+    Wasted::queryTimeSpentByLimitAndDate(
+        $user,
+        new DateTime($dateSince),
+        (new DateTime($dateReference))->add(new DateInterval('P1D')));
+$timeSpentByLimitToday = [];
+$timeSpentByLimitRange = [];
+foreach ($timeSpentByLimitAndDate as $id => $timeSpentByDate) {
+  $timeSpentByLimitToday[$id] = getOrDefault($timeSpentByDate, $dateReference, 0);
+  $timeSpentByLimitRange[$id] = array_sum($timeSpentByDate);
 }
 echo '<h3>Time left today</h3>';
 echoTable(
@@ -307,13 +315,21 @@ echoTable(
     [array_map('secondsToHHMMSS', array_map('TimeLeft::toCurrentSeconds', $timeLeftByLimit))]);
 
 echo '<h3>Time spent on selected date</h3>';
-echo count($timeSpentByLimit) > 0
+echo array_sum($timeSpentByLimitToday) > 0
     ? echoTable(
-        limitIdsToNames(array_keys($timeSpentByLimit), $configs),
-        [array_map("secondsToHHMMSS", array_values($timeSpentByLimit))])
+        limitIdsToNames(array_keys($timeSpentByLimitToday), $configs),
+        [array_map("secondsToHHMMSS", array_values($timeSpentByLimitToday))])
     : 'no time spent';
 
-// TODO: This IGNORED the selected date. Add its own date selector?
+if ($dateSince != $dateReference) {
+echo '<h3>Time spent in selected date range</h3>';
+echo count($timeSpentByLimitRange) > 0
+    ? echoTable(
+        limitIdsToNames(array_keys($timeSpentByLimitRange), $configs),
+        [array_map("secondsToHHMMSS", array_values($timeSpentByLimitRange))])
+    : 'no time spent';
+}
+
 echo '</form>';
 
 echo '</div>'; // tab

@@ -84,14 +84,14 @@ nav label:nth-child(1) { border-left: 1px solid silver; }
 nav label:hover { background: hsl(210,50%,40%); }
 nav label:active { background: #ffffff; }
 
-#idTabOverrides:checked ~ figure .tabOverrides,
+#idTabControl:checked ~ figure .tabControl,
 #idTabLimits:checked ~ figure .tabLimits,
 #idTabActivity:checked ~ figure .tabActivity,
 #idTabClassification:checked ~ figure .tabClassification {
   display: block;
 }
 
-#idTabOverrides:checked ~ nav label[for="tabOverrides"],
+#idTabControl:checked ~ nav label[for="tabControl"],
 #idTabLimits:checked ~ nav label[for="tabLimits"],
 #idTabActivity:checked ~ nav label[for="tabActivity"],
 #idTabClassification:checked ~ nav label[for="tabClasification"] {
@@ -101,7 +101,7 @@ nav label:active { background: #ffffff; }
   border-bottom: none;
 }
 
-#idTabOverrides:checked ~ nav label[for="tabOverrides"]:after,
+#idTabControl:checked ~ nav label[for="tabControl"]:after,
 #idTabLimits:checked ~ nav label[for="tabLimits"]:after,
 #idTabActivity:checked ~ nav label[for="tabActivity"]:after,
 #idTabClassification:checked ~ nav label[for="tabClassification"]:after {

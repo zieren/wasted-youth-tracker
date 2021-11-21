@@ -48,3 +48,66 @@ input[type="number"] {
 #idClassification, #idClassificationRegEx {
   width: 20em;
 }
+
+.tabbed figure {
+   display: block;
+   margin-left: 0;
+   border-bottom: 1px solid silver;
+   clear: both;
+}
+
+.tabbed > input,
+.tabbed figure > div {
+  display: none;
+}
+
+.tabbed figure>div {
+  padding: 20px;
+  width: 100%;
+  border: 1px solid silver;
+  background: #fff;
+  line-height: 1.5em;
+  letter-spacing: 0.3px;
+  color: #444;
+}
+
+nav label {
+   float: left;
+   padding: 15px 15px;
+   border-top: 1px solid silver;
+   border-right: 1px solid silver;
+   background: hsl(210,50%,50%);
+   color: #eee;
+}
+
+nav label:nth-child(1) { border-left: 1px solid silver; }
+nav label:hover { background: hsl(210,50%,40%); }
+nav label:active { background: #ffffff; }
+
+#idTabOverrides:checked ~ figure .tabOverrides,
+#idTabLimits:checked ~ figure .tabLimits,
+#idTabClassification:checked ~ figure .tabClassification {
+  display: block;
+}
+
+#idTabOverrides:checked ~ nav label[for="tabOverrides"],
+#idTabLimits:checked ~ nav label[for="tabLimits"],
+#idTabClassification:checked ~ nav label[for="tabClasification"] {
+  background: white;
+  color: #111;
+  position: relative;
+  border-bottom: none;
+}
+
+#idTabOverrides:checked ~ nav label[for="tabOverrides"]:after,
+#idTabLimits:checked ~ nav label[for="tabLimits"]:after,
+#idTabClassification:checked ~ nav label[for="tabClassification"]:after {
+  content: "";
+  display: block;
+  position: absolute;
+  height: 2px;
+  width: 100%;
+  background: white;
+  left: 0;
+  bottom: -1px;
+}

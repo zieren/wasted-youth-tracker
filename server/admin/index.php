@@ -37,7 +37,7 @@ require_once '../common/html_util.php';
 function checkRequirements() {
   $unmet = array();
   if (version_compare(PHP_VERSION, PHP_MIN_VERSION) < 0) {
-    $unmet[] = 'PHP version ' . PHP_MIN_VERSION . ' is required, but this is ' . PHP_VERSION . '.';
+    $unmet[] = 'PHP version '.PHP_MIN_VERSION.' is required, but this is '.PHP_VERSION.'.';
   }
   if (!function_exists('mysqli_connect')) {
     $unmet[] = 'The mysqli extension is missing.';
@@ -45,17 +45,18 @@ function checkRequirements() {
   if (!$unmet) {
     return;
   }
+  // TODO: Fix this wording.
   echo '<p><b>Please follow these steps to complete the installation:</b></p>'
   . '<ul><li>' . implode('</li><li>', $unmet) . '</li></ul><hr />';
   throw new Exception(implode($unmet));
 }
-
 checkRequirements();
 
-Wasted::initialize(true /* create missing tables */);
+Wasted::initialize(true);
 
 $considerUnlocking = false;
 $furtherLimits = false;
+$tab = 'idTabOverrides';
 
 if (action('setUserConfig')) {
   $user = postString('configUser');
@@ -124,6 +125,7 @@ if (action('setUserConfig')) {
   Wasted::addClassification(
       $classId, postInt('classificationPriority'), postRaw('classificationRegEx'));
 } else if (action('changeClassification')) {
+  $tab = 'idTabClassification';
   $classificationId = postInt('classificationId');
   Wasted::changeClassification(
       $classificationId, postRaw('classificationRegEx'), postRaw('classificationPriority'));
@@ -175,16 +177,15 @@ $classifications = Wasted::getAllClassifications();
 echo dateSelectorJs();
 echo classificationSelectorJs($classifications);
 
-echo '<h1>'.WASTED_SERVER_HEADING.'</h1>
-<p>&copy; 2021 J&ouml;rg Zieren - <a href="http://zieren.de">zieren.de</a> - GNU GPL v3.
-Credits:
-<a href="https://www.autohotkey.com/">AutoHotkey</a> by The AutoHotkey Foundation, GNU GPL v2;
-<a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, GNU LGPL v3;
-<a href="http://codefury.net/projects/klogger/">KLogger</a> by Kenny Katzgrau, MIT license';
+// ----- Header and global settings -----
+// TODO: Move credits to their own tab, or to the bottom.
+
+echo '<h1>'.WASTED_SERVER_HEADING.'</h1>';
 if ($unackedError) {
   $ackedError = substr($unackedError, 0, 15);
   // TODO: Probably just htmlentities() instead of html() below.
-  echo '<p class="warning" style="display: inline; margin-right: 1em;">
+  echo '
+    <p class="warning" style="display: inline; margin-right: 1em;">
     Last client error: '.html($unackedError).'</p>
     <form method="post" action="index.php"  style="display: inline;">
       <input type="hidden" name="ackedError" value="'.html($ackedError).'">
@@ -194,29 +195,58 @@ if ($unackedError) {
 }
 if ($considerUnlocking) {
   $limitIdToName = getLimitIdToNameMap($configs);
-  echo '<p class="notice">Further locked limits affecting classes in "'
-      . $limitIdToName[$limitId] . '": <b>' . html(implode($considerUnlocking, ', ')) . '</b>';
+  echo '
+    <p class="notice">Further locked limits affecting classes in "'
+      .$limitIdToName[$limitId].'": <b>'.html(implode($considerUnlocking, ', ')).'</b>';
 } else if ($furtherLimits) {
   $limitIdToName = getLimitIdToNameMap($configs);
-  echo '<p class="notice">Further limits affecting classes in "'
-      . $limitIdToName[$limitId] . '": <b>' . html(implode($furtherLimits, ', ')) . '</b>';
+  echo '
+    <p class="notice">Further limits affecting classes in "'
+      .$limitIdToName[$limitId].'": <b>'.html(implode($furtherLimits, ', ')).'</b>';
 }
-echo '<p>
-<form action="index.php" method="get" style="display: inline; margin-right: 1em;">'
-. userSelector($users, $user) .
-'</form>
-<span style="display: inline; margin-right: 1em;">
+echo '
+  <p>
+  <form action="index.php" method="get" style="display: inline; margin-right: 1em;">'
+    .userSelector($users, $user).'
+  </form>
+  <span style="display: inline; margin-right: 1em;">
   <a href="../view/index.php?user=' . $user . '">View activity</a>
-</span>
-<form style="display: inline; margin-right: 1em;">
-  <input type="checkbox" name="confirm" id="idWastedEnableDestructive"
+  </span>
+  <form style="display: inline; margin-right: 1em;">
+    <input type="checkbox" name="confirm" id="idWastedEnableDestructive"
       onclick="enableDestructiveButtons(false)"/>
-  <span onclick="enableDestructiveButtons(true)">Enable destructive actions
-  (e.g. delete class/limit, prune activity)</span>
-</form>
-</p>
+    <span onclick="enableDestructiveButtons(true)">Enable destructive actions
+      (e.g. delete class/limit, prune activity)</span>
+  </form>
+  </p>';
 
-<h3>Overrides</h3>
+// ----- Tab setup -----
+
+function inputRadioTab($id) {
+  global $tab;
+  echo
+      '<input type="radio" id="'.$id.'" name="tabs" '.($id == $tab ? 'checked="checked"' : '').'/>';
+}
+
+echo '
+<div class="tabbed">';
+inputRadioTab('idTabOverrides');
+inputRadioTab('idTabLimits');
+inputRadioTab('idTabClassification');
+echo '
+   <nav>
+      <label for="idTabOverrides">Overrides</label>
+      <label for="idTabLimits">Limits</label>
+      <label for="idTabClassification">Classification</label>
+   </nav>
+
+   <figure>';
+
+// ----- TAB: Overrides -----
+
+echo '
+<div class="tabOverrides">
+  <h3>Overrides</h3>
   <form method="post" action="index.php">
     <input type="hidden" name="user" value="' . $user . '">'
     . dateSelector($dateString, false)
@@ -229,17 +259,18 @@ echo '<p>
     <input type="submit" value="Set times" name="setTimes">
     <input type="submit" value="Unlock" name="unlock">
     <input type="submit" value="Clear overrides" name="clearOverrides">
-  </form>';
+  </form>
+  <h4>This week\'s overrides</h4>';
 
-echo "<h4>This week's overrides</h4>";
 echoTable(
     ['Date', 'Limit', 'Minutes', 'Times', 'Lock'],
     Wasted::queryRecentOverrides($user));
 
 $timeLeftByLimit = Wasted::queryTimeLeftTodayAllLimits($user);
 
-echo '<h4>Available classes today</h4>
-<p>' . implode(', ', Wasted::queryClassesAvailableTodayTable($user, $timeLeftByLimit)) . '</p>';
+echo '
+  <h4>Available classes today</h4>
+  <p>'.implode(', ', Wasted::queryClassesAvailableTodayTable($user, $timeLeftByLimit)).'</p>';
 
 // --- BEGIN duplicate code. TODO: Extract.
 $fromTime = new DateTime($dateString);
@@ -249,95 +280,38 @@ $timeSpentByLimit = [];
 foreach ($timeSpentByLimitAndDate as $id=>$timeSpentByDate) {
   $timeSpentByLimit[$id] = getOrDefault($timeSpentByDate, $dateString, 0);
 }
-// TODO: Classes can map to limits that are not configured (so not in $configs), or map to no
-// limit at all.
-echo '<span class="inlineBlockWithMargin"><h3>Time spent on selected date</h3>';
-echoTable(
-    limitIdsToNames(array_keys($timeSpentByLimit), $configs),
-    [array_map("secondsToHHMMSS", array_values($timeSpentByLimit))]);
-echo '</span>';
-// --- END duplicate code
-
-echo '<span class="inlineBlock"><h3>Time left today</h3>';
+echo '<h3>Time left today</h3>';
 echoTable(
     limitIdsToNames(array_keys($timeLeftByLimit), $configs),
     [array_map('secondsToHHMMSS', array_map('TimeLeft::toCurrentSeconds', $timeLeftByLimit))]);
-echo '</span>';
+
+echo '<h3>Time spent on selected date</h3>';
+echo count($timeSpentByLimit) > 0
+    ? echoTable(
+        limitIdsToNames(array_keys($timeSpentByLimit), $configs),
+        [array_map("secondsToHHMMSS", array_values($timeSpentByLimit))])
+    : 'no time spent';
+
+// --- END duplicate code
 
 // TODO: This IGNORED the selected date. Add its own date selector?
 
-$fromTime = (clone Wasted::$now)->sub(new DateInterval('P7D'));
-$topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, false, 10);
-foreach ($topUnclassified as &$i) {
-  $i[0] = secondsToHHMMSS($i[0]);
-}
-echo '<br><span class="inlineBlockWithMargin"><h4>Top 10 unclassified last seven days, by recency</h4>';
-echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTableWithMargin limitTdWidth');
-echo '</span>';
+echo '</div>'; // tab
 
-$topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, true, 10);
-foreach ($topUnclassified as &$i) {
-  $i[0] = secondsToHHMMSS($i[0]);
-}
-echo '<span class="inlineBlock"><h4>Top 10 unclassified last seven days, by total time</h4>';
-echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTable limitTdWidth');
-echo '</span>';
+// ----- TAB: Limits -----
 
-echo '<h4>Classification (for all users)</h4>';
-echoTable(
-    ['Class', 'Classification', 'Prio', 'Matches', 'Samples (click to expand)'],
-    Wasted::getClassesToClassificationTable(),
-    'titled collapsible limitTdWidth');
-
-echo '<hr><h4>Limits and classes</h4>';
+echo '<div class="tabLimits">
+<h4>Limits and classes</h4>';
 echoTable(['Limit', 'Class', 'Further limits', 'Config'], Wasted::getLimitsToClassesTable($user));
 
-echo '<h4>Map class to limit</h4>
+echo '
+<h4>Map class to limit</h4>
 <form method="post" action="index.php">
   <input type="hidden" name="user" value="' . $user . '">'
   . classSelector($classes, true) . '==> ' . limitSelector($limitConfigs, $limitId, true) . '
   <input type="submit" value="Add" name="addMapping">
   <input type="submit" value="Remove" name="removeMapping">
-</form>
-
-<h4>Classification</h4>
-
-<form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '"> '
-  . classSelector($classes, false) .
-  '<input type="submit" value="Remove (incl. classification!)" name="removeClass"
-    class="wastedDestructive" disabled>
-  <label for="idClassName">Name: </label>
-  <input id="idClassName" name="className" type="text" value="">
-  <input type="submit" value="Rename" name="renameClass">
-  <input type="submit" value="Add" name="addClass">
-</form>
-
-<form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '">'
-  . classSelector($classes, false) . '
-  <input type="text" name="classificationRegEx" value="" placeholder="Regular Expression">
-  Prio: <input type="number" name="classificationPriority" value="0">
-  <input type="submit" value="Add classification" name="addClassification">
-</form>
-
-<form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '">'
-  . classificationSelector($classifications) . '
-  <input type="submit" value="Remove" name="removeClassification" class="wastedDestructive"
-      disabled>
-  <input type="text" id="idClassificationRegEx" name="classificationRegEx" value="">
-  Prio: <input type="number" name="classificationPriority" id="idClassificationPriority" value="0">
-  <input type="submit" value="Change" name="changeClassification">
-</form>
-
-<form method="post" action="index.php">
-  <input type="hidden" name="user" value="' . $user . '">
-  <label for="idReclassificationDays">Previous days: </label>
-  <input id="idReclassificationDays" type="number" name="reclassificationDays" value="7">
-  <input type="submit" value="Reclassify" name="doReclassify">
-</form>
-';
+</form>';
 
 echo '<h3>Limits</h3>';
 
@@ -405,8 +379,87 @@ echo '<h2>Manage Database</h2>
   Delete activity (of all users!) and server logs older than
   <input type="date" name="datePrune" value="' . $pruneFromDate->format('Y-m-d') . '">
   <input class="wastedDestructive" type="submit" value="DELETE" name="prune" disabled />
+</form>';
+
+echo '</div>'; // tab
+
+// ----- TAB: Classification -----
+echo '<div class="tabClassification">';
+
+echo '<h4>Classification</h4>
+
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '"> '
+  . classSelector($classes, false) .
+  '<input type="submit" value="Remove (incl. classification!)" name="removeClass"
+    class="wastedDestructive" disabled>
+  <label for="idClassName">Name: </label>
+  <input id="idClassName" name="className" type="text" value="">
+  <input type="submit" value="Rename" name="renameClass">
+  <input type="submit" value="Add" name="addClass">
 </form>
-';
-?>
+
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">'
+  . classSelector($classes, false) . '
+  <input type="text" name="classificationRegEx" value="" placeholder="Regular Expression">
+  Prio: <input type="number" name="classificationPriority" value="0">
+  <input type="submit" value="Add classification" name="addClassification">
+</form>
+
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">'
+  . classificationSelector($classifications) . '
+  <input type="submit" value="Remove" name="removeClassification" class="wastedDestructive"
+      disabled>
+  <input type="text" id="idClassificationRegEx" name="classificationRegEx" value="">
+  Prio: <input type="number" name="classificationPriority" id="idClassificationPriority" value="0">
+  <input type="submit" value="Change" name="changeClassification">
+</form>
+
+<form method="post" action="index.php">
+  <input type="hidden" name="user" value="' . $user . '">
+  <label for="idReclassificationDays">Previous days: </label>
+  <input id="idReclassificationDays" type="number" name="reclassificationDays" value="7">
+  <input type="submit" value="Reclassify" name="doReclassify">
+</form>';
+
+$fromTime = (clone Wasted::$now)->sub(new DateInterval('P7D'));
+$topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, false, 10);
+foreach ($topUnclassified as &$i) {
+  $i[0] = secondsToHHMMSS($i[0]);
+}
+echo '<br><span class="inlineBlockWithMargin"><h4>Top 10 unclassified last seven days, by recency</h4>';
+echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTableWithMargin limitTdWidth');
+echo '</span>';
+
+$topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, true, 10);
+foreach ($topUnclassified as &$i) {
+  $i[0] = secondsToHHMMSS($i[0]);
+}
+echo '<span class="inlineBlock"><h4>Top 10 unclassified last seven days, by total time</h4>';
+echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTable limitTdWidth');
+echo '</span>';
+
+echo '
+<h4>Classification (for all users)</h4>';
+echoTable(
+    ['Class', 'Classification', 'Prio', 'Matches', 'Samples (click to expand)'],
+    Wasted::getClassesToClassificationTable(),
+    'titled collapsible limitTdWidth');
+echo '</div>'; // tab
+
+// ----- Tabs: closing tags -----
+
+echo '</figure></div>'; // from div setup
+
+// ----- Footer -----
+
+echo '
+<p>&copy; 2021 J&ouml;rg Zieren (<a href="https://zieren.de">zieren.de</a>), GNU GPL v3.
+Components:
+<a href="https://www.autohotkey.com/">AutoHotkey</a> by The AutoHotkey Foundation, GNU GPL v2;
+<a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, GNU LGPL v3;
+<a href="https://github.com/katzgrau/KLogger">KLogger</a> by Kenny Katzgrau, MIT license.
 </body>
-</html>
+</html>';

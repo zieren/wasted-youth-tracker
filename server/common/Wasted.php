@@ -1089,14 +1089,11 @@ class Wasted {
   }
 
   /**
-   * Returns the time spent by window title and limit name, starting at $fromTime and ending 1d
-   * (i.e. usually 24h) later. $date should therefore usually have a time of 0:00. Records are
-   * ordered by the amount of time ($orderBySum = true) or else by recency.
-   *
-   * TODO: Semantics, parameter names.
+   * Returns the time spent by window title and class name. Records are ordered by the amount of
+   * time ($orderBySum = true) or else by recency.
    */
-  public static function queryTimeSpentByTitle($user, $fromTime, $orderBySum = true): array {
-    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+  public static function queryTimeSpentByTitle(
+      $user, $fromTime, $toTime, $orderBySum = true): array {
     $rows = self::queryTimeSpentByTitleInternal(
         $user, $fromTime->getTimestamp(), $toTime->getTimestamp(), $orderBySum);
     $timeByTitle = [];

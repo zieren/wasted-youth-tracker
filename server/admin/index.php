@@ -478,14 +478,15 @@ echo '<div class="tabActivity">';
 
 echo '<h3>Most Recently Used</h3>';
 $fromTime = dateStringToDateTime($dateFrom);
-$timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime, false);
+$toTime = dateStringToDateTime($dateTo);
+$timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime, $toTime, false);
 for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
   $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);
 }
 echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
 
 echo '<h3>Most Time Spent</h3>';
-$timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime);
+$timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime, $toTime);
 for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
   $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);
 }
@@ -493,6 +494,7 @@ echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
 
 if (getString('debug')) {
   echo '<h2>Window title sequence</h2>';
+  // TODO: Also consider range here
   echoTable(['From', 'To', 'Class', 'Title'], Wasted::queryTitleSequence($user, $fromTime));
 }
 

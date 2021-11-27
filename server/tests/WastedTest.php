@@ -421,26 +421,27 @@ final class WastedTest extends WastedTestBase {
       }
 
       $fromTime = clone Wasted::$now;
+      $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
 
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime),
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime),
           []);
 
       $this->insertActivity('u1', ['window 1']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime),
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime),
           [[self::dateTimeString(), 0, $class1, 'window 1']]);
 
       self::advanceTime(5);
       $this->insertActivity('u1', ['window 1']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime),
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime),
           [[self::dateTimeString(), 5, $class1, 'window 1']]);
 
       self::advanceTime(6);
       $this->insertActivity('u1', ['window 1']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime),
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime),
           [[self::dateTimeString(), 11, $class1, 'window 1']]);
 
       // Switch to different window.
@@ -448,7 +449,7 @@ final class WastedTest extends WastedTestBase {
       $dateTimeString1 = self::dateTimeString();
       $this->insertActivity('u1', ['window 2']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString1, 18, $class1, 'window 1'],
           [$dateTimeString1, 0, $class2, 'window 2']]);
 
@@ -456,7 +457,7 @@ final class WastedTest extends WastedTestBase {
       $dateTimeString2 = self::dateTimeString();
       $this->insertActivity('u1', ['window 2']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString1, 18, $class1, 'window 1'],
           [$dateTimeString2, 8, $class2, 'window 2']]);
 
@@ -465,9 +466,14 @@ final class WastedTest extends WastedTestBase {
       $dateTimeString2 = self::dateTimeString();
       $this->insertActivity('u1', ['window 2']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString2, 28, $class2, 'window 2'],
           [$dateTimeString1, 18, $class1, 'window 1']]);
+
+      // End timestamp is exclusive.
+      $this->assertEquals(
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $fromTime),
+          []);
     }
   }
 
@@ -490,15 +496,16 @@ final class WastedTest extends WastedTestBase {
       }
 
       $fromTime = clone Wasted::$now;
+      $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
 
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime),
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime),
           []);
 
       $dateTimeString1 = self::dateTimeString();
       $this->insertActivity('u1', ['window 1', 'window 2']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString1, 0, $class1, 'window 1'],
           [$dateTimeString1, 0, $class2, 'window 2']]);
 
@@ -506,7 +513,7 @@ final class WastedTest extends WastedTestBase {
       $dateTimeString1 = self::dateTimeString();
       $this->insertActivity('u1', ['window 1', 'window 2']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString1, 5, $class1, 'window 1'],
           [$dateTimeString1, 5, $class2, 'window 2']]);
 
@@ -514,7 +521,7 @@ final class WastedTest extends WastedTestBase {
       $dateTimeString1 = self::dateTimeString();
       $this->insertActivity('u1', ['window 1', 'window 2']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString1, 11, $class1, 'window 1'],
           [$dateTimeString1, 11, $class2, 'window 2']]);
 
@@ -523,7 +530,7 @@ final class WastedTest extends WastedTestBase {
       $dateTimeString1 = self::dateTimeString();
       $this->insertActivity('u1', ['window 11', 'window 2']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString1, 18, $class1, 'window 1'],
           [$dateTimeString1, 18, $class2, 'window 2'],
           [$dateTimeString1, 0, $class1, 'window 11']]);
@@ -532,7 +539,7 @@ final class WastedTest extends WastedTestBase {
       $dateTimeString2 = self::dateTimeString();
       $this->insertActivity('u1', ['window 2']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString2, 26, $class2, 'window 2'],
           [$dateTimeString1, 18, $class1, 'window 1'],
           [$dateTimeString2, 8, $class1, 'window 11']]);
@@ -542,7 +549,7 @@ final class WastedTest extends WastedTestBase {
       $dateTimeString3 = self::dateTimeString();
       $this->insertActivity('u1', ['window 1']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString3, 27, $class2, 'window 2'],
           [$dateTimeString3, 18, $class1, 'window 1'],
           [$dateTimeString2, 8, $class1, 'window 11']]);
@@ -552,7 +559,7 @@ final class WastedTest extends WastedTestBase {
       $dateTimeString4 = self::dateTimeString();
       $this->insertActivity('u1', ['window 42']);
       $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString4, 38, $class1, 'window 1'],
           [$dateTimeString3, 27, $class2, 'window 2'],
           [$dateTimeString2, 8, $class1, 'window 11'],
@@ -562,6 +569,7 @@ final class WastedTest extends WastedTestBase {
 
   public function testReplaceEmptyTitle(): void {
     $fromTime = clone Wasted::$now;
+    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     $this->insertActivity('u1', ['window 1']);
     self::advanceTime(5);
     $this->insertActivity('u1', ['window 1']);
@@ -571,11 +579,11 @@ final class WastedTest extends WastedTestBase {
     self::advanceTime(5);
     $this->insertActivity('u1', ['']);
     $this->assertEquals(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime),
         $this->total(15));
 
     $this->assertEqualsIgnoreOrder(
-        Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+        Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
         [$window1LastSeen, 10, DEFAULT_CLASS_NAME, 'window 1'],
         [self::dateTimeString(), 5, DEFAULT_CLASS_NAME, '(no title)']]);
   }
@@ -876,6 +884,7 @@ final class WastedTest extends WastedTestBase {
 
   public function testTimeSpent_handleNoWindows(): void {
     $fromTime = clone Wasted::$now;
+      $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     $classId = Wasted::addClass('c1');
     Wasted::addClassification($classId, 0, '1$');
 
@@ -906,33 +915,35 @@ final class WastedTest extends WastedTestBase {
 
     // "No windows" events are handled correctly for both listing titles and computing time spent.
     $this->assertEquals(
-        Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+        Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
         [$lastSeenWindow1, 4, 'c1', 'window 1'],
         [$lastSeenWindow3, 3, DEFAULT_CLASS_NAME, 'window 3'],
         [$lastSeenWindow2, 2, DEFAULT_CLASS_NAME, 'window 2']]);
     $this->assertEquals(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime),
         [$this->totalLimitId['u1'] => [self::day() => 8]]);
   }
 
   public function testCaseHandling(): void {
     $fromTime = clone Wasted::$now;
+      $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     // First title capitalization persists.
     $this->insertActivity('u1', ['TITLE']);
     self::advanceTime(1);
     $this->insertActivity('u1', ['Title']);
     $this->assertEquals(
-        Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+        Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
         [self::dateTimeString(), 1, DEFAULT_CLASS_NAME, 'TITLE']]);
   }
 
   public function testDuplicateTitle(): void {
     $fromTime = clone Wasted::$now;
+      $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     $this->insertActivity('u1', ['cALCULATOR', 'Calculator']);
     self::advanceTime(1);
     $this->insertActivity('u1', ['Calculator', 'Calculator']);
     $lastSeen = self::dateTimeString();
-    $timeSpentByTitle = Wasted::queryTimeSpentByTitle('u1', $fromTime);
+    $timeSpentByTitle = Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime);
     // We can pick any of the matching titles.
     $this->assertEquals(
         true,
@@ -941,7 +952,7 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals(
         $timeSpentByTitle, [[$lastSeen, 1, DEFAULT_CLASS_NAME]]);
     $this->assertEquals(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime),
         $this->total(1));
   }
 
@@ -1120,6 +1131,7 @@ final class WastedTest extends WastedTestBase {
 
   public function testConcurrentRequestsAndChangedClassification(): void {
     $fromTime = clone Wasted::$now;
+    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
 
     $classId1 = Wasted::addClass('c1');
     Wasted::addClassification($classId1, 0, '1$');
@@ -1135,7 +1147,7 @@ final class WastedTest extends WastedTestBase {
         $this->insertActivity('u1', ['title 2']),
         [self::classification(DEFAULT_CLASS_ID, [$totalLimitId])]);
     $this->assertEqualsIgnoreOrder(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime),
         $this->total(1));
 
     // Repeating the last call is idempotent.
@@ -1143,7 +1155,7 @@ final class WastedTest extends WastedTestBase {
         $this->insertActivity('u1', ['title 2']),
         [self::classification(DEFAULT_CLASS_ID, [$totalLimitId])]);
     $this->assertEqualsIgnoreOrder(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime),
         $this->total(1));
 
     // Add a title that matches the limit, but don't elapse time for it yet. This will extend the
@@ -1158,7 +1170,7 @@ final class WastedTest extends WastedTestBase {
         $totalLimitId => [self::day() => 1],
         $limitId1 => [self::day() => 0]];
     $this->assertEqualsIgnoreOrder(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime),
         $timeSpent2and1);
 
     // Repeating the previous insertion is idempotent.
@@ -1166,7 +1178,7 @@ final class WastedTest extends WastedTestBase {
         $this->insertActivity('u1', ['title 2', 'title 1']),
         $classification2and1);
     $this->assertEqualsIgnoreOrder(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime),
         $timeSpent2and1);
 
     // Changing the classification rules between concurrent requests causes the second activity
@@ -1182,7 +1194,7 @@ final class WastedTest extends WastedTestBase {
         self::classification($classId2, [$totalLimitId, $limitId2])]); // changed to c2, which maps to b2
     // Records are updated.
     $this->assertEqualsIgnoreOrder(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime), [
         $totalLimitId => [self::day() => 1],
         $limitId2 => [self::day() => 0]]);
 
@@ -1201,11 +1213,11 @@ final class WastedTest extends WastedTestBase {
 
     // Check results.
     $this->assertEquals(
-        Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+        Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
         [self::dateTimeString(), 3, DEFAULT_CLASS_NAME, 'title 2'],
         [self::dateTimeString(), 2, 'c2', 'title 1']]);
     $this->assertEqualsIgnoreOrder(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime), [
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime), [
         $totalLimitId => [self::day() => 3],
         $limitId2 => [self::day() => 2]]);
   }
@@ -1443,6 +1455,7 @@ final class WastedTest extends WastedTestBase {
     $this->insertActivity('u1', ['t1']);
 
     $fromTime = clone Wasted::$now;
+    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     self::advanceTime(1);
     $fromTime1String = self::dateTimeString();
     $this->insertActivity('u1', ['t2']);
@@ -1451,7 +1464,7 @@ final class WastedTest extends WastedTestBase {
     $this->insertActivity('u1', ['t3']);
 
     $this->assertEquals(
-        Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+        Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
         [$fromTime1String, 1, 'c1', 't1'],
         [$fromTime2String, 1, 'c2', 't2'],
         [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3']
@@ -1467,7 +1480,7 @@ final class WastedTest extends WastedTestBase {
     Wasted::removeClass($classId2);
 
     $this->assertEquals(
-        Wasted::queryTimeSpentByTitle('u1', $fromTime), [
+        Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
         [$fromTime1String, 1, 'c1', 't1'],
         [$fromTime2String, 1, 'c3', 't2'],
         [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3']
@@ -1613,17 +1626,19 @@ final class WastedTest extends WastedTestBase {
 
   public function testRenameClass(): void {
     $fromTime = clone Wasted::$now;
+    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     $classId = Wasted::addClass('c1');
     Wasted::addClassification($classId, 0, '()');
     Wasted::renameClass($classId, 'c2');
     $this->insertActivity('u1', ['t']);
     $this->assertEquals(
-        Wasted::queryTimeSpentByTitle('u1', $fromTime),
+        Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime),
         [[self::dateTimeString(), 0, 'c2', 't']]);
   }
 
   public function testChangeClassificationAndReclassify(): void {
     $fromTime = clone Wasted::$now;
+    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
     // Reclassification excludes the specified limit, so advance by 1s.
     self::advanceTime(1);
     $classId = Wasted::addClass('c1');
@@ -1633,12 +1648,12 @@ final class WastedTest extends WastedTestBase {
         [$classificationId => ['name' => 'c1', 're' => 'nope', 'priority' => 0]]);
     $this->insertActivity('u1', ['t']);
     $this->assertEquals(
-        Wasted::queryTimeSpentByTitle('u1', $fromTime),
+        Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime),
         [[self::dateTimeString(), 0, DEFAULT_CLASS_NAME, 't']]);
     Wasted::changeClassification($classificationId, '()', 42);
     Wasted::reclassify($fromTime);
     $this->assertEquals(
-        Wasted::queryTimeSpentByTitle('u1', $fromTime),
+        Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime),
         [[self::dateTimeString(), 0, 'c1', 't']]);
     $this->assertEquals(
         Wasted::getAllClassifications(),

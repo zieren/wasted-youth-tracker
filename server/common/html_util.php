@@ -60,9 +60,7 @@ function userSelector($users, $selectedUser) {
 }
 
 function limitSelector($limitConfigs, $selectedLimitId, $skipTotal = false) {
-  $select =
-      '<label for="idLimit">Limit: </label>
-      <select id="idLimit" name="limitId">';
+  $select = '<label for="idLimit">Limit: </label><select id="idLimit" name="limitId">';
   foreach ($limitConfigs as $limitId => $config) {
     if ($skipTotal && $config['is_total']) {
       continue;

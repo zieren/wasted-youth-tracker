@@ -39,11 +39,15 @@ function setWeekStart() {
 function setSameDay() {
   document.querySelector("#idDateSince").value = document.querySelector("#idDateReference").value;
 }
-function switchUser(select) {
-  if (select.value) {
-    document.querySelector('#idSelectedTab').value =
-        document.querySelector('input.tabRadio:checked').id;
-    select.form.submit();
+function submitWithSelectedTab(elem) {
+  if (elem.value) {
+    const inputSelectedTab = document.createElement('input');
+    inputSelectedTab.type = 'hidden';
+    inputSelectedTab.name = 'selectedTab';
+    inputSelectedTab.value = document.querySelector('input.tabRadio:checked').id;
+    elem.form.appendChild(inputSelectedTab);
+
+    elem.form.submit();
   }
 }
 </script>
@@ -72,6 +76,7 @@ Wasted::initialize(true);
 
 $considerUnlocking = false;
 $furtherLimits = false;
+$dateOverride = date('Y-m-d');
 
 if (action('setUserConfig')) {
   $user = postString('configUser');
@@ -102,26 +107,26 @@ if (action('setUserConfig')) {
   Wasted::clearLimitConfig($limitId, postString('limitConfigKey'));
 } else if (action('setMinutes')) {
   $user = postString('user');
-  $dateReference = postString('dateReference');
+  $dateOverride= postString('dateOverride');
   $limitId = postInt('limitId');
   $furtherLimits =
-      Wasted::setOverrideMinutes($user, $dateReference, $limitId, postInt('overrideMinutes', 0));
+      Wasted::setOverrideMinutes($user, $dateOverride, $limitId, postInt('overrideMinutes', 0));
 } else if (action('setTimes')) {
   $user = postString('user');
-  $dateReference = postString('dateReference');
+  $dateOverride = postString('dateOverride');
   $limitId = postInt('limitId');
   $furtherLimits =
-      Wasted::setOverrideSlots($user, $dateReference, $limitId, postString('overrideTimes', ''));
+      Wasted::setOverrideSlots($user, $dateOverride, $limitId, postString('overrideTimes', ''));
 } else if (action('unlock')) {
   $user = postString('user');
-  $dateReference = postString('dateReference');
+  $dateOverride = postString('dateOverride');
   $limitId = postInt('limitId');
-  $considerUnlocking = Wasted::setOverrideUnlock($user, $dateReference, $limitId);
+  $considerUnlocking = Wasted::setOverrideUnlock($user, $dateOverride, $limitId);
 } else if (action('clearOverrides')) {
   $user = postString('user');
-  $dateReference = postString('dateReference');
+  $dateOverride = postString('dateOverride');
   $limitId = postInt('limitId');
-  Wasted::clearOverrides($user, $dateReference, $limitId);
+  Wasted::clearOverrides($user, $dateOverride, $limitId);
 } else if (action('addMapping')) {
   $user = postString('user');
   $limitId = postInt('limitId');
@@ -170,18 +175,17 @@ if (action('setUserConfig')) {
   echo '<b class="notice">Deleted data before ' . getDateString($dateTime) . '</b></hr>';
 }
 
+// Only now, after possibly adding/removing a user.
 $users = Wasted::getUsers();
 
 // Set UI parameters from what was posted, or else to defaults.
 if (!isset($user)) {
   $user = getString('user') ?? postString('user') ?? getOrDefault($users, 0, '');
 }
-if (!isset($dateReference)) {
-  $dateReference = postString('dateReference') ?? date('Y-m-d');
-}
-$dateSince = postString('dateSince');
+$dateReference = getString('dateReference') ?? date('Y-m-d');
+$dateSince = getString('dateSince');
 if (!$dateSince || $dateSince > $dateReference) {
-  $dateSince = getDateString(getWeekStart(new DateTime($dateReference)));
+  $dateSince = $dateReference;
 }
 if (!isset($limitId)) {
   $limitId = 0; // never exists, MySQL index is 1-based
@@ -221,11 +225,20 @@ if ($considerUnlocking) {
     <p class="notice">Further limits affecting classes in "'
       .$limitIdToName[$limitId].'": <b>'.html(implode($furtherLimits, ', ')).'</b>';
 }
+// TODO: rename to dateFrom, dateTo or sth
 echo '
   <p>
-    <form action="index.php" method="get">
-      <input type="hidden" id="idSelectedTab" name="selectedTab" value="idTabControl">'
+    <form action="index.php" method="get">'
       .userSelector($users, $user).'
+      <label for="idDateSince">View from:</label>
+      <input id="idDateSince" type="date" value="'.$dateSince.'" name="dateSince"
+          oninput="submitWithSelectedTab(this)" />
+      <button onClick="setWeekStart(\'idDateSince\')" type="submit">Start of week</button>
+      <button onClick="setSameDay(\'idDateSince\')" type="submit">Single day</button>
+      <label for="idDateReference">Up to:</label>
+      <input id="idDateReference" type="date" value="'.$dateReference.'" name="dateReference"
+          onInput="submitWithSelectedTab(this)" />
+      <button onClick="setToday(\'idDateReference\')" type="submit">Today</button>
     </form>
 
   </p>';
@@ -265,12 +278,12 @@ echo '
   <input type="hidden" name="selectedTab" value="idTabControl">
   <input type="hidden" name="user" value="' . $user . '">
 
-  <label for="idDateReference">Date:</label>
-  <input id="idDateReference" type="date" value="'.$dateReference.'" name="dateReference"
-      oninput="this.form.submit()" />
-  <button onClick="setToday(\'idDateReference\')" type="submit">Today</button>
 
-  <p>'.limitSelector($limitConfigs, $limitId).'</p>
+  <p>
+    '.limitSelector($limitConfigs, $limitId).'
+    <label for="idDateOverride">Date:</label>
+    <input id="idDateOverride" type="date" value="'.$dateOverride.'" name="dateOverride" />
+  </p>
   <p>
     <input type="submit" value="Unlock" name="unlock">
     <input type="submit" value="Clear overrides" name="clearOverrides">
@@ -284,14 +297,6 @@ echo '
     <label for="idOverrideTimes">Times: </label>
     <input id="idOverrideTimes" name="overrideTimes" type="text" value="">
     <input type="submit" value="Set times" name="setTimes">
-  </p>
-
-  <p>
-    <label for="idDateSince">View since:</label>
-    <input id="idDateSince" type="date" value="'.$dateSince.'" name="dateSince"
-        oninput="this.form.submit()" />
-    <button onClick="setWeekStart(\'idDateSince\')" type="submit">Start of week</button>
-    <button onClick="setSameDay(\'idDateSince\')" type="submit">Single day</button>
   </p>
 
 <h3>Overrides</h3>';

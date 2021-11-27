@@ -85,6 +85,12 @@ function getDateString($dateTime) {
   return $dateTime->format('Y-m-d');
 }
 
+/** Returns a DateTime object referencing 00:00:00 on the specified date. */
+function dateStringToDateTime($dateString) { // TODO: test
+  // Need to postfix 00:00:00 to not get current time of day.
+  return DateTime::createFromFormat('Y-m-d H:i:s', "$dateString 00:00:00");
+}
+
 function secondsToHHMMSS($seconds) {
   // Don't limit hours to 23. The value might be 24h or, even worse, more.
   $sign = $seconds < 0 ? '-' : '';

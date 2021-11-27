@@ -40,15 +40,14 @@ function setSameDay() {
   document.querySelector("#idDateFrom").value = document.querySelector("#idDateTo").value;
 }
 function submitWithSelectedTab(elem) {
-  if (elem.value) {
-    const inputSelectedTab = document.createElement('input');
-    inputSelectedTab.type = 'hidden';
-    inputSelectedTab.name = 'selectedTab';
-    inputSelectedTab.value = document.querySelector('input.tabRadio:checked').id;
-    elem.form.appendChild(inputSelectedTab);
+  // Do we need to check for value != ""?
+  const inputSelectedTab = document.createElement('input');
+  inputSelectedTab.type = 'hidden';
+  inputSelectedTab.name = 'selectedTab';
+  inputSelectedTab.value = document.querySelector('input.tabRadio:checked').id;
+  elem.form.appendChild(inputSelectedTab);
 
-    elem.form.submit();
-  }
+  elem.form.submit();
 }
 </script>
 <?php
@@ -170,8 +169,7 @@ if (action('setUserConfig')) {
   $ackedError = postString('ackedError');
   Wasted::ackError($user, $ackedError);
 } else if (action('prune')) {
-  // Need to postfix 00:00:00 to not get current time of day.
-  $dateTime = DateTime::createFromFormat('Y-m-d H:i:s', postString('datePrune') . ' 00:00:00');
+  $dateTime = dateStringToDateTime(postString('datePrune'));
   Wasted::pruneTables($dateTime);
   echo '<b class="notice">Deleted data before ' . getDateString($dateTime) . '</b></hr>';
 }
@@ -226,16 +224,17 @@ if ($considerUnlocking) {
     <p class="notice">Further limits affecting classes in "'
       .$limitIdToName[$limitId].'": <b>'.html(implode($furtherLimits, ', ')).'</b>';
 }
-// TODO: rename to dateFrom, dateTo or sth
 echo '
   <p>
     <form action="index.php" method="get">'
       .userSelector($users, $user).'
       <label for="idDateFrom">View from:</label>
       <input id="idDateFrom" type="date" value="'.$dateFrom.'" name="dateFrom"
-          oninput="submitWithSelectedTab(this)" />
-      <button onClick="setWeekStart(\'idDateFrom\')" type="submit">Start of week</button>
-      <button onClick="setSameDay(\'idDateFrom\')" type="submit">Single day</button>
+          onInput="submitWithSelectedTab(this)" />
+      <button onClick="setWeekStart(\'idDateFrom\'); submitWithSelectedTab(this);"
+          type="submit">Start of week</button>
+      <button onClick="setSameDay(\'idDateFrom\'); submitWithSelectedTab(this);"
+          type="submit">Single day</button>
       <label for="idDateTo">Up to:</label>
       <input id="idDateTo" type="date" value="'.$dateTo.'" name="dateTo"
           onInput="submitWithSelectedTab(this)" />
@@ -448,6 +447,7 @@ echo '<h4>Classification</h4>
   <input type="submit" value="Reclassify" name="doReclassify">
 </form>';
 
+// TODO: Use selected date range.
 $fromTime = (clone Wasted::$now)->sub(new DateInterval('P7D'));
 $topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, false, 10);
 foreach ($topUnclassified as &$i) {
@@ -477,8 +477,7 @@ echo '</div>'; // tab
 echo '<div class="tabActivity">';
 
 echo '<h3>Most Recently Used</h3>';
-// TODO: Evaluate date selector.
-$fromTime = (clone Wasted::$now)->setTime(0, 0);
+$fromTime = dateStringToDateTime($dateFrom);
 $timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime, false);
 for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
   $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);

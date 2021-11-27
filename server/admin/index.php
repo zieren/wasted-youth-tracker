@@ -321,7 +321,7 @@ foreach ($timeSpentByLimitAndDate as $id => $timeSpentByDate) {
   $timeSpentByLimitRange[$id] = array_sum($timeSpentByDate);
 }
 
-if ($dateFrom != $dateTo) {
+if ($dateFrom == $dateTo) {
   echo '<h3>Time spent on selected date</h3>';
   echo array_sum($timeSpentByLimitToday) > 0
       ? echoTable(

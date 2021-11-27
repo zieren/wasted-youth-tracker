@@ -72,8 +72,6 @@ Wasted::initialize(true);
 
 $considerUnlocking = false;
 $furtherLimits = false;
-$tab = get('selectedTab') ?? 'idTabControl';
-// TODO: Set this in action handlers, or hidden directly in forms.
 
 if (action('setUserConfig')) {
   $user = postString('configUser');
@@ -142,7 +140,6 @@ if (action('setUserConfig')) {
   Wasted::addClassification(
       $classId, postInt('classificationPriority'), postRaw('classificationRegEx'));
 } else if (action('changeClassification')) {
-  $tab = 'idTabClassification';
   $classificationId = postInt('classificationId');
   Wasted::changeClassification(
       $classificationId, postRaw('classificationRegEx'), postRaw('classificationPriority'));
@@ -177,7 +174,7 @@ $users = Wasted::getUsers();
 
 // Set UI parameters from what was posted, or else to defaults.
 if (!isset($user)) {
-  $user = get('user') ?? postString('user') ?? getOrDefault($users, 0, '');
+  $user = getString('user') ?? postString('user') ?? getOrDefault($users, 0, '');
 }
 if (!isset($dateReference)) {
   $dateReference = postString('dateReference') ?? date('Y-m-d');
@@ -236,7 +233,7 @@ echo '
 // ----- Tab setup -----
 
 function inputRadioTab($id) {
-  global $tab;
+  $tab = getString('selectedTab') ?? postString('selectedTab') ?? 'idTabControl';
   echo
       '<input class="tabRadio" type="radio" id="'.$id.'" name="tabs" '
       .($id == $tab ? 'checked="checked"' : '').'>';
@@ -265,6 +262,7 @@ echo '
 echo '
 <div class="tabControl">
   <form method="post" action="index.php">
+  <input type="hidden" name="selectedTab" value="idTabControl">
   <input type="hidden" name="user" value="' . $user . '">
 
   <label for="idDateReference">Date:</label>
@@ -356,6 +354,7 @@ echoTable(['Limit', 'Class', 'Further limits', 'Config'], Wasted::getLimitsToCla
 echo '
 <h4>Map class to limit</h4>
 <form method="post" action="index.php">
+  <input type="hidden" name="selectedTab" value="idTabLimits">
   <input type="hidden" name="user" value="' . $user . '">'
   . classSelector($classes, true) . '==> ' . limitSelector($limitConfigs, $limitId, true) . '
   <input type="submit" value="Add" name="addMapping">
@@ -373,6 +372,7 @@ foreach ($limitConfigs as $id => $config) {
 echo '
 <h4>Configuration</h4>
 <form method="post" action="index.php">
+  <input type="hidden" name="selectedTab" value="idTabLimits">
   <input type="hidden" name="user" value="' . $user . '">'
   . limitSelector($limitConfigs, $limitId) .
   '<input type="text" name="limitConfigKey" value="" placeholder="key">
@@ -382,6 +382,7 @@ echo '
 </form>
 
 <form method="post" action="index.php">
+  <input type="hidden" name="selectedTab" value="idTabLimits">
   <input type="hidden" name="user" value="' . $user . '"> '
   . limitSelector($limitConfigs, $limitId, true) .
   '<input type="submit" value="Remove" name="removeLimit"
@@ -401,6 +402,7 @@ echo '<div class="tabClassification">';
 echo '<h4>Classification</h4>
 
 <form method="post" action="index.php">
+  <input type="hidden" name="selectedTab" value="idTabClassification">
   <input type="hidden" name="user" value="' . $user . '"> '
   . classSelector($classes, false) .
   '<input type="submit" value="Remove" name="removeClass"
@@ -412,6 +414,7 @@ echo '<h4>Classification</h4>
 </form>
 
 <form method="post" action="index.php">
+  <input type="hidden" name="selectedTab" value="idTabClassification">
   <input type="hidden" name="user" value="' . $user . '">'
   . classSelector($classes, false) . '
   <input type="text" name="classificationRegEx" value="" placeholder="Regular Expression">
@@ -420,6 +423,7 @@ echo '<h4>Classification</h4>
 </form>
 
 <form method="post" action="index.php">
+  <input type="hidden" name="selectedTab" value="idTabClassification">
   <input type="hidden" name="user" value="' . $user . '">'
   . classificationSelector($classifications) . '
   <input type="submit" value="Remove" name="removeClassification"
@@ -430,6 +434,7 @@ echo '<h4>Classification</h4>
 </form>
 
 <form method="post" action="index.php">
+  <input type="hidden" name="selectedTab" value="idTabClassification">
   <input type="hidden" name="user" value="' . $user . '">
   <label for="idReclassificationDays">Previous days: </label>
   <input id="idReclassificationDays" type="number" name="reclassificationDays" value="7">
@@ -480,7 +485,7 @@ for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
 }
 echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
 
-if (get('debug')) {
+if (getString('debug')) {
   echo '<h2>Window title sequence</h2>';
   echoTable(['From', 'To', 'Class', 'Title'], Wasted::queryTitleSequence($user, $fromTime));
 }
@@ -498,6 +503,7 @@ echoTableAssociative(Wasted::getGlobalConfig());
 
 echo '<h3>Update config</h3>
 <form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="selectedTab" value="idTabSystem">
   <p>
     <input type="hidden" name="configUser" value="' . $user . '">
     <input type="text" name="configKey" placeholder="key">
@@ -517,6 +523,7 @@ echo '<h3>Update config</h3>
 
 <h3>Users</h3>
 <form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="selectedTab" value="idTabSystem">
   <input type="text" name="userId" required="required" placeholder="id">
   <input type="submit" name="addUser" value="Add">
   <input type="submit" name="removeUser" value="Remove"
@@ -527,6 +534,7 @@ $pruneFromDate = (clone Wasted::$now)->sub(new DateInterval('P4W'));
 
 echo '<h3>Manage Database</h3>
 <form method="post">
+  <input type="hidden" name="selectedTab" value="idTabSystem">
   Delete activity (of all users!) and server logs older than
   <input type="date" name="datePrune" value="' . $pruneFromDate->format('Y-m-d') . '">
   <input type="submit" value="DELETE" name="prune"

@@ -41,7 +41,7 @@ function postInt($key, $default = 0) {
   return is_null($i) ? $default : $i;
 }
 
-function get($key) {
+function getString($key) {
   $s = filter_input(INPUT_GET, $key, FILTER_SANITIZE_STRING);
   return is_null($s) ? null : trim($s);
 }

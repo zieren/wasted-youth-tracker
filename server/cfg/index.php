@@ -3,7 +3,7 @@
 require_once '../common/common.php';
 require_once '../common/html_util.php';
 
-$user = get('user');
+$user = getString('user');
 if (!$user) {
   http_response_code(400);
   return;

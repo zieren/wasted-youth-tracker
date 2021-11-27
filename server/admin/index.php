@@ -21,23 +21,23 @@ function setup() {
 }
 function setToday(id) {
   var today = new Date();
-  var dateReference =
+  var dateTo =
       today.getFullYear() + '-'
       + String(today.getMonth() + 1).padStart(2, '0') + '-'
       + String(today.getDate()).padStart(2, '0');
-  document.querySelector("#" + id).value = dateReference;
+  document.querySelector("#" + id).value = dateTo;
 }
 function setWeekStart() {
-  var d = new Date(document.querySelector("#idDateReference").value);
+  var d = new Date(document.querySelector("#idDateTo").value);
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // 0 = Sun
   var date =
       d.getFullYear() + '-'
       + String(d.getMonth() + 1).padStart(2, '0') + '-'
       + String(d.getDate()).padStart(2, '0');
-  document.querySelector("#idDateSince").value = date;
+  document.querySelector("#idDateFrom").value = date;
 }
 function setSameDay() {
-  document.querySelector("#idDateSince").value = document.querySelector("#idDateReference").value;
+  document.querySelector("#idDateFrom").value = document.querySelector("#idDateTo").value;
 }
 function submitWithSelectedTab(elem) {
   if (elem.value) {
@@ -76,7 +76,8 @@ Wasted::initialize(true);
 
 $considerUnlocking = false;
 $furtherLimits = false;
-$dateOverride = date('Y-m-d');
+$dateStringToday = date('Y-m-d');
+$dateOverride = $dateStringToday;
 
 if (action('setUserConfig')) {
   $user = postString('configUser');
@@ -182,10 +183,10 @@ $users = Wasted::getUsers();
 if (!isset($user)) {
   $user = getString('user') ?? postString('user') ?? getOrDefault($users, 0, '');
 }
-$dateReference = getString('dateReference') ?? date('Y-m-d');
-$dateSince = getString('dateSince');
-if (!$dateSince || $dateSince > $dateReference) {
-  $dateSince = $dateReference;
+$dateTo = getString('dateTo') ?? $dateStringToday;
+$dateFrom = getString('dateFrom');
+if (!$dateFrom || $dateFrom > $dateTo) {
+  $dateFrom = $dateTo;
 }
 if (!isset($limitId)) {
   $limitId = 0; // never exists, MySQL index is 1-based
@@ -230,15 +231,15 @@ echo '
   <p>
     <form action="index.php" method="get">'
       .userSelector($users, $user).'
-      <label for="idDateSince">View from:</label>
-      <input id="idDateSince" type="date" value="'.$dateSince.'" name="dateSince"
+      <label for="idDateFrom">View from:</label>
+      <input id="idDateFrom" type="date" value="'.$dateFrom.'" name="dateFrom"
           oninput="submitWithSelectedTab(this)" />
-      <button onClick="setWeekStart(\'idDateSince\')" type="submit">Start of week</button>
-      <button onClick="setSameDay(\'idDateSince\')" type="submit">Single day</button>
-      <label for="idDateReference">Up to:</label>
-      <input id="idDateReference" type="date" value="'.$dateReference.'" name="dateReference"
+      <button onClick="setWeekStart(\'idDateFrom\')" type="submit">Start of week</button>
+      <button onClick="setSameDay(\'idDateFrom\')" type="submit">Single day</button>
+      <label for="idDateTo">Up to:</label>
+      <input id="idDateTo" type="date" value="'.$dateTo.'" name="dateTo"
           onInput="submitWithSelectedTab(this)" />
-      <button onClick="setToday(\'idDateReference\')" type="submit">Today</button>
+      <button onClick="setToday(\'idDateTo\')" type="submit">Today</button>
     </form>
 
   </p>';
@@ -299,52 +300,53 @@ echo '
     <input type="submit" value="Set times" name="setTimes">
   </p>
 
-<h3>Overrides</h3>';
+<h3>Overrides in selected date range</h3>';
 
-$recentOverrides = Wasted::queryRecentOverrides($user, $dateSince, $dateReference);
+$recentOverrides = Wasted::queryRecentOverrides($user, $dateFrom, $dateTo);
 if ($recentOverrides) {
   echoTable(['Date', 'Limit', 'Minutes', 'Times', 'Lock'], $recentOverrides);
 } else {
   echo 'no overrides';
 }
 
-$timeLeftByLimit = Wasted::queryTimeLeftTodayAllLimits($user);
-
-echo '
-  <h4>Available classes today</h4>
-  <p>'.implode(', ', Wasted::queryClassesAvailableTodayTable($user, $timeLeftByLimit)).'</p>';
-
 $timeSpentByLimitAndDate =
     Wasted::queryTimeSpentByLimitAndDate(
         $user,
-        new DateTime($dateSince),
-        (new DateTime($dateReference))->add(new DateInterval('P1D')));
+        new DateTime($dateFrom),
+        (new DateTime($dateTo))->add(new DateInterval('P1D')));
 $timeSpentByLimitToday = [];
 $timeSpentByLimitRange = [];
 foreach ($timeSpentByLimitAndDate as $id => $timeSpentByDate) {
-  $timeSpentByLimitToday[$id] = getOrDefault($timeSpentByDate, $dateReference, 0);
+  $timeSpentByLimitToday[$id] = getOrDefault($timeSpentByDate, $dateTo, 0);
   $timeSpentByLimitRange[$id] = array_sum($timeSpentByDate);
 }
-echo '<h3>Time left today</h3>';
+
+if ($dateFrom != $dateTo) {
+  echo '<h3>Time spent on selected date</h3>';
+  echo array_sum($timeSpentByLimitToday) > 0
+      ? echoTable(
+          limitIdsToNames(array_keys($timeSpentByLimitToday), $configs),
+          [array_map("secondsToHHMMSS", array_values($timeSpentByLimitToday))])
+      : 'no time spent';
+} else {
+  echo '<h3>Time spent in selected date range</h3>';
+  echo count($timeSpentByLimitRange) > 0
+      ? echoTable(
+          limitIdsToNames(array_keys($timeSpentByLimitRange), $configs),
+          [array_map("secondsToHHMMSS", array_values($timeSpentByLimitRange))])
+      : 'no time spent';
+}
+
+$timeLeftByLimit = Wasted::queryTimeLeftTodayAllLimits($user);
+
+echo "<hr><h3>Time left today, $dateStringToday</h3>";
 echoTable(
     limitIdsToNames(array_keys($timeLeftByLimit), $configs),
     [array_map('secondsToHHMMSS', array_map('TimeLeft::toCurrentSeconds', $timeLeftByLimit))]);
 
-echo '<h3>Time spent on selected date</h3>';
-echo array_sum($timeSpentByLimitToday) > 0
-    ? echoTable(
-        limitIdsToNames(array_keys($timeSpentByLimitToday), $configs),
-        [array_map("secondsToHHMMSS", array_values($timeSpentByLimitToday))])
-    : 'no time spent';
-
-if ($dateSince != $dateReference) {
-echo '<h3>Time spent in selected date range</h3>';
-echo count($timeSpentByLimitRange) > 0
-    ? echoTable(
-        limitIdsToNames(array_keys($timeSpentByLimitRange), $configs),
-        [array_map("secondsToHHMMSS", array_values($timeSpentByLimitRange))])
-    : 'no time spent';
-}
+echo "
+  <h3>Available classes today, $dateStringToday</h3>
+  <p>".implode(', ', Wasted::queryClassesAvailableTodayTable($user, $timeLeftByLimit)).'</p>';
 
 echo '</form>';
 

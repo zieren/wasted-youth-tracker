@@ -238,7 +238,8 @@ echo '
       <label for="idDateTo">Up to:</label>
       <input id="idDateTo" type="date" value="'.$dateTo.'" name="dateTo"
           onInput="submitWithSelectedTab(this)" />
-      <button onClick="setToday(\'idDateTo\')" type="submit">Today</button>
+      <button onClick="setToday(\'idDateTo\'); submitWithSelectedTab(this);"
+          type="submit">Today</button>
     </form>
 
   </p>';
@@ -477,8 +478,9 @@ echo '</div>'; // tab
 echo '<div class="tabActivity">';
 
 echo '<h3>Most Recently Used</h3>';
+// Start time is start of day, but end time is end of day.
 $fromTime = dateStringToDateTime($dateFrom);
-$toTime = dateStringToDateTime($dateTo);
+$toTime = dateStringToDateTime($dateTo)->add(new DateInterval('P1D'));
 $timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime, $toTime, false);
 for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
   $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);

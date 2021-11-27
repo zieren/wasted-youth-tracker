@@ -92,22 +92,22 @@ nav label:active { background: #ffffff; }
   display: block;
 }
 
-#idTabControl:checked ~ nav label[for="tabControl"],
-#idTabLimits:checked ~ nav label[for="tabLimits"],
-#idTabActivity:checked ~ nav label[for="tabActivity"],
-#idTabSystem:checked ~ nav label[for="tabSystem"],
-#idTabClassification:checked ~ nav label[for="tabClasification"] {
+#idTabControl:checked ~ nav label[for="idTabControl"],
+#idTabLimits:checked ~ nav label[for="idTabLimits"],
+#idTabActivity:checked ~ nav label[for="idTabActivity"],
+#idTabSystem:checked ~ nav label[for="idTabSystem"],
+#idTabClassification:checked ~ nav label[for="idTabClassification"] {
   background: white;
   color: #111;
   position: relative;
   border-bottom: none;
 }
 
-#idTabControl:checked ~ nav label[for="tabControl"]:after,
-#idTabLimits:checked ~ nav label[for="tabLimits"]:after,
-#idTabActivity:checked ~ nav label[for="tabActivity"]:after,
-#idTabSystem:checked ~ nav label[for="tabSystem"]:after,
-#idTabClassification:checked ~ nav label[for="tabClassification"]:after {
+#idTabControl:checked ~ nav label[for="idTabControl"]:after,
+#idTabLimits:checked ~ nav label[for="idTabLimits"]:after,
+#idTabActivity:checked ~ nav label[for="idTabActivity"]:after,
+#idTabSystem:checked ~ nav label[for="idTabSystem"]:after,
+#idTabClassification:checked ~ nav label[for="idTabClassification"]:after {
   content: "";
   display: block;
   position: absolute;

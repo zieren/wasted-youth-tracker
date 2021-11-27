@@ -260,7 +260,7 @@ echo '
 
    <figure>';
 
-// ----- TAB: Overrides -----
+// ----- TAB: Control -----
 
 echo '
 <div class="tabControl">

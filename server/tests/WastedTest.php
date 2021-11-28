@@ -421,7 +421,7 @@ final class WastedTest extends WastedTestBase {
       }
 
       $fromTime = clone Wasted::$now;
-      $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+      $toTime = (clone $fromTime)->add(days(1));
 
       $this->assertEquals(
           Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime),
@@ -496,7 +496,7 @@ final class WastedTest extends WastedTestBase {
       }
 
       $fromTime = clone Wasted::$now;
-      $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+      $toTime = (clone $fromTime)->add(days(1));
 
       $this->assertEquals(
           Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime),
@@ -569,7 +569,7 @@ final class WastedTest extends WastedTestBase {
 
   public function testReplaceEmptyTitle(): void {
     $fromTime = clone Wasted::$now;
-    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+    $toTime = (clone $fromTime)->add(days(1));
     $this->insertActivity('u1', ['window 1']);
     self::advanceTime(5);
     $this->insertActivity('u1', ['window 1']);
@@ -884,7 +884,7 @@ final class WastedTest extends WastedTestBase {
 
   public function testTimeSpent_handleNoWindows(): void {
     $fromTime = clone Wasted::$now;
-      $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+      $toTime = (clone $fromTime)->add(days(1));
     $classId = Wasted::addClass('c1');
     Wasted::addClassification($classId, 0, '1$');
 
@@ -926,7 +926,7 @@ final class WastedTest extends WastedTestBase {
 
   public function testCaseHandling(): void {
     $fromTime = clone Wasted::$now;
-      $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+      $toTime = (clone $fromTime)->add(days(1));
     // First title capitalization persists.
     $this->insertActivity('u1', ['TITLE']);
     self::advanceTime(1);
@@ -938,7 +938,7 @@ final class WastedTest extends WastedTestBase {
 
   public function testDuplicateTitle(): void {
     $fromTime = clone Wasted::$now;
-      $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+      $toTime = (clone $fromTime)->add(days(1));
     $this->insertActivity('u1', ['cALCULATOR', 'Calculator']);
     self::advanceTime(1);
     $this->insertActivity('u1', ['Calculator', 'Calculator']);
@@ -1131,7 +1131,7 @@ final class WastedTest extends WastedTestBase {
 
   public function testConcurrentRequestsAndChangedClassification(): void {
     $fromTime = clone Wasted::$now;
-    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+    $toTime = (clone $fromTime)->add(days(1));
 
     $classId1 = Wasted::addClass('c1');
     Wasted::addClassification($classId1, 0, '1$');
@@ -1455,7 +1455,7 @@ final class WastedTest extends WastedTestBase {
     $this->insertActivity('u1', ['t1']);
 
     $fromTime = clone Wasted::$now;
-    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+    $toTime = (clone $fromTime)->add(days(1));
     self::advanceTime(1);
     $fromTime1String = self::dateTimeString();
     $this->insertActivity('u1', ['t2']);
@@ -1626,7 +1626,7 @@ final class WastedTest extends WastedTestBase {
 
   public function testRenameClass(): void {
     $fromTime = clone Wasted::$now;
-    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+    $toTime = (clone $fromTime)->add(days(1));
     $classId = Wasted::addClass('c1');
     Wasted::addClassification($classId, 0, '()');
     Wasted::renameClass($classId, 'c2');
@@ -1638,7 +1638,7 @@ final class WastedTest extends WastedTestBase {
 
   public function testChangeClassificationAndReclassify(): void {
     $fromTime = clone Wasted::$now;
-    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+    $toTime = (clone $fromTime)->add(days(1));
     // Reclassification excludes the specified limit, so advance by 1s.
     self::advanceTime(1);
     $classId = Wasted::addClass('c1');
@@ -1990,7 +1990,7 @@ final class WastedTest extends WastedTestBase {
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
         $this->limit($limitId, 2));
 
-    $fromTime->add(new DateInterval('PT1S'));
+    $fromTime->add(new DateInterval('PT1S')); // 1 second
     Wasted::pruneTables($fromTime);
 
     // 1 second chopped off.
@@ -2222,10 +2222,10 @@ final class WastedTest extends WastedTestBase {
     $this->insertActivity('u1', ['t1', 't2']);
     // A range that will only include the to_ts, not the from_ts.
     // The end timestamp is exclusive, so this will not include t2.
-    $fromTime2 = (clone Wasted::$now)->sub(new DateInterval('P1D'));
+    $fromTime2 = (clone Wasted::$now)->sub(days(1));
     self::advanceTime(1);
     // This will now include t2.
-    $fromTime3 = (clone Wasted::$now)->sub(new DateInterval('P1D'));
+    $fromTime3 = (clone Wasted::$now)->sub(days(1));
     $toTimeString = self::dateTimeString();
     $this->insertActivity('u1', ['t1', 't2']);
 
@@ -2615,7 +2615,7 @@ final class WastedTest extends WastedTestBase {
     self::advanceTime(1);
     Wasted::insertActivity('u1', '', ['-> Total']);
 
-    Wasted::$now->add(new DateInterval('P1D'));
+    Wasted::$now->add(days(1));
     $day2 = self::day();
 
     Wasted::insertActivity('u1', '', ['-> Total', '-> L1']);

@@ -220,7 +220,7 @@ class Wasted {
         $fileDate = new DateTime();
         $fileDate->setTimestamp(strtotime($matches[1]));
         // Be conservative: We assume 00:00:00 on the file date, but write until 24h later.
-        $fileDate->add(new DateInterval('P1D'));
+        $fileDate->add(days(1));
         if ($fileDate->getTimestamp() < $pruneTimestamp) {
           unlink(LOG_DIR.'/'.$f);
           Logger::Instance()->notice('log file deleted: '.$f);
@@ -588,7 +588,7 @@ class Wasted {
    */
   public static function getClassesToClassificationTable(): array {
     // The fixed time limit is mainly to limit query cost.
-    $fromTime = (clone self::$now)->sub(new DateInterval('P30D'));
+    $fromTime = (clone self::$now)->sub(days(30));
     $rows = DB::query('
         SELECT
           classes.id AS id,
@@ -1006,7 +1006,7 @@ class Wasted {
     $dateTime = (new DateTime())->setTimestamp($minTs)->setTime(0, 0);
     do {
       $dateString = getDateString($dateTime);
-      $dateTime->add(new DateInterval('P1D'));
+      $dateTime->add(days(1));
       $ts = $dateTime->getTimestamp();
       getOrCreate($timestamps, $ts, [])['day'] = $dateString;
     } while ($ts < $maxTs);
@@ -1182,7 +1182,7 @@ class Wasted {
       $secondsLimitToday = min($secondsLimitToday, $secondsLeftInWeek);
     }
     // Compute time left in the minutes contingent. Can't exceed time left in the day.
-    $tomorrow = (clone self::$now)->setTime(0, 0)->add(new DateInterval('P1D'));
+    $tomorrow = (clone self::$now)->setTime(0, 0)->add(days(1));
     $secondsLeftInDay = $tomorrow->getTimestamp() - self::$now->getTimestamp();
     $totalSeconds =
         min($secondsLimitToday - getOrDefault($timeSpentByDate, $nowString, 0), $secondsLeftInDay);
@@ -1433,7 +1433,7 @@ class Wasted {
    * a long array and is intended for debugging.
    */
   public static function queryTitleSequence($user, $fromTime): array {
-    $toTime = (clone $fromTime)->add(new DateInterval('P1D'));
+    $toTime = (clone $fromTime)->add(days(1));
     $rows = DB::query('
       SELECT from_ts, to_ts, name, title
       FROM activity

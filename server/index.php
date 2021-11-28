@@ -136,9 +136,7 @@ if (action('setUserConfig')) {
 } else if (action('renameClass')) {
   Wasted::renameClass($classId, postString('className'));
 } else if (action('doReclassify')) {
-  $days = postInt('reclassificationDays'); // TODO: Use date range (?)
-  $fromTime = (clone Wasted::$now)->sub(new DateInterval('P' . $days . 'D'));
-  Wasted::reclassify($fromTime);
+  Wasted::reclassify((clone Wasted::$now)->sub(days(postInt('reclassificationDays'))));
 } else if (action('addUser')) {
   Wasted::addUser(postString('userId'));
   $users = Wasted::getUsers();
@@ -148,11 +146,10 @@ if (action('setUserConfig')) {
 } else if (action('ackError')) {
   Wasted::ackError($user, postString('ackedError'));
 } else if (action('prune')) {
-  $dateTime = dateStringToDateTime(postString('datePrune'));
-  Wasted::pruneTables($dateTime);
-  echo '<b class="notice">Deleted data before ' . getDateString($dateTime) . '</b></hr>';
+  $dateTimePrune = dateStringToDateTime(postString('datePrune'));
+  Wasted::pruneTables($dateTimePrune);
+  echo '<b class="notice">Deleted data before ' . getDateString($dateTimePrune) . '</b></hr>';
 }
-
 
 $unackedError = $user ? Wasted::getUnackedError($user) : '';
 $limitConfigs = Wasted::getAllLimitConfigs($user);
@@ -277,7 +274,7 @@ $timeSpentByLimitAndDate =
     Wasted::queryTimeSpentByLimitAndDate(
         $user,
         new DateTime($dateFrom),
-        (new DateTime($dateTo))->add(new DateInterval('P1D')));
+        (new DateTime($dateTo))->add(days(1)));
 $timeSpentByLimitToday = [];
 $timeSpentByLimitRange = [];
 foreach ($timeSpentByLimitAndDate as $id => $timeSpentByDate) {
@@ -405,13 +402,13 @@ echo '
 <form method="post" action="index.php">
   <input type="hidden" name="selectedTab" value="idTabClassification">
   <input type="hidden" name="user" value="' . $user . '">
-  <label for="idReclassificationDays">Previous days: </label>
-  <input id="idReclassificationDays" type="number" name="reclassificationDays" value="7">
   <input type="submit" value="Reclassify" name="doReclassify">
+  <input id="idReclassificationDays" type="number" name="reclassificationDays" value="30" min="1">
+  <label for="idReclassificationDays">previous days</label>
 </form>';
 
 // TODO: Use selected date range.
-$fromTime = (clone Wasted::$now)->sub(new DateInterval('P7D'));
+$fromTime = (clone Wasted::$now)->sub(days(7));
 $topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, false, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
@@ -442,7 +439,7 @@ echo '<div class="tabActivity">';
 echo '<h3>Most Recently Used</h3>';
 // Start time is start of day, but end time is end of day.
 $fromTime = dateStringToDateTime($dateFrom);
-$toTime = dateStringToDateTime($dateTo)->add(new DateInterval('P1D'));
+$toTime = dateStringToDateTime($dateTo)->add(days(1));
 $timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime, $toTime, false);
 for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
   $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);
@@ -502,7 +499,7 @@ echo '<h3>Update config</h3>
       onclick="return confirm(\'Remove user and all their data?\');">
 </form>';
 
-$pruneFromDate = (clone Wasted::$now)->sub(new DateInterval('P4W'));
+$pruneFromDate = (clone Wasted::$now)->sub(days(28));
 
 echo '<h3>Manage Database</h3>
 <form method="post">

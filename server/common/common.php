@@ -76,7 +76,7 @@ function getWeekStart($date) {
   $dayOfWeek = ($date->format('w') + 6) % 7; // 0 = Sun
   $weekStart = clone $date;
   $weekStart->setTime(0, 0);
-  $weekStart->sub(new DateInterval('P' . $dayOfWeek . 'D'));
+  $weekStart->sub(days($dayOfWeek));
   return $weekStart;
 }
 
@@ -89,6 +89,11 @@ function getDateString($dateTime) {
 function dateStringToDateTime($dateString) { // TODO: test
   // Need to postfix 00:00:00 to not get current time of day.
   return DateTime::createFromFormat('Y-m-d H:i:s', "$dateString 00:00:00");
+}
+
+/** Returns a DateInterval of the specified number of days. */
+function days($days) {
+  return new DateInterval("P{$days}D");
 }
 
 function secondsToHHMMSS($seconds) {

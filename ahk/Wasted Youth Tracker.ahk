@@ -2,7 +2,7 @@
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 INI_FILE := USERPROFILE "\wasted.ini"
 global URL, HTTP_USER, HTTP_PASS, USER, LOGFILE, LAST_ERROR, APP_NAME
-APP_NAME := "Wasted Youth Tracker 0.0.0-8"
+APP_NAME := "Wasted Youth Tracker 0.0.0-9"
 IniRead, URL, %INI_FILE%, server, url
 IniRead, HTTP_USER, %INI_FILE%, server, username
 IniRead, HTTP_PASS, %INI_FILE%, server, password

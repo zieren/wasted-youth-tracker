@@ -51,8 +51,8 @@ function submitWithSelectedTab(elem) {
 }
 </script>
 <?php
-require_once '../common/common.php';
-require_once '../common/html_util.php';
+require_once 'common/common.php';
+require_once 'common/html_util.php';
 
 function checkRequirements() {
   $unmet = array();

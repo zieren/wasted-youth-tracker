@@ -1682,22 +1682,37 @@ final class WastedTest extends WastedTestBase {
     $lastSeenT3T4 = self::dateTimeString();
     $this->insertActivity('u1', ['t3', 't4']);
 
+    $toTime = (clone $fromTime)->add(days(1));
     $this->assertEquals(
-        Wasted::queryTopUnclassified('u1', $fromTime, true, 2), [
+        Wasted::queryTopUnclassified('u1', $fromTime, $toTime, true, 2), [
         [4, 't2', $lastSeenT2],
         [3, 't3', $lastSeenT3T4]]);
 
     $this->assertEquals(
-        Wasted::queryTopUnclassified('u1', $fromTime, true, 3), [
+        Wasted::queryTopUnclassified('u1', $fromTime, $toTime, true, 3), [
         [4, 't2', $lastSeenT2],
         [3, 't3', $lastSeenT3T4],
         [1, 't4', $lastSeenT3T4]]);
 
     $this->assertEquals(
-        Wasted::queryTopUnclassified('u1', $fromTime, false, 3), [
+        Wasted::queryTopUnclassified('u1', $fromTime, $toTime, false, 3), [
         [3, 't3', $lastSeenT3T4],
         [1, 't4', $lastSeenT3T4],
         [4, 't2', $lastSeenT2]]);
+
+    // Reduce end time.
+
+    // Include t1 only, which is classified.
+    $toTime = (clone $fromTime)->add(new DateInterval('PT1S'));
+    $this->assertEquals(Wasted::queryTopUnclassified('u1', $fromTime, $toTime, true, 2), []);
+    // t2 only starts at 3s because end timestamp is exclusive.
+    $toTime->add(new DateInterval('PT1S'));
+    $this->assertEquals(Wasted::queryTopUnclassified('u1', $fromTime, $toTime, true, 2), []);
+    // Extend end time by another second, this captures t2.
+    $toTime->add(new DateInterval('PT1S'));
+    $this->assertEquals(Wasted::queryTopUnclassified('u1', $fromTime, $toTime, true, 2), [
+        [1, 't2', $toTime->format('Y-m-d H:i:s')],
+    ]);
   }
 
   public function testLimitsToClassesTable(): void {
@@ -2645,6 +2660,7 @@ final class WastedTest extends WastedTestBase {
   }
 
   // TODO: Test getClassesToClassificationTable.
+  // TODO: Test queryOverrides.
   // TODO: Test other recent changes.
   // TODO: Test that the locked flag is returned and minutes are set correctly in that case.
 

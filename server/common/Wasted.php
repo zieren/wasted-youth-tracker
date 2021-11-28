@@ -626,9 +626,9 @@ class Wasted {
    * Returns the top $num titles since $fromTime that were classified as default. Order is by time
    * spent ($orderBySum = true) or else by recency.
    */
-  public static function queryTopUnclassified($user, $fromTime, $orderBySum, $num): array {
+  public static function queryTopUnclassified($user, $fromTime, $toTime, $orderBySum, $num): array {
     $rows = self::queryTimeSpentByTitleInternal(
-        $user, $fromTime->getTimestamp(), MYSQL_SIGNED_BIGINT_MAX, $orderBySum, $num);
+        $user, $fromTime->getTimestamp(), $toTime->getTimestamp(), $orderBySum, $num);
     $table = [];
     foreach ($rows as $r) {
       $table[] = [intval($r['sum_s']), $r['title'], date("Y-m-d H:i:s", $r['ts_last_seen'])];
@@ -1389,7 +1389,7 @@ class Wasted {
   }
 
   /** Returns overrides for the specified user. Dates are strings. */
-  public static function queryRecentOverrides($user, $fromDate, $toDate): array {
+  public static function queryOverrides($user, $fromDate, $toDate): array {
     return DB::query('
         SELECT
           date,

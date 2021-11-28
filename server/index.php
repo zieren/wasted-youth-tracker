@@ -267,31 +267,27 @@ echo '
 
 <h3>Overrides in selected date range</h3>';
 
-$recentOverrides = Wasted::queryRecentOverrides($user, $dateFrom, $dateTo);
+$recentOverrides = Wasted::queryOverrides($user, $dateFrom, $dateTo);
 if ($recentOverrides) {
   echoTable(['Date', 'Limit', 'Minutes', 'Times', 'Lock'], $recentOverrides);
 } else {
   echo 'no overrides';
 }
 
-$timeSpentByLimitAndDate =
-    Wasted::queryTimeSpentByLimitAndDate(
-        $user,
-        new DateTime($dateFrom),
-        (new DateTime($dateTo))->add(days(1)));
-$timeSpentByLimitToday = [];
+$timeSpentByLimitAndDate = Wasted::queryTimeSpentByLimitAndDate($user, $fromTime, $toTime);
+$timeSpentByLimitSingleDay = [];
 $timeSpentByLimitRange = [];
 foreach ($timeSpentByLimitAndDate as $id => $timeSpentByDate) {
-  $timeSpentByLimitToday[$id] = getOrDefault($timeSpentByDate, $dateTo, 0);
+  $timeSpentByLimitSingleDay[$id] = getOrDefault($timeSpentByDate, $dateTo, 0);
   $timeSpentByLimitRange[$id] = array_sum($timeSpentByDate);
 }
 
 if ($dateFrom == $dateTo) {
   echo '<h3>Time spent on selected date</h3>';
-  echo array_sum($timeSpentByLimitToday) > 0
+  echo array_sum($timeSpentByLimitSingleDay) > 0
       ? echoTable(
-          limitIdsToNames(array_keys($timeSpentByLimitToday), $configs),
-          [array_map("secondsToHHMMSS", array_values($timeSpentByLimitToday))])
+          limitIdsToNames(array_keys($timeSpentByLimitSingleDay), $configs),
+          [array_map("secondsToHHMMSS", array_values($timeSpentByLimitSingleDay))])
       : 'no time spent';
 } else {
   echo '<h3>Time spent in selected date range</h3>';
@@ -411,8 +407,7 @@ echo '
   <label for="idReclassificationDays">previous days</label>
 </form>';
 
-// TODO: Use selected date range.
-$topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, false, 10);
+$topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, $toTime, false, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
@@ -424,11 +419,11 @@ echoTable(
 echo '
 </span>';
 
-$topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, true, 10);
+$topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, $toTime, true, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
-echo '<span class="inlineBlock"><h4>Top 10 unclassified last seven days, by total time</h4>';
+echo '<span class="inlineBlock"><h4>Top 10 unclassified in selected date range, by total time</h4>';
 echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTable limitTdWidth');
 echo '</span>';
 

@@ -40,6 +40,7 @@ function setSameDay() {
   document.querySelector("#idDateFrom").value = document.querySelector("#idDateTo").value;
 }
 function submitWithSelectedTab(elem) {
+  // TODO: Extract user in the same way, to avoid proliferation of hidden inputs.
   // Do we need to check for value != ""?
   const inputSelectedTab = document.createElement('input');
   inputSelectedTab.type = 'hidden';
@@ -72,123 +73,86 @@ function checkRequirements() {
 checkRequirements();
 
 Wasted::initialize(true);
+$users = Wasted::getUsers();
 
 $considerUnlocking = false;
 $furtherLimits = false;
+
+$user = getString('user') ?? postString('user') ?? getOrDefault($users, 0, '');
+
 $dateStringToday = date('Y-m-d');
-$dateOverride = $dateStringToday;
+$dateOverride = postString('dateOverride') ?? $dateStringToday;
+$dateTo = getString('dateTo') ?? $dateStringToday;
+$dateFrom = min(getString('dateFrom') ?? $dateStringToday, $dateTo);
+
+$limitId = postInt('limitId');
+$classId = postInt('classId');
+$classificationId = postInt('classificationId');
 
 if (action('setUserConfig')) {
-  $user = postString('configUser');
   Wasted::setUserConfig($user, postString('configKey'), postString('configValue'));
 } else if (action('clearUserConfig')) {
-  $user = postString('configUser');
   Wasted::clearUserConfig($user, postString('configKey'));
 } else if (action('setGlobalConfig')) {
   Wasted::setGlobalConfig(postString('configKey'), postString('configValue'));
 } else if (action('clearGlobalConfig')) {
   Wasted::clearGlobalConfig(postString('configKey'));
 } else if (action('addLimit')) {
-  $user = postString('user');
   Wasted::addLimit($user, postString('limitName'));
 } else if (action('renameLimit')) {
-  $limitId = postInt('limitId');
   Wasted::renameLimit($limitId, postString('limitName'));
 } else if (action('addClass')) {
   Wasted::addClass(postString('className'));
 } else if (action('removeLimit')) {
-  $limitId = postInt('limitId');
   Wasted::removeLimit($limitId);
 } else if (action('setLimitConfig')) {
-  $limitId = postInt('limitId');
   Wasted::setLimitConfig($limitId, postString('limitConfigKey'), postString('limitConfigValue'));
 } else if (action('clearLimitConfig')) {
-  $limitId = postInt('limitId');
   Wasted::clearLimitConfig($limitId, postString('limitConfigKey'));
 } else if (action('setMinutes')) {
-  $user = postString('user');
-  $dateOverride= postString('dateOverride');
-  $limitId = postInt('limitId');
   $furtherLimits =
       Wasted::setOverrideMinutes($user, $dateOverride, $limitId, postInt('overrideMinutes', 0));
 } else if (action('setTimes')) {
-  $user = postString('user');
-  $dateOverride = postString('dateOverride');
-  $limitId = postInt('limitId');
   $furtherLimits =
       Wasted::setOverrideSlots($user, $dateOverride, $limitId, postString('overrideTimes', ''));
 } else if (action('unlock')) {
-  $user = postString('user');
-  $dateOverride = postString('dateOverride');
-  $limitId = postInt('limitId');
   $considerUnlocking = Wasted::setOverrideUnlock($user, $dateOverride, $limitId);
 } else if (action('clearOverrides')) {
-  $user = postString('user');
-  $dateOverride = postString('dateOverride');
-  $limitId = postInt('limitId');
   Wasted::clearOverrides($user, $dateOverride, $limitId);
 } else if (action('addMapping')) {
-  $user = postString('user');
-  $limitId = postInt('limitId');
-  $classId = postInt('classId');
   Wasted::addMapping($classId, $limitId);
 } else if (action('removeMapping')) {
-  $user = postString('user');
-  $limitId = postInt('limitId');
-  $classId = postInt('classId');
   Wasted::removeMapping($classId, $limitId);
 } else if (action('removeClassification')) {
-  $classificationId = postInt('classificationId');
   Wasted::removeClassification($classificationId);
 } else if (action('addClassification')) {
-  $classId = postInt('classId');
   Wasted::addClassification(
       $classId, postInt('classificationPriority'), postRaw('classificationRegEx'));
 } else if (action('changeClassification')) {
-  $classificationId = postInt('classificationId');
   Wasted::changeClassification(
       $classificationId, postRaw('classificationRegEx'), postRaw('classificationPriority'));
 } else if (action('removeClass')) {
-  $classId = postInt('classId');
   Wasted::removeClass($classId);
 } else if (action('renameClass')) {
-  $classId = postInt('classId');
   Wasted::renameClass($classId, postString('className'));
 } else if (action('doReclassify')) {
-  $days = postInt('reclassificationDays');
+  $days = postInt('reclassificationDays'); // TODO: Use date range (?)
   $fromTime = (clone Wasted::$now)->sub(new DateInterval('P' . $days . 'D'));
   Wasted::reclassify($fromTime);
 } else if (action('addUser')) {
-  $newUser = postString('userId');
-  Wasted::addUser($newUser);
+  Wasted::addUser(postString('userId'));
+  $users = Wasted::getUsers();
 } else if (action('removeUser')) {
-  $newUser = postString('userId');
-  Wasted::removeUser($newUser);
+  Wasted::removeUser(postString('userId'));
+  $users = Wasted::getUsers();
 } else if (action('ackError')) {
-  $user = postString('user');
-  $ackedError = postString('ackedError');
-  Wasted::ackError($user, $ackedError);
+  Wasted::ackError($user, postString('ackedError'));
 } else if (action('prune')) {
   $dateTime = dateStringToDateTime(postString('datePrune'));
   Wasted::pruneTables($dateTime);
   echo '<b class="notice">Deleted data before ' . getDateString($dateTime) . '</b></hr>';
 }
 
-// Only now, after possibly adding/removing a user.
-$users = Wasted::getUsers();
-
-// Set UI parameters from what was posted, or else to defaults.
-if (!isset($user)) {
-  $user = getString('user') ?? postString('user') ?? getOrDefault($users, 0, '');
-}
-$dateTo = getString('dateTo') ?? $dateStringToday;
-$dateFrom = getString('dateFrom');
-if (!$dateFrom || $dateFrom > $dateTo) {
-  $dateFrom = $dateTo;
-}
-if (!isset($limitId)) {
-  $limitId = 0; // never exists, MySQL index is 1-based
-}
 
 $unackedError = $user ? Wasted::getUnackedError($user) : '';
 $limitConfigs = Wasted::getAllLimitConfigs($user);
@@ -465,7 +429,7 @@ echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTable 
 echo '</span>';
 
 echo '
-<h4>Classification (for all users)</h4>';
+<h4>Classification rules and samples (for all users)</h4>';
 echoTable(
     ['Class', 'Classification', 'Prio', 'Matches', 'Samples (click to expand)'],
     Wasted::getClassesToClassificationTable(),
@@ -512,8 +476,8 @@ echoTableAssociative(Wasted::getGlobalConfig());
 echo '<h3>Update config</h3>
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="selectedTab" value="idTabSystem">
+  <input type="hidden" name="user" value="' . $user . '">
   <p>
-    <input type="hidden" name="configUser" value="' . $user . '">
     <input type="text" name="configKey" placeholder="key">
     <input type="text" name="configValue" placeholder="value">
   </p>

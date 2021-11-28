@@ -2,7 +2,7 @@
 <head>
   <title>Wasted Youth Tracker - Admin</title>
   <meta charset="iso-8859-1"/>
-  <link rel="stylesheet" href="../common/wasted.css">
+  <link rel="stylesheet" href="common/wasted.css">
 </head>
 <body onload="setup()">
 <script>
@@ -84,6 +84,10 @@ $dateStringToday = date('Y-m-d');
 $dateOverride = postString('dateOverride') ?? $dateStringToday;
 $dateTo = getString('dateTo') ?? $dateStringToday;
 $dateFrom = min(getString('dateFrom') ?? $dateStringToday, $dateTo);
+
+// Start time is start of day, but end time is end of day.
+$toTime = dateStringToDateTime($dateTo)->add(days(1));
+$fromTime = dateStringToDateTime($dateFrom);
 
 $limitId = postInt('limitId');
 $classId = postInt('classId');
@@ -413,9 +417,13 @@ $topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, false, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
-echo '<br><span class="inlineBlockWithMargin"><h4>Top 10 unclassified last seven days, by recency</h4>';
-echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTableWithMargin limitTdWidth');
-echo '</span>';
+echo '
+<span class="inlineBlockWithMargin">
+  <h4>Top 10 unclassified in selected date range, by recency</h4>';
+echoTable(
+    ['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTableWithMargin limitTdWidth');
+echo '
+</span>';
 
 $topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, true, 10);
 foreach ($topUnclassified as &$i) {
@@ -437,9 +445,6 @@ echo '</div>'; // tab
 echo '<div class="tabActivity">';
 
 echo '<h3>Most Recently Used</h3>';
-// Start time is start of day, but end time is end of day.
-$fromTime = dateStringToDateTime($dateFrom);
-$toTime = dateStringToDateTime($dateTo)->add(days(1));
 $timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime, $toTime, false);
 for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
   $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);

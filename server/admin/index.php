@@ -339,7 +339,7 @@ if ($dateFrom == $dateTo) {
 
 $timeLeftByLimit = Wasted::queryTimeLeftTodayAllLimits($user);
 
-echo "<hr><h3>Time left today, $dateStringToday</h3>";
+echo "<h3>Time left today, $dateStringToday</h3>";
 echoTable(
     limitIdsToNames(array_keys($timeLeftByLimit), $configs),
     [array_map('secondsToHHMMSS', array_map('TimeLeft::toCurrentSeconds', $timeLeftByLimit))]);
@@ -354,8 +354,7 @@ echo '</div>'; // tab
 
 // ----- TAB: Limits -----
 
-echo '<div class="tabLimits">
-<h4>Limits and classes</h4>';
+echo '<div class="tabLimits">';
 echoTable(['Limit', 'Class', 'Further limits', 'Config'], Wasted::getLimitsToClassesTable($user));
 
 echo '
@@ -406,8 +405,7 @@ echo '</div>'; // tab
 // ----- TAB: Classification -----
 echo '<div class="tabClassification">';
 
-echo '<h4>Classification</h4>
-
+echo '
 <form method="post" action="index.php">
   <input type="hidden" name="selectedTab" value="idTabClassification">
   <input type="hidden" name="user" value="' . $user . '"> '

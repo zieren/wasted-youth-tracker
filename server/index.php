@@ -151,7 +151,7 @@ if (action('setUserConfig')) {
   Wasted::ackError($user, postString('ackedError'));
 } else if (action('prune')) {
   $dateTimePrune = dateStringToDateTime(postString('datePrune'));
-  Wasted::pruneTables($dateTimePrune);
+  Wasted::pruneTablesAndLogs($dateTimePrune);
   echo '<b class="notice">Deleted data before ' . getDateString($dateTimePrune) . '</b></hr>';
 }
 
@@ -412,7 +412,6 @@ echo '
 </form>';
 
 // TODO: Use selected date range.
-$fromTime = (clone Wasted::$now)->sub(days(7));
 $topUnclassified = Wasted::queryTopUnclassified($user, $fromTime, false, 10);
 foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);

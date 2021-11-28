@@ -206,14 +206,14 @@ class Wasted {
   }
 
   /** Delete all activity of all users, and all server log files, prior to DateTime $date. */
-  public static function pruneTables($date): void {
+  public static function pruneTablesAndLogs($date): void {
     $pruneTimestamp = $date->getTimestamp();
     Logger::Instance()->notice('prune timestamp: '.$pruneTimestamp);
     DB::delete('activity', 'to_ts < %i', $pruneTimestamp);
     Logger::Instance()->notice('tables pruned up to '.$date->format(DateTimeInterface::ATOM));
 
     // Delete log files. This depends on KLogger's default log file name pattern.
-    $logfiles = scandir(LOG_DIR);
+    $logfiles = scandir(Logger::getLogDir());
     $matches = null;
     foreach ($logfiles as $f) {
       if (preg_match(LOG_PATTERN, $f, $matches)) {
@@ -222,7 +222,7 @@ class Wasted {
         // Be conservative: We assume 00:00:00 on the file date, but write until 24h later.
         $fileDate->add(days(1));
         if ($fileDate->getTimestamp() < $pruneTimestamp) {
-          unlink(LOG_DIR.'/'.$f);
+          unlink(Logger::getLogDir().'/'.$f);
           Logger::Instance()->notice('log file deleted: '.$f);
         }
       }
@@ -1439,6 +1439,7 @@ class Wasted {
       FROM activity
       JOIN classes ON class_id = id
       WHERE user = %s0
+      AND title != ""
       AND '.self::$ACTIVITY_OVERLAP_CONDITION.'
       ORDER BY to_ts DESC, from_ts, title',
       $user, $fromTime->getTimestamp(), $toTime->getTimestamp());

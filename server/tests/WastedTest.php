@@ -1983,7 +1983,7 @@ final class WastedTest extends WastedTestBase {
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
         $this->limit($limitId, 2));
 
-    Wasted::pruneTables($fromTime);
+    Wasted::pruneTablesAndLogs($fromTime);
 
     // No change.
     $this->assertEquals(
@@ -1991,7 +1991,7 @@ final class WastedTest extends WastedTestBase {
         $this->limit($limitId, 2));
 
     $fromTime->add(new DateInterval('PT1S')); // 1 second
-    Wasted::pruneTables($fromTime);
+    Wasted::pruneTablesAndLogs($fromTime);
 
     // 1 second chopped off.
     $this->assertEquals(
@@ -2248,6 +2248,20 @@ final class WastedTest extends WastedTestBase {
             [$fromTimeString1, $toTimeString, DEFAULT_CLASS_NAME, 't1'],
             [$fromTimeString2, $toTimeString, 'c2', 't2']
         ]);
+  }
+
+  public function testQueryTitleSequence4_handleEmptyTitle(): void {
+    $fromTime = clone Wasted::$now;
+    $fromTimeString = self::dateTimeString();
+    $this->insertActivity('u1', ['t1']);
+    self::advanceTime(1);
+    $toTimeString = self::dateTimeString();
+    $this->insertActivity('u1', []);
+    self::advanceTime(1);
+    $this->insertActivity('u1', []);
+    $this->assertEquals(
+        Wasted::queryTitleSequence('u1', $fromTime),
+        [[$fromTimeString, $toTimeString, DEFAULT_CLASS_NAME, 't1']]);
   }
 
   public function testOnDeleteCascade_deleteLimit(): void {

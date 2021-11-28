@@ -1749,6 +1749,8 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testClassesToClassificationTable(): void {
+    $fromTime = clone Wasted::$now;
+    $toTime = (clone Wasted::$now)->add(days(1));
     $classId1 = Wasted::addClass('c1');
     $classId2 = Wasted::addClass('c2');
     Wasted::addClassification($classId1, 42, '1');
@@ -1761,7 +1763,7 @@ final class WastedTest extends WastedTestBase {
     self::advanceTime(1);
     $this->insertActivity('u1', ['t22', 't3', 't4']);
     $this->assertEquals(
-        Wasted::getClassesToClassificationTable(), [
+        Wasted::getClassesToClassificationTable('u1', $fromTime, $toTime), [
         ['c1', '1', 42, 1, 't1'],
         ['c2', '2', 43, 2, "t2\nt22"]
     ]);
@@ -1772,7 +1774,7 @@ final class WastedTest extends WastedTestBase {
         $classification,
         [['class_id' => $classId2, 'limits' => [$this->totalLimitId['u1']]]]);
     $this->assertEquals(
-        Wasted::getClassesToClassificationTable(), [
+        Wasted::getClassesToClassificationTable('u1', $fromTime, $toTime), [
         ['c1', '1', 42, 1, 't1'],
         ['c2', '2', 43, 3, "t12\nt2\nt22"]
     ]);
@@ -1783,7 +1785,7 @@ final class WastedTest extends WastedTestBase {
     $classification = $this->insertActivity('u1', $titles);
     $samples = substr(implode("\n", $titles), 0, 1021) . '...';
     $this->assertEquals(
-        Wasted::getClassesToClassificationTable(), [
+        Wasted::getClassesToClassificationTable('u1', $fromTime, $toTime), [
         ['c1', '1', 42, 6, $samples],
         ['c2', '2', 43, 3, "t12\nt2\nt22"]
     ]);

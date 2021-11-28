@@ -428,10 +428,10 @@ echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTable 
 echo '</span>';
 
 echo '
-<h4>Classification rules and samples (for all users)</h4>';
+<h4>Classification rules with samples from selected date range</h4>';
 echoTable(
     ['Class', 'Classification', 'Prio', 'Matches', 'Samples (click to expand)'],
-    Wasted::getClassesToClassificationTable(),
+    Wasted::getClassesToClassificationTable($user, $fromTime, $toTime),
     'titled collapsible limitTdWidth');
 echo '</div>'; // tab
 

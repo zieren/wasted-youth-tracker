@@ -580,15 +580,8 @@ class Wasted {
     return $table;
   }
 
-  /**
-   * Returns a table listing all classes, their classification rules and samples from all users.
-   * Time range is the last 30 days.
-   *
-   * TODO: Add custom time limit.
-   */
-  public static function getClassesToClassificationTable(): array {
-    // The fixed time limit is mainly to limit query cost.
-    $fromTime = (clone self::$now)->sub(days(30));
+  /** Returns a table listing all classes, their classification rules and samples. */
+  public static function getClassesToClassificationTable($user, $fromTime, $toTime): array {
     $rows = DB::query('
         SELECT
           classes.id AS id,
@@ -603,14 +596,17 @@ class Wasted {
           SELECT DISTINCT title, id AS classification_id FROM activity
           LEFT JOIN classification ON
             (activity.class_id = classification.class_id AND title REGEXP re)
-          WHERE title != ""
-          AND to_ts >= %i
+          WHERE user = %s0
+          AND title != ""
+          AND '.self::$ACTIVITY_OVERLAP_CONDITION.'
         ) samples
         ON samples.classification_id = classification.id
-        WHERE classes.id != %i
+        WHERE classes.id != %i3
         GROUP BY id, name, re, priority
         ORDER BY name, priority DESC',
+        $user,
         $fromTime->getTimestamp(),
+        $toTime->getTimestamp(),
         DEFAULT_CLASS_ID);
     $table = [];
     foreach ($rows as $r) {
@@ -1465,7 +1461,7 @@ class Wasted {
 
   /**
    * The activity starts in the interval, or ends in the interval, or fully encloses it. Note that
-   * the end timestamp is always exclusive.
+   * the end timestamp is always exclusive. Uses %i1 and %i2 (because %s0 is usually $user).
    */
   private static $ACTIVITY_OVERLAP_CONDITION = '
       (

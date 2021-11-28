@@ -579,7 +579,7 @@ final class WastedTest extends WastedTestBase {
     self::advanceTime(5);
     $this->insertActivity('u1', ['']);
     $this->assertEquals(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime),
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
         $this->total(15));
 
     $this->assertEqualsIgnoreOrder(
@@ -920,7 +920,7 @@ final class WastedTest extends WastedTestBase {
         [$lastSeenWindow3, 3, DEFAULT_CLASS_NAME, 'window 3'],
         [$lastSeenWindow2, 2, DEFAULT_CLASS_NAME, 'window 2']]);
     $this->assertEquals(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime),
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
         [$this->totalLimitId['u1'] => [self::day() => 8]]);
   }
 
@@ -952,7 +952,7 @@ final class WastedTest extends WastedTestBase {
     $this->assertEquals(
         $timeSpentByTitle, [[$lastSeen, 1, DEFAULT_CLASS_NAME]]);
     $this->assertEquals(
-        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime, $toTime),
+        Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
         $this->total(1));
   }
 
@@ -2661,6 +2661,7 @@ final class WastedTest extends WastedTestBase {
         $limitId => [$day2 => 2]]);
   }
 
+  // TODO: Test new toTime argument in queryTimeSpentByLimitAndDate (and others).
   // TODO: Test getClassesToClassificationTable.
   // TODO: Test queryOverrides.
   // TODO: Test other recent changes.

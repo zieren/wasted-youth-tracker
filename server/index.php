@@ -459,8 +459,8 @@ echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
 
 if (getString('debug')) {
   echo '<h2>Window title sequence</h2>';
-  // TODO: Also consider range here
-  echoTable(['From', 'To', 'Class', 'Title'], Wasted::queryTitleSequence($user, $fromTime));
+  echoTable(
+      ['From', 'To', 'Class', 'Title'], Wasted::queryTitleSequence($user, $fromTime, $toTime));
 }
 
 echo '</div>'; // tab

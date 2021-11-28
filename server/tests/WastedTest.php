@@ -2209,7 +2209,7 @@ final class WastedTest extends WastedTestBase {
   public function testQueryTitleSequence(): void {
     $fromTime = clone Wasted::$now;
     $fromTimeString1 = self::dateTimeString();
-    $this->assertEquals(Wasted::queryTitleSequence('u1', $fromTime), []);
+    $this->assertEquals(Wasted::queryTitleSequence('u1', $fromTime, Wasted::$now), []);
 
     $classId = Wasted::addClass('c2');
     Wasted::addClassification($classId, 0, '2$');
@@ -2220,37 +2220,39 @@ final class WastedTest extends WastedTestBase {
     self::advanceTime(1);
     $fromTimeString2 = self::dateTimeString();
     $this->insertActivity('u1', ['t1', 't2']);
-    // A range that will only include the to_ts, not the from_ts.
-    // The end timestamp is exclusive, so this will not include t2.
+    // Query a range that will only include the from_ts, not the to_ts.
     $fromTime2 = (clone Wasted::$now)->sub(days(1));
-    self::advanceTime(1);
-    // This will now include t2.
-    $fromTime3 = (clone Wasted::$now)->sub(days(1));
     $toTimeString = self::dateTimeString();
+    $this->assertEquals(
+        Wasted::queryTitleSequence(
+            // Just barely exclude t2. It would otherwise be included even though it has a zero
+            // duration.
+            'u1', $fromTime2, (clone Wasted::$now)->sub(new DateInterval('PT1S'))),
+        [
+            [$fromTimeString1, $toTimeString, DEFAULT_CLASS_NAME, 't1']
+        ]);
+    // This will now include t2.
+    self::advanceTime(1);
+    $toTimeString = self::dateTimeString();
+    $fromTime3 = (clone Wasted::$now)->sub(days(1));
     $this->insertActivity('u1', ['t1', 't2']);
 
     $this->assertEquals(
-        Wasted::queryTitleSequence('u1', $fromTime),
+        Wasted::queryTitleSequence('u1', $fromTime, Wasted::$now),
         [
             [$fromTimeString1, $toTimeString, DEFAULT_CLASS_NAME, 't1'],
             [$fromTimeString2, $toTimeString, 'c2', 't2']
         ]);
 
     $this->assertEquals(
-        Wasted::queryTitleSequence('u1', $fromTime2),
-        [
-            [$fromTimeString1, $toTimeString, DEFAULT_CLASS_NAME, 't1']
-        ]);
-
-    $this->assertEquals(
-        Wasted::queryTitleSequence('u1', $fromTime3),
+        Wasted::queryTitleSequence('u1', $fromTime3, Wasted::$now),
         [
             [$fromTimeString1, $toTimeString, DEFAULT_CLASS_NAME, 't1'],
             [$fromTimeString2, $toTimeString, 'c2', 't2']
         ]);
   }
 
-  public function testQueryTitleSequence4_handleEmptyTitle(): void {
+  public function testQueryTitleSequence_handleEmptyTitle(): void {
     $fromTime = clone Wasted::$now;
     $fromTimeString = self::dateTimeString();
     $this->insertActivity('u1', ['t1']);
@@ -2260,7 +2262,7 @@ final class WastedTest extends WastedTestBase {
     self::advanceTime(1);
     $this->insertActivity('u1', []);
     $this->assertEquals(
-        Wasted::queryTitleSequence('u1', $fromTime),
+        Wasted::queryTitleSequence('u1', $fromTime, Wasted::$now),
         [[$fromTimeString, $toTimeString, DEFAULT_CLASS_NAME, 't1']]);
   }
 

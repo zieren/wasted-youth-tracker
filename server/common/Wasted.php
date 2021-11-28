@@ -1432,8 +1432,7 @@ class Wasted {
    * Returns the sequence of window titles for the specified user and date. This will typically be
    * a long array and is intended for debugging.
    */
-  public static function queryTitleSequence($user, $fromTime): array {
-    $toTime = (clone $fromTime)->add(days(1));
+  public static function queryTitleSequence($user, $fromTime, $toTime): array {
     $rows = DB::query('
       SELECT from_ts, to_ts, name, title
       FROM activity

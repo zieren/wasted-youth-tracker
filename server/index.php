@@ -464,7 +464,7 @@ echo '
 <span class="inlineBlockWithMargin">
   <h4>Top 10 unclassified in selected date range, by recency</h4>';
 echoTable(
-    ['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTableWithMargin limitTdWidth');
+    ['Time', 'Title', 'Last Used'], $topUnclassified, 'class="titled inlineTableWithMargin limitTdWidth"');
 echo '
 </span>';
 
@@ -481,7 +481,7 @@ echo '
 echoTable(
     ['Class', 'Classification', 'Prio', 'Matches', 'Samples (click to expand)'],
     Wasted::getClassesToClassificationTable($user, $fromTime, $toTime),
-    'classes="titled collapsible limitTdWidth"');
+    'class="titled collapsible limitTdWidth"');
 echo '</div>'; // tab
 
 // ----- TAB: Activity -----

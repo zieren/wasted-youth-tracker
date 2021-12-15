@@ -491,6 +491,7 @@ $timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime, $toTime);
 for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
   $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);
 }
+echo "Click headers to sort.";
 echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle, 'id="idTableActivity"');
 
 if (getString('debug')) {

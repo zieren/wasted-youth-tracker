@@ -473,7 +473,7 @@ foreach ($topUnclassified as &$i) {
   $i[0] = secondsToHHMMSS($i[0]);
 }
 echo '<span class="inlineBlock"><h4>Top 10 unclassified in selected date range, by total time</h4>';
-echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'titled inlineTable limitTdWidth');
+echoTable(['Time', 'Title', 'Last Used'], $topUnclassified, 'class="titled inlineTable limitTdWidth"');
 echo '</span>';
 
 echo '

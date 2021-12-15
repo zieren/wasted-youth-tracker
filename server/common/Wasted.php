@@ -1088,10 +1088,9 @@ class Wasted {
    * Returns the time spent by window title and class name. Records are ordered by the amount of
    * time ($orderBySum = true) or else by recency.
    */
-  public static function queryTimeSpentByTitle(
-      $user, $fromTime, $toTime, $orderBySum = true): array {
+  public static function queryTimeSpentByTitle($user, $fromTime, $toTime): array {
     $rows = self::queryTimeSpentByTitleInternal(
-        $user, $fromTime->getTimestamp(), $toTime->getTimestamp(), $orderBySum);
+        $user, $fromTime->getTimestamp(), $toTime->getTimestamp(), false);
     $timeByTitle = [];
     foreach ($rows as $row) {
       // TODO: This should use the client's local time format.

@@ -18,6 +18,12 @@ function setup() {
   trs.forEach(function(tr, index) {
     tr.addEventListener("click", function() { toggleCollapsed(tr); });
   });
+  var header = document.querySelector("#idTableActivity").rows[0];
+  for (var i = 0; i < header.cells.length; i++) {
+    var f = function(ii) { return function() { sortActivityTable(ii); }; };
+    header.cells[i].addEventListener("click", f(i));
+  }
+  sortActivityTable(0);
 }
 function setToday(id) {
   var today = new Date();
@@ -49,6 +55,49 @@ function submitWithSelectedTab(elem) {
   elem.form.appendChild(inputSelectedTab);
 
   elem.form.submit();
+}
+function sortActivityTable(column) {
+  var rows, a, b;
+  var table = document.getElementById("idTableActivity");
+  var header = table.rows[0];
+  var updated = true;
+  var sortByTimeOrDate = column <= 1;
+  // Default (first click) sort order is descending for date and time columns, and ascending for
+  // class and title.
+  var descending = sortByTimeOrDate;
+  if ("descending" in header.cells[column]) {
+    descending = !header.cells[column].descending;
+  }
+  // Clear sort markers for other columns.
+  for (var i = 0; i < header.cells.length; i++) {
+    if (i !== column) {
+      delete header.cells[i].descending;
+    }
+  }
+  while (updated) {
+    updated = false;
+    rows = table.rows;
+    // Skip header row 0.
+    for (var i = 1; i < rows.length - 1; i++) {
+      // Lexicographic comparison works for all columns.
+      a = rows[i].getElementsByTagName("TD")[column].innerHTML.toLowerCase();
+      b = rows[i + 1].getElementsByTagName("TD")[column].innerHTML.toLowerCase();
+      // When sorting by date, always sort 2nd descending by time.
+      var swap;
+      if (sortByTimeOrDate && a === b) {
+        a = rows[i].getElementsByTagName("TD")[1 - column].innerHTML;
+        b = rows[i + 1].getElementsByTagName("TD")[1 - column].innerHTML;
+        swap = a < b;
+      } else {
+        swap = descending ? a < b : a > b;
+      }
+      if (swap) {
+        rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+        updated = true;
+      }
+    }
+  }
+  header.cells[column].descending = descending;
 }
 </script>
 <?php
@@ -432,25 +481,17 @@ echo '
 echoTable(
     ['Class', 'Classification', 'Prio', 'Matches', 'Samples (click to expand)'],
     Wasted::getClassesToClassificationTable($user, $fromTime, $toTime),
-    'titled collapsible limitTdWidth');
+    'classes="titled collapsible limitTdWidth"');
 echo '</div>'; // tab
 
 // ----- TAB: Activity -----
 echo '<div class="tabActivity">';
 
-echo '<h3>Most Recently Used</h3>';
-$timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime, $toTime, false);
-for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
-  $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);
-}
-echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
-
-echo '<h3>Most Time Spent</h3>';
 $timeSpentPerTitle = Wasted::queryTimeSpentByTitle($user, $fromTime, $toTime);
 for ($i = 0; $i < count($timeSpentPerTitle); $i++) {
   $timeSpentPerTitle[$i][1] = secondsToHHMMSS($timeSpentPerTitle[$i][1]);
 }
-echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle);
+echoTable(['Last Used', 'Time', 'Class', 'Title'], $timeSpentPerTitle, 'id="idTableActivity"');
 
 if (getString('debug')) {
   echo '<h2>Window title sequence</h2>';

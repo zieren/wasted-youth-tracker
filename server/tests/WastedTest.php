@@ -1707,7 +1707,7 @@ final class WastedTest extends WastedTestBase {
   }
 
   public function testLimitsToClassesTable(): void {
-    Wasted::addLimit('u1', 'b1');
+    $limitId1 = Wasted::addLimit('u1', 'b1');
     $limitId2 = Wasted::addLimit('u1', 'b2');
     $limitId3 = Wasted::addLimit('u1', 'b3');
     $limitId4 = Wasted::addLimit('u1', 'b4');
@@ -1722,12 +1722,14 @@ final class WastedTest extends WastedTestBase {
     Wasted::addMapping($classId3, $limitId4);
     Wasted::addMapping($classId4, $limitId4);
     Wasted::addMapping($classId4, $limitId5);
+    Wasted::setLimitConfig($limitId1, 'unmapped', '42');
     Wasted::setLimitConfig($limitId2, 'foo', 'bar');
     Wasted::setLimitConfig($limitId3, 'a', 'b');
     Wasted::setLimitConfig($limitId3, 'c', 'd');
 
     $this->assertEquals(
         Wasted::getLimitsToClassesTable('u1'), [
+        ['b1', '', '', 'unmapped=42'],
         ['b2', 'c2', '', 'foo=bar'],
         ['b2', 'c3', 'b3, b4', 'foo=bar'],
         ['b3', 'c3', 'b2, b4', 'a=b, c=d'],

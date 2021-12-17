@@ -552,10 +552,16 @@ class Wasted {
              JOIN limits ON mappings.limit_id = limits.id
              WHERE user = %s0
              AND limits.id != (SELECT total_limit_id FROM users WHERE id = %s0)
-           )
+           )'.
+           // Add unmapped limits, which are not included above.
+           'UNION
+           SELECT limits.id, "", "", ""
+           FROM limits
+           WHERE user = %s0
+           AND limits.id NOT IN (SELECT limit_id FROM mappings)
          ) AS result
-         JOIN classes ON class_id = classes.id
-         JOIN limits ON limit_id = limits.id
+         LEFT JOIN classes ON class_id = classes.id
+         LEFT JOIN limits ON limit_id = limits.id
          LEFT JOIN (
            SELECT
              limit_id,

@@ -377,14 +377,6 @@ echo '
   <input type="submit" value="Remove" name="removeMapping">
 </form>';
 
-echo '<h3>Limits</h3>';
-
-foreach ($limitConfigs as $id => $config) {
-  echo '<h4>' . html($config['name']) . "</h4>\n";
-  unset($config['name']);
-  unset($config['is_total']);
-  echoTableAssociative($config);
-}
 echo '
 <h4>Configuration</h4>
 <form method="post" action="index.php">

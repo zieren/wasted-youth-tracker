@@ -45,7 +45,10 @@ function setWeekStart() {
 function setSameDay() {
   document.querySelector("#idDateFrom").value = document.querySelector("#idDateTo").value;
 }
-function submitWithSelectedTab(elem) {
+function submitWithUiState(elem, confirmMessage = null) {
+  if (confirmMessage !== null && !confirm(confirmMessage)) {
+    return false;
+  }
   // TODO: Extract user in the same way, to avoid proliferation of hidden inputs.
   // Do we need to check for value != ""?
   const inputSelectedTab = document.createElement('input');
@@ -53,8 +56,17 @@ function submitWithSelectedTab(elem) {
   inputSelectedTab.name = 'selectedTab';
   inputSelectedTab.value = document.querySelector('input.tabRadio:checked').id;
   elem.form.appendChild(inputSelectedTab);
-
-  elem.form.submit();
+  const inputDateFrom = document.createElement('input');
+  inputDateFrom.type = 'hidden';
+  inputDateFrom.name = 'dateFrom';
+  inputDateFrom.value = document.querySelector('#idDateFrom').value;
+  elem.form.appendChild(inputDateFrom);
+  const inputDateTo = document.createElement('input');
+  inputDateTo.type = 'hidden';
+  inputDateTo.name = 'dateTo';
+  inputDateTo.value = document.querySelector('#idDateTo').value;
+  elem.form.appendChild(inputDateTo);
+  // Undefined return value will proceed with submit action.
 }
 function sortActivityTable(column) {
   const table = document.getElementById("idTableActivity");
@@ -130,8 +142,8 @@ $user = getString('user') ?? postString('user') ?? getOrDefault($users, 0, '');
 
 $dateStringToday = date('Y-m-d');
 $dateOverride = postString('dateOverride') ?? $dateStringToday;
-$dateTo = getString('dateTo') ?? $dateStringToday;
-$dateFrom = min(getString('dateFrom') ?? $dateStringToday, $dateTo);
+$dateTo = getString('dateTo') ?? postString('dateTo') ?? $dateStringToday;
+$dateFrom = min(getString('dateFrom') ?? postString('dateFrom') ?? $dateStringToday, $dateTo);
 
 // Start time is start of day, but end time is end of day.
 $toTime = dateStringToDateTime($dateTo)->add(days(1));
@@ -190,11 +202,13 @@ if (action('setUserConfig')) {
 } else if (action('doReclassify')) {
   Wasted::reclassify((clone Wasted::$now)->sub(days(postInt('reclassificationDays'))));
 } else if (action('addUser')) {
-  Wasted::addUser(postString('userId'));
+  $user = postString('userId');
+  Wasted::addUser($user);
   $users = Wasted::getUsers();
 } else if (action('removeUser')) {
   Wasted::removeUser(postString('userId'));
   $users = Wasted::getUsers();
+  $user = getOrDefault($users, 0, '');
 } else if (action('ackError')) {
   Wasted::ackError($user, postString('ackedError'));
 } else if (action('prune')) {
@@ -223,7 +237,7 @@ if ($unackedError) {
     <form method="post" action="index.php"  style="display: inline;">
       <input type="hidden" name="ackedError" value="'.html($ackedError).'">
       <input type="hidden" name="user" value="'.$user.'">
-      <input type="submit" value="Acknowledge" name="ackError">
+      <input type="submit" value="Acknowledge" name="ackError" onClick="submitWithUiState(this);">
     </form>';
 }
 if ($considerUnlocking) {
@@ -243,15 +257,15 @@ echo '
       .userSelector($users, $user).'
       <label for="idDateFrom">View from:</label>
       <input id="idDateFrom" type="date" value="'.$dateFrom.'" name="dateFrom"
-          onInput="submitWithSelectedTab(this)" />
-      <button onClick="setWeekStart(\'idDateFrom\'); submitWithSelectedTab(this);"
+          onInput="submitWithUiState(this)" />
+      <button onClick="setWeekStart(\'idDateFrom\'); submitWithUiState(this);"
           type="submit">Start of week</button>
-      <button onClick="setSameDay(\'idDateFrom\'); submitWithSelectedTab(this);"
+      <button onClick="setSameDay(\'idDateFrom\'); submitWithUiState(this);"
           type="submit">Single day</button>
       <label for="idDateTo">Up to:</label>
       <input id="idDateTo" type="date" value="'.$dateTo.'" name="dateTo"
-          onInput="submitWithSelectedTab(this)" />
-      <button onClick="setToday(\'idDateTo\'); submitWithSelectedTab(this);"
+          onInput="submitWithUiState(this)" />
+      <button onClick="setToday(\'idDateTo\'); submitWithUiState(this);"
           type="submit">Today</button>
     </form>
 
@@ -299,18 +313,19 @@ echo '
     <input id="idDateOverride" type="date" value="'.$dateOverride.'" name="dateOverride" />
   </p>
   <p>
-    <input type="submit" value="Unlock" name="unlock">
-    <input type="submit" value="Clear overrides" name="clearOverrides">
+    <input type="submit" value="Unlock" name="unlock" onClick="submitWithUiState(this);">
+    <input type="submit" value="Clear overrides" name="clearOverrides"
+        onClick="submitWithUiState(this);">
   </p>
   <p>
     <label for="idOverrideMinutes">Minutes: </label>
     <input id="idOverrideMinutes" name="overrideMinutes" type="number" value="" min=0>
-    <input type="submit" value="Set minutes" name="setMinutes">
+    <input type="submit" value="Set minutes" name="setMinutes" onClick="submitWithUiState(this);">
   </p>
   <p>
     <label for="idOverrideTimes">Times: </label>
     <input id="idOverrideTimes" name="overrideTimes" type="text" value="">
-    <input type="submit" value="Set times" name="setTimes">
+    <input type="submit" value="Set times" name="setTimes" onClick="submitWithUiState(this);">
   </p>
 
 <h3>Overrides in selected date range</h3>';
@@ -372,8 +387,8 @@ echo '
   <input type="hidden" name="selectedTab" value="idTabLimits">
   <input type="hidden" name="user" value="' . $user . '">'
   . classSelector($classes, true) . '==> ' . limitSelector($limitConfigs, $limitId, true) . '
-  <input type="submit" value="Add" name="addMapping">
-  <input type="submit" value="Remove" name="removeMapping">
+  <input type="submit" value="Add" name="addMapping" onClick="submitWithUiState(this);">
+  <input type="submit" value="Remove" name="removeMapping" onClick="submitWithUiState(this);">
 </form>';
 
 echo '
@@ -384,8 +399,9 @@ echo '
   . limitSelector($limitConfigs, $limitId) .
   '<input type="text" name="limitConfigKey" value="" placeholder="key">
   <input type="text" name="limitConfigValue" value="" placeholder="value">
-  <input type="submit" value="Set config" name="setLimitConfig">
-  <input type="submit" value="Clear config" name="clearLimitConfig">
+  <input type="submit" value="Set config" name="setLimitConfig" onClick="submitWithUiState(this);">
+  <input type="submit" value="Clear config" name="clearLimitConfig"
+      onClick="submitWithUiState(this);">
 </form>
 
 <form method="post" action="index.php">
@@ -393,11 +409,11 @@ echo '
   <input type="hidden" name="user" value="' . $user . '"> '
   . limitSelector($limitConfigs, $limitId, true) .
   '<input type="submit" value="Remove" name="removeLimit"
-      onclick="return confirm(\'Remove selected limit and its configuration?\');">
+      onclick="return submitWithUiState(this, \'Remove selected limit and its configuration?\');">
   <label for="idLimitName">Name: </label>
   <input id="idLimitName" name="limitName" type="text" value="">
-  <input type="submit" value="Rename" name="renameLimit">
-  <input type="submit" value="Add" name="addLimit">
+  <input type="submit" value="Rename" name="renameLimit" onClick="submitWithUiState(this);">
+  <input type="submit" value="Add" name="addLimit" onClick="submitWithUiState(this);">
 </form>
 ';
 
@@ -412,11 +428,11 @@ echo '
   <input type="hidden" name="user" value="' . $user . '"> '
   . classSelector($classes, false) .
   '<input type="submit" value="Remove" name="removeClass"
-      onclick="return confirm(\'Remove class and its classification rules?\');">
+      onclick="return submitWithUiState(this, \'Remove class and its classification rules?\');">
   <label for="idClassName">Name: </label>
   <input id="idClassName" name="className" type="text" value="">
-  <input type="submit" value="Rename" name="renameClass">
-  <input type="submit" value="Add" name="addClass">
+  <input type="submit" value="Rename" name="renameClass" onClick="submitWithUiState(this);">
+  <input type="submit" value="Add" name="addClass" onClick="submitWithUiState(this);">
 </form>
 
 <form method="post" action="index.php">
@@ -425,7 +441,8 @@ echo '
   . classSelector($classes, false) . '
   <input type="text" name="classificationRegEx" value="" placeholder="Regular Expression">
   Prio: <input type="number" name="classificationPriority" value="0">
-  <input type="submit" value="Add classification" name="addClassification">
+  <input type="submit" value="Add classification" name="addClassification"
+      onClick="submitWithUiState(this);">
 </form>
 
 <form method="post" action="index.php">
@@ -433,16 +450,17 @@ echo '
   <input type="hidden" name="user" value="' . $user . '">'
   . classificationSelector($classifications) . '
   <input type="submit" value="Remove" name="removeClassification"
-      onclick="return confirm(\'Remove classification?\');">
+      onclick="return submitWithUiState(this, \'Remove classification?\');">
   <input type="text" id="idClassificationRegEx" name="classificationRegEx" value="">
   Prio: <input type="number" name="classificationPriority" id="idClassificationPriority" value="0">
-  <input type="submit" value="Change" name="changeClassification">
+  <input type="submit" value="Change" name="changeClassification"
+      onClick="submitWithUiState(this);">
 </form>
 
 <form method="post" action="index.php">
   <input type="hidden" name="selectedTab" value="idTabClassification">
   <input type="hidden" name="user" value="' . $user . '">
-  <input type="submit" value="Reclassify" name="doReclassify">
+  <input type="submit" value="Reclassify" name="doReclassify" onClick="submitWithUiState(this);">
   <input id="idReclassificationDays" type="number" name="reclassificationDays" value="30" min="1">
   <label for="idReclassificationDays">previous days</label>
 </form>';
@@ -512,13 +530,17 @@ echo '<h3>Update config</h3>
   </p>
 
   <p>
-    <input type="submit" name="setUserConfig" value="Set User Config">
-    <input type="submit" name="clearUserConfig" value="Clear User Config">
+    <input type="submit" name="setUserConfig" value="Set User Config"
+        onClick="submitWithUiState(this);">
+    <input type="submit" name="clearUserConfig" value="Clear User Config"
+        onClick="submitWithUiState(this);">
   </p>
 
   <p>
-    <input type="submit" name="setGlobalConfig" value="Set Global Config">
-    <input type="submit" name="clearGlobalConfig" value="Clear Global Config">
+    <input type="submit" name="setGlobalConfig" value="Set Global Config"
+        onClick="submitWithUiState(this);">
+    <input type="submit" name="clearGlobalConfig" value="Clear Global Config"
+        onClick="submitWithUiState(this);">
   </p>
 </form>
 
@@ -526,9 +548,9 @@ echo '<h3>Update config</h3>
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="selectedTab" value="idTabSystem">
   <input type="text" name="userId" required="required" placeholder="id">
-  <input type="submit" name="addUser" value="Add">
+  <input type="submit" name="addUser" value="Add" onClick="submitWithUiState(this);">
   <input type="submit" name="removeUser" value="Remove"
-      onclick="return confirm(\'Remove user and all their data?\');">
+      onclick="return submitWithUiState(this, \'Remove user and all their data?\');">
 </form>';
 
 $pruneFromDate = (clone Wasted::$now)->sub(days(28));
@@ -539,7 +561,7 @@ echo '<h3>Manage Database</h3>
   Delete activity (of all users!) and server logs older than
   <input type="date" name="datePrune" value="' . $pruneFromDate->format('Y-m-d') . '">
   <input type="submit" value="DELETE" name="prune"
-      onclick="return confirm(\'Delete activity and server logs?\');" />
+      onclick="return submitWithUiState(this, \'Delete activity and server logs?\');" />
 </form>';
 
 echo '</div>'; // tab

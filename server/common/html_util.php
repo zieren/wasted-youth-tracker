@@ -49,7 +49,7 @@ function getString($key) {
 function userSelector($users, $selectedUser) {
   $select = '
       <label for="idUsers">User:</label>
-      <select id="idUsers" name="user" onChange="submitWithSelectedTab(this)">';
+      <select id="idUsers" name="user" onChange="submitWithUiState(this);">';
   foreach ($users as $u) {
     $selected = $selectedUser == $u ? 'selected="selected"' : '';
     // TODO: Quote user.

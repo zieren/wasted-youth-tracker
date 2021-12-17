@@ -49,12 +49,16 @@ function submitWithUiState(elem, confirmMessage = null) {
   if (confirmMessage !== null && !confirm(confirmMessage)) {
     return false;
   }
-  // TODO: Extract user in the same way, to avoid proliferation of hidden inputs.
   // Do we need to check for value != ""?
   const inputSelectedTab = document.createElement('input');
   inputSelectedTab.type = 'hidden';
   inputSelectedTab.name = 'selectedTab';
   inputSelectedTab.value = document.querySelector('input.tabRadio:checked').id;
+  elem.form.appendChild(inputSelectedTab);
+  const inputSelectedUser = document.createElement('input');
+  inputSelectedUser.type = 'hidden';
+  inputSelectedUser.name = 'selectedUser';
+  inputSelectedUser.value = document.querySelector('#idUsers').value;
   elem.form.appendChild(inputSelectedTab);
   const inputDateFrom = document.createElement('input');
   inputDateFrom.type = 'hidden';
@@ -66,6 +70,9 @@ function submitWithUiState(elem, confirmMessage = null) {
   inputDateTo.name = 'dateTo';
   inputDateTo.value = document.querySelector('#idDateTo').value;
   elem.form.appendChild(inputDateTo);
+  if (elem.type !== "submit") {
+    elem.form.submit();
+  }
   // Undefined return value will proceed with submit action.
 }
 function sortActivityTable(column) {
@@ -236,7 +243,6 @@ if ($unackedError) {
     Last client error: '.html($unackedError).'</p>
     <form method="post" action="index.php"  style="display: inline;">
       <input type="hidden" name="ackedError" value="'.html($ackedError).'">
-      <input type="hidden" name="user" value="'.$user.'">
       <input type="submit" value="Acknowledge" name="ackError" onClick="submitWithUiState(this);">
     </form>';
 }
@@ -303,10 +309,6 @@ echo '
 echo '
 <div class="tabControl">
   <form method="post" action="index.php">
-  <input type="hidden" name="selectedTab" value="idTabControl">
-  <input type="hidden" name="user" value="' . $user . '">
-
-
   <p>
     '.limitSelector($limitConfigs, $limitId).'
     <label for="idDateOverride">Date:</label>
@@ -383,9 +385,7 @@ echoTable(['Limit', 'Class', 'Further limits', 'Config'], Wasted::getLimitsToCla
 
 echo '
 <h4>Map class to limit</h4>
-<form method="post" action="index.php">
-  <input type="hidden" name="selectedTab" value="idTabLimits">
-  <input type="hidden" name="user" value="' . $user . '">'
+<form method="post" action="index.php">'
   . classSelector($classes, true) . '==> ' . limitSelector($limitConfigs, $limitId, true) . '
   <input type="submit" value="Add" name="addMapping" onClick="submitWithUiState(this);">
   <input type="submit" value="Remove" name="removeMapping" onClick="submitWithUiState(this);">
@@ -393,9 +393,7 @@ echo '
 
 echo '
 <h4>Configuration</h4>
-<form method="post" action="index.php">
-  <input type="hidden" name="selectedTab" value="idTabLimits">
-  <input type="hidden" name="user" value="' . $user . '">'
+<form method="post" action="index.php">'
   . limitSelector($limitConfigs, $limitId) .
   '<input type="text" name="limitConfigKey" value="" placeholder="key">
   <input type="text" name="limitConfigValue" value="" placeholder="value">
@@ -404,9 +402,7 @@ echo '
       onClick="submitWithUiState(this);">
 </form>
 
-<form method="post" action="index.php">
-  <input type="hidden" name="selectedTab" value="idTabLimits">
-  <input type="hidden" name="user" value="' . $user . '"> '
+<form method="post" action="index.php">'
   . limitSelector($limitConfigs, $limitId, true) .
   '<input type="submit" value="Remove" name="removeLimit"
       onclick="return submitWithUiState(this, \'Remove selected limit and its configuration?\');">
@@ -423,9 +419,7 @@ echo '</div>'; // tab
 echo '<div class="tabClassification">';
 
 echo '
-<form method="post" action="index.php">
-  <input type="hidden" name="selectedTab" value="idTabClassification">
-  <input type="hidden" name="user" value="' . $user . '"> '
+<form method="post" action="index.php">'
   . classSelector($classes, false) .
   '<input type="submit" value="Remove" name="removeClass"
       onclick="return submitWithUiState(this, \'Remove class and its classification rules?\');">
@@ -435,9 +429,7 @@ echo '
   <input type="submit" value="Add" name="addClass" onClick="submitWithUiState(this);">
 </form>
 
-<form method="post" action="index.php">
-  <input type="hidden" name="selectedTab" value="idTabClassification">
-  <input type="hidden" name="user" value="' . $user . '">'
+<form method="post" action="index.php">'
   . classSelector($classes, false) . '
   <input type="text" name="classificationRegEx" value="" placeholder="Regular Expression">
   Prio: <input type="number" name="classificationPriority" value="0">
@@ -445,9 +437,7 @@ echo '
       onClick="submitWithUiState(this);">
 </form>
 
-<form method="post" action="index.php">
-  <input type="hidden" name="selectedTab" value="idTabClassification">
-  <input type="hidden" name="user" value="' . $user . '">'
+<form method="post" action="index.php">'
   . classificationSelector($classifications) . '
   <input type="submit" value="Remove" name="removeClassification"
       onclick="return submitWithUiState(this, \'Remove classification?\');">
@@ -458,8 +448,6 @@ echo '
 </form>
 
 <form method="post" action="index.php">
-  <input type="hidden" name="selectedTab" value="idTabClassification">
-  <input type="hidden" name="user" value="' . $user . '">
   <input type="submit" value="Reclassify" name="doReclassify" onClick="submitWithUiState(this);">
   <input id="idReclassificationDays" type="number" name="reclassificationDays" value="30" min="1">
   <label for="idReclassificationDays">previous days</label>
@@ -522,8 +510,6 @@ echoTableAssociative(Wasted::getGlobalConfig());
 
 echo '<h3>Update config</h3>
 <form method="post" enctype="multipart/form-data">
-  <input type="hidden" name="selectedTab" value="idTabSystem">
-  <input type="hidden" name="user" value="' . $user . '">
   <p>
     <input type="text" name="configKey" placeholder="key">
     <input type="text" name="configValue" placeholder="value">
@@ -546,7 +532,6 @@ echo '<h3>Update config</h3>
 
 <h3>Users</h3>
 <form method="post" enctype="multipart/form-data">
-  <input type="hidden" name="selectedTab" value="idTabSystem">
   <input type="text" name="userId" required="required" placeholder="id">
   <input type="submit" name="addUser" value="Add" onClick="submitWithUiState(this);">
   <input type="submit" name="removeUser" value="Remove"
@@ -557,7 +542,6 @@ $pruneFromDate = (clone Wasted::$now)->sub(days(28));
 
 echo '<h3>Manage Database</h3>
 <form method="post">
-  <input type="hidden" name="selectedTab" value="idTabSystem">
   Delete activity (of all users!) and server logs older than
   <input type="date" name="datePrune" value="' . $pruneFromDate->format('Y-m-d') . '">
   <input type="submit" value="DELETE" name="prune"

@@ -494,7 +494,7 @@ class Wasted {
   public static function getLimitsToClassesTable($user): array {
     $rows = DB::query(
         'SELECT
-           limits.name as lim,
+           limits.name as limit_name,
            classes.name AS class,
            CASE WHEN n = 1 THEN "" ELSE other_limits END,
            cfg
@@ -532,7 +532,7 @@ class Wasted {
                SELECT class_id, COUNT(*) AS n
                FROM mappings
                JOIN limits ON mappings.limit_id = limits.id
-               WHERE USER = %s0
+               WHERE user = %s0
                AND limit_id != (SELECT total_limit_id FROM users WHERE id = %s0)
                GROUP BY class_id
              ) AS limit_count
@@ -567,12 +567,12 @@ class Wasted {
            GROUP BY limit_id
          ) AS limit_config_texts
          ON limit_config_texts.limit_id = limits.id
-         ORDER BY lim, class',
+         ORDER BY limit_name, class',
         $user);
     $table = [];
     foreach ($rows as $row) {
       $table[] = [
-          $row['lim'] ?? '',
+          $row['limit_name'] ?? '',
           $row['class'] ?? '',
           $row['CASE WHEN n = 1 THEN "" ELSE other_limits END'], // can't alias CASE
           $row['cfg'] ?? ''];
@@ -1062,8 +1062,8 @@ class Wasted {
   public static function queryTimeSpentByTitleInternal(
       $user, $fromTimestamp, $toTimestamp, $orderBySum, $topUnclassified = 0): array {
     $orderBy = $orderBySum
-        ? 'ORDER BY sum_s DESC, title'
-        : 'ORDER BY ts_last_seen DESC, title';
+        ? 'ORDER BY sum_s DESC, ts_last_seen DESC, title'
+        : 'ORDER BY ts_last_seen DESC, sum_s DESC, title';
     $limit = $topUnclassified ? "LIMIT $topUnclassified" : '';
     $filter = $topUnclassified ? 'AND class_id = '.DEFAULT_CLASS_ID : '';
     return DB::query("

@@ -458,16 +458,7 @@ final class WastedTest extends WastedTestBase {
       $this->insertActivity('u1', ['window 2']);
       $this->assertEquals(
           Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
-          [$dateTimeString1, 18, $class1, 'window 1'],
-          [$dateTimeString2, 8, $class2, 'window 2']]);
-
-      // Order by time spent.
-      self::advanceTime(20);
-      $dateTimeString2 = self::dateTimeString();
-      $this->insertActivity('u1', ['window 2']);
-      $this->assertEquals(
-          Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
-          [$dateTimeString2, 28, $class2, 'window 2'],
+          [$dateTimeString2, 8, $class2, 'window 2'],
           [$dateTimeString1, 18, $class1, 'window 1']]);
 
       // End timestamp is exclusive.
@@ -541,8 +532,8 @@ final class WastedTest extends WastedTestBase {
       $this->assertEquals(
           Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString2, 26, $class2, 'window 2'],
-          [$dateTimeString1, 18, $class1, 'window 1'],
-          [$dateTimeString2, 8, $class1, 'window 11']]);
+          [$dateTimeString2, 8, $class1, 'window 11'],
+          [$dateTimeString1, 18, $class1, 'window 1']]);
 
       // Switch to window 1.
       self::advanceTime(1);
@@ -561,9 +552,9 @@ final class WastedTest extends WastedTestBase {
       $this->assertEquals(
           Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
           [$dateTimeString4, 38, $class1, 'window 1'],
+          [$dateTimeString4, 0, $class2, 'window 42'],
           [$dateTimeString3, 27, $class2, 'window 2'],
-          [$dateTimeString2, 8, $class1, 'window 11'],
-          [$dateTimeString4, 0, $class2, 'window 42']]);
+          [$dateTimeString2, 8, $class1, 'window 11']]);
     }
   }
 
@@ -584,8 +575,8 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEqualsIgnoreOrder(
         Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
-        [$window1LastSeen, 10, DEFAULT_CLASS_NAME, 'window 1'],
-        [self::dateTimeString(), 5, DEFAULT_CLASS_NAME, '(no title)']]);
+        [self::dateTimeString(), 5, DEFAULT_CLASS_NAME, '(no title)'],
+        [$window1LastSeen, 10, DEFAULT_CLASS_NAME, 'window 1']]);
   }
 
   public function testWeeklyLimit(): void {
@@ -916,9 +907,9 @@ final class WastedTest extends WastedTestBase {
     // "No windows" events are handled correctly for both listing titles and computing time spent.
     $this->assertEquals(
         Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
-        [$lastSeenWindow1, 4, 'c1', 'window 1'],
+        [$lastSeenWindow2, 2, DEFAULT_CLASS_NAME, 'window 2'],
         [$lastSeenWindow3, 3, DEFAULT_CLASS_NAME, 'window 3'],
-        [$lastSeenWindow2, 2, DEFAULT_CLASS_NAME, 'window 2']]);
+        [$lastSeenWindow1, 4, 'c1', 'window 1']]);
     $this->assertEquals(
         Wasted::queryTimeSpentByLimitAndDate('u1', $fromTime),
         [$this->totalLimitId['u1'] => [self::day() => 8]]);
@@ -1465,9 +1456,9 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEquals(
         Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
-        [$fromTime1String, 1, 'c1', 't1'],
         [$fromTime2String, 1, 'c2', 't2'],
-        [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3']
+        [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3'],
+        [$fromTime1String, 1, 'c1', 't1']
     ]);
     $this->assertEquals(
         Wasted::getAllClassifications(), [
@@ -1481,9 +1472,9 @@ final class WastedTest extends WastedTestBase {
 
     $this->assertEquals(
         Wasted::queryTimeSpentByTitle('u1', $fromTime, $toTime), [
-        [$fromTime1String, 1, 'c1', 't1'],
         [$fromTime2String, 1, 'c3', 't2'],
-        [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3']
+        [$fromTime2String, 0, DEFAULT_CLASS_NAME, 't3'],
+        [$fromTime1String, 1, 'c1', 't1']
     ]);
     $this->assertEquals(
         Wasted::getAllClassifications(), [

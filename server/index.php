@@ -14,20 +14,20 @@ function toggleCollapsed(tr) {
   }
 };
 function setup() {
-  var trs = document.querySelectorAll("table.collapsible tr");
+  const trs = document.querySelectorAll("table.collapsible tr");
   trs.forEach(function(tr, index) {
     tr.addEventListener("click", function() { toggleCollapsed(tr); });
   });
-  var header = document.querySelector("#idTableActivity").rows[0];
+  const header = document.querySelector("#idTableActivity").rows[0];
   for (var i = 0; i < header.cells.length; i++) {
-    var f = function(ii) { return function() { sortActivityTable(ii); }; };
+    const f = function(ii) { return function() { sortActivityTable(ii); }; };
     header.cells[i].addEventListener("click", f(i));
   }
   sortActivityTable(0);
 }
 function setToday(id) {
-  var today = new Date();
-  var dateTo =
+  const today = new Date();
+  const dateTo =
       today.getFullYear() + '-'
       + String(today.getMonth() + 1).padStart(2, '0') + '-'
       + String(today.getDate()).padStart(2, '0');
@@ -36,7 +36,7 @@ function setToday(id) {
 function setWeekStart() {
   var d = new Date(document.querySelector("#idDateTo").value);
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // 0 = Sun
-  var date =
+  const date =
       d.getFullYear() + '-'
       + String(d.getMonth() + 1).padStart(2, '0') + '-'
       + String(d.getDate()).padStart(2, '0');
@@ -57,11 +57,10 @@ function submitWithSelectedTab(elem) {
   elem.form.submit();
 }
 function sortActivityTable(column) {
-  var rows, a, b;
-  var table = document.getElementById("idTableActivity");
-  var header = table.rows[0];
+  const table = document.getElementById("idTableActivity");
+  const header = table.rows[0];
   var updated = true;
-  var sortByTimeOrDate = column <= 1;
+  const sortByTimeOrDate = column <= 1;
   // Default (first click) sort order is descending for date and time columns, and ascending for
   // class and title.
   var descending = sortByTimeOrDate;
@@ -76,12 +75,12 @@ function sortActivityTable(column) {
   }
   while (updated) {
     updated = false;
-    rows = table.rows;
+    const rows = table.rows;
     // Skip header row 0.
     for (var i = 1; i < rows.length - 1; i++) {
       // Lexicographic comparison works for all columns.
-      a = rows[i].getElementsByTagName("TD")[column].innerHTML.toLowerCase();
-      b = rows[i + 1].getElementsByTagName("TD")[column].innerHTML.toLowerCase();
+      var a = rows[i].getElementsByTagName("TD")[column].innerHTML.toLowerCase();
+      var b = rows[i + 1].getElementsByTagName("TD")[column].innerHTML.toLowerCase();
       // When sorting by date, always sort 2nd descending by time.
       var swap;
       if (sortByTimeOrDate && a === b) {

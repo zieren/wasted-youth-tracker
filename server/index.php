@@ -557,7 +557,8 @@ echo '</figure></div>'; // from div setup
 // ----- Footer -----
 
 echo '
-<p>&copy; 2021 J&ouml;rg Zieren (<a href="https://zieren.de">zieren.de</a>), GNU GPL v3.
+<p>&copy; 2021 <a href="https://zieren.de">J&ouml;rg Zieren</a>
+(<a href="https://github.com/zieren">github</a>), GNU GPL v3.
 Components:
 <a href="https://www.autohotkey.com/">AutoHotkey</a> by The AutoHotkey Foundation, GNU GPL v2;
 <a href="https://meekro.com/">MeekroDB</a> by Sergey Tsalkov, GNU LGPL v3;

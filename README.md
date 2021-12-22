@@ -34,7 +34,7 @@ I would be more than happy to accept contributions to the project. Please get in
 1. Make sure PHP 7.3+ is supported.
 1. Create a new database on your server.
 2. Download the latest [release](https://github.com/zieren/wasted-youth-tracker/releases) and unzip it.
-3. Copy the file `server/common/config-sample.php` to `server/common/config.php` and fill in the login parameters for the database created above.
+3. Copy the file `server\common\config-sample.php` to `server\common\config.php` and fill in the login parameters for the database created above.
 4. Upload the contents of the `server\` directory to a directory on your web server.
 5. Set up access control e.g. via `.htaccess`.
 6. Visit the directory on your web server to verify that the installation was successful. You should see no error messages.
@@ -48,11 +48,18 @@ If you do need to prevent your kid from killing the process, copy the `client\Wa
 
 Then:
 
-1. Copy the file `client/wasted.ini.example` to the kid's user directory (`c:\users\<username>\`) and rename it to `wasted.ini`.
+1. Copy the file `client\wasted.ini.example` to the kid's user directory (`c:\users\<username>\`) and rename it to `wasted.ini`.
 2. Fill out `wasted.ini` with the name of the user you created above, the URL of the directory on your server, and the credentials used to access that directory.
-3. Log in with the kid's account. Press Ctrl-F12 to invoke the client's status display. This should list the running applications.
+3. Log in with the kid's account. Press Ctrl-F12 to invoke the client's status display. This should show a list of all running applications.
+4. On the server, click the "Activity" tab (you may need to reload). You should see the applications running on the kid's machine.
 
 ## Configuration
+
+Now we need to classify programs (or window titles, to be precise) so that e.g. games, videos or "serious applications" are recognized. This depends on what your kid is using and has to be kept up-to-date when they start using new programs.
+
+### Classification Of Window Titles
+
+
 
 ## DB Keys
 

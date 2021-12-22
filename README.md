@@ -35,9 +35,22 @@ I would be more than happy to accept contributions to the project. Please get in
 1. Create a new database on your server.
 2. Download the latest [release](https://github.com/zieren/wasted-youth-tracker/releases) and unzip it.
 3. Copy the file `server/common/config-sample.php` to `server/common/config.php` and fill in the login parameters for the database created above.
-4. Upload the contents of the `server/` directory to a directory on your web server.
+4. Upload the contents of the `server\` directory to a directory on your web server.
 5. Set up access control e.g. via `.htaccess`.
-6. Visit the directory on your web server to verify that the installation was successful: On the `System` tab, add a new user named `test`, then select the `Control` tab. The "Time left..." section should show the time remaining in the day, i.e. the time until midnight.
+6. Visit the directory on your web server to verify that the installation was successful. You should see no error messages.
+7. On the `System` tab, add a new user for your kid (use all lower case, no spaces and no special characters) and verify the user shows up in the selector at the top.
+
+### Client Application
+
+If you are not concerned that the kid will kill the client process from the task manager, simply copy the file `client\Wasted Youth Tracker.exe` to the kid's startup directory. If you prefer to run the source file directly instead of the `.exe`, install [AutoHotkey](https://www.autohotkey.com/) and use `client\Wasted Youth Tracker.ahk`.
+
+If you do need to prevent your kid from killing the process, copy the `client\Wasted Youth Tracker.exe` file to a location the kid cannot read, place a link to it in the startup directory and configure that link to run the application as administrator. This assumes the kid's account is *not* an administrator.
+
+Then:
+
+1. Copy the file `client/wasted.ini.example` to the kid's user directory (`c:\users\<username>\`) and rename it to `wasted.ini`.
+2. Fill out `wasted.ini` with the name of the user you created above, the URL of the directory on your server, and the credentials used to access that directory.
+3. Log in with the kid's account. Press Ctrl-F12 to invoke the client's status display. This should list the running applications.
 
 ## Configuration
 

@@ -31,12 +31,13 @@ I would be more than happy to accept contributions to the project. Please get in
 
 ### Web Server
 
+1. Make sure PHP 7.3+ is supported.
 1. Create a new database on your server.
 2. Download the latest [release](https://github.com/zieren/wasted-youth-tracker/releases) and unzip it.
 3. Copy the file `server/common/config-sample.php` to `server/common/config.php` and fill in the login parameters for the database created above.
 4. Upload the contents of the `server/` directory to a directory on your web server.
 5. Set up access control e.g. via `.htaccess`.
-6. Visit the directory on your web server to verify that the installation was successful.
+6. Visit the directory on your web server to verify that the installation was successful: On the `System` tab, add a new user named `test`, then select the `Control` tab. The "Time left..." section should show the time remaining in the day, i.e. the time until midnight.
 
 ## Configuration
 

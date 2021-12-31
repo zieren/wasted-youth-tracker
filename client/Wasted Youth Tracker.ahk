@@ -45,7 +45,8 @@ CFG[KILL_AFTER_SECONDS] := 30
 global IGNORE_PROCESSES := "ignore_processes"
 CFG[IGNORE_PROCESSES] := {}
 CFG[IGNORE_PROCESSES]["explorer.exe"] := 1 ; also runs the task bar and the start menu
-CFG[IGNORE_PROCESSES]["AutoHotkey.exe"] := 1 ; this script itself (and other AHK scripts)
+CFG[IGNORE_PROCESSES]["AutoHotkey.exe"] := 1 ; this script itself as .ahk (and other AHK scripts)
+CFG[IGNORE_PROCESSES]["Wasted Youth Tracker.exe"] := 1 ; this script itself as .exe
 CFG[IGNORE_PROCESSES]["LogiOverlay.exe"] := 1 ; Logitech mouse/trackball driver
 ; Processes that don't (always) have windows but should be included, e.g. audio players.
 global WATCH_PROCESSES := "watch_processes"

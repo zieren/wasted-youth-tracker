@@ -38,7 +38,7 @@ If a limit is reached the client will ask the kid to terminate the affected prog
 
 ## Project Status
 
-This software is a work in progress. As of January 2022 it is just about to enter a (more or less) public beta test.
+This software is a work in progress.
 
 As you can tell by a single glance, the design of the web UI has not been a high priority so far. That should eventually be addressed.
 
@@ -129,9 +129,9 @@ Configuring a set of classification rules is usually a bit of work and may requi
 
 ### Limits
 
-Limits impose restrictions on the use of the classes set up above. See [above](#how-it-works) for an overview. Classes are mapped to the applicable limit by hand in the UI.
+Limits impose restrictions on the use of the classes set up above. See ["How It Works"](#how-it-works) for an overview. Classes are mapped to the applicable limit by hand in the UI.
 
-A limit can have multiple restrictions, e.g. 30 minutes per day and 2 hours per week, and times between 1 p.m. and 6 p.m. Restrictions can only reduce available time, but never extend it. In this example the weekly time contingent would be used up after four days of 30 minutes each, and no more time would be available.
+A limit can have multiple restrictions, e.g. 30 minutes per day and 2 hours per week, and times between 1 p.m. and 6 p.m. Restrictions can only reduce available time, but never extend it. In this example the weekly time contingent would be used up after four days of 30 minutes each, and no more time would be available until the next week.
 
 A class can be subject to mutliple limits. If any one limit is reached the class is blocked, even if there are other limits that are not yet reached. In other words, like restrictions above, additional limits can only reduce the available time, but never extend it.
 

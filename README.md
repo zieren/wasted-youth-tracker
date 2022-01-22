@@ -2,16 +2,16 @@
 
 Wasted Youth Tracker is a flexible parental control system. It limits the time kids spend on their Windows PC and provides insight into what they are doing.
 
-Wasted Youth Tracker targets all programs/apps, not just online activity. It is very configurable and supports multiple types of limitations. For example, the following rules can be in effect together:
+Wasted Youth Tracker covers all programs/apps, not just online activity. It is very configurable and supports multiple types of limitations. For example, the following rules can be in effect together:
 
 * Weekly time limit for games is 5 hours.
 * Daily time limit is 1 hour for games and 30 minutes for videos.
-* Programs needed for school work are always allowed.
+* Programs needed for school are always allowed.
 * Nothing is allowed after 8 p.m.
 * Time for games needs to be unlocked by a parent.
 * Tomorrow is an exception and the time limit for games will be 90 minutes.
 
-Parents need to configure the system to correctly classify the programs run by the kid, e.g. as "game", "video", "school" etc. Classification compares the window title against a regular expression. If the kid uses e.g. LibreOffice and Wikipedia for school work, you can configure `school=LibreOffice|Wikipedia.*(Mozilla Firefox|Google Chrome)`.
+Parents need to configure the system to correctly classify the programs run by the kid, e.g. as "game", "video", "school" etc. Classification compares the window title against a regular expression. If the kid uses e.g. LibreOffice and Wikipedia for school work, you can configure something like `school=LibreOffice|Wikipedia.*(Mozilla Firefox|Google Chrome)`.
 
 This means Wasted Youth Tracker takes a bit of work to set up, but it can classify anything. It is powerful enough to enforce most limitations, e.g. "1 hour for games, but no more than 30 minutes of that for Minecraft".
 
@@ -23,7 +23,7 @@ Wasted Youth Tracker is a client/server application with a web UI for the parent
 
 Wasted Youth Tracker classifies every program by its window title. For web sites this will be the site's title and the browser name. Classification uses rules that you set up manually on the server. Classes could be e.g. "games", "videos" and "school", where the "games" class contains Minecraft and Solitaire, "videos" contains YouTube and Twitch, and "school" contains LibreOffice and Wikipedia. Note that there is no distinction between programs and web sites; the client simply looks at the window title. It does not monitor network connections.
 
-On the server you set up limits that restrict the use of specific classes. For example, a limit "entertainment" would contain the classes "games" and "school". Limits restrict the use of the classes to which they apply. There are four types of restrictions:
+On the server you set up limits that restrict the use of specific classes. For example, a limit "entertainment" would contain the classes "games" and "videos". Limits restrict the use of the classes to which they apply. There are four types of restrictions:
 
 1. Time per day (e.g. 30 minutes per day)
 2. Time per week (e.g. 2 hours per week)
@@ -38,9 +38,9 @@ If a limit is reached the client will ask the kid to terminate the affected prog
 
 ## Project Status
 
-This software is a work in progress.
+This software is a work in progress, but it's reliable enough for a beta test. We do use it daily in our family :-)
 
-As you can tell by a single glance, the design of the web UI has not been a high priority so far. That should eventually be addressed.
+As you can tell by a single glance, the design of the web UI has not been a high priority so far. That should eventually be addressed. So far the focus has been on features.
 
 I am happy to accept contributions to the project. Please get in touch before embarking on anything beyond a simple fix so we can sync ideas.
 
@@ -57,17 +57,17 @@ The server component can be installed on a standard shared web server. You can a
 1. Make sure PHP 7.3+ is supported.
 1. Create a new database on your server.
 2. Download the latest [release](https://github.com/zieren/wasted-youth-tracker/releases) and unzip it.
-3. Copy the file `server/common/config-sample.php` to `server/common/config.php` and fill in the login parameters for the database created above.
-4. Upload the contents of the `server/` directory to a directory on your web server.
-5. Set up access control e.g. via `.htaccess`.
+3. Upload the contents of the `server/` directory to a directory on your web server.
+4. Rename the file `common/config-sample.php` to `common/config.php` and fill in the login parameters for the database created above.
+5. Set up access control e.g. via `.htaccess`. This may be skipped if the server is only accessible by the parents.
 6. Visit the directory on your web server to verify that the installation was successful. You should see no error messages.
-7. On the `System` tab, add a new user for your kid (use all lower case, no spaces and no special characters) and verify the user shows up in the selector at the top.
+7. In the web UI, click the `System` tab to add a new user for your kid (use all lower case, no spaces and no special characters). Verify the created user shows up in the selector at the top.
 
 ### Client Application
 
 If you are not concerned that the kid will kill the client process from the task manager, simply copy the file `client/Wasted Youth Tracker.exe` to the kid's startup directory. If you prefer to run the source file directly instead of the `.exe`, install [AutoHotkey](https://www.autohotkey.com/) and use `client/Wasted Youth Tracker.ahk` instead.
 
-If you do need to prevent your kid from killing the process, copy the `client/Wasted Youth Tracker.exe` file to a location the kid cannot access, place a link to it in the startup directory and configure that link to run the application as administrator. This assumes the kid's account is *not* an administrator.
+If you do need to prevent your kid from killing the process, copy the `client/Wasted Youth Tracker.exe` file to a location the kid cannot access, place a link to it in the startup directory and configure that link to run the application as administrator. This assumes the kid's account is *not* an administrator. You may also need to restrict permissions on the link to prevent the kid from deleting it. (Other options for starting the client on logon are the registry and the task schedule.)
 
 Then:
 
@@ -84,7 +84,7 @@ Configuration consists of two parts: Setting up classification rules and configu
 
 Wasted Youth Tracker classifies each program running on the kid's computer into exactly one class. This classification process works by applying a set of rules that are matched against the window title. Classification rules use [Regular Expressions](https://www.regular-expressions.info/). Classes are then assigned to limits in the next step.
 
-What classes are needed depends on what the kid is allowed to do on their computer, i.e. what limitations you intend to apply. For example, consider the window titles of some games:
+A class represents the finest granularity to which limits can be applied. What classes are needed depends on what the kid is allowed to do on their computer, i.e. what limitations you intend to apply. For example, consider the window titles of some games:
 
 * Roblox
 * Super Mario Bros. X
@@ -93,7 +93,7 @@ What classes are needed depends on what the kid is allowed to do on their comput
 
 If you do not care which game is played, a single class "games" is sufficient. A simple classification rule for this example would be `"Roblox|Super Mario Bros|Microsoft Solitaire Collection|Secret of Monkey Island"`.
 
-A class represents the finest granularity to which limits can be applied. If you want to apply different limits for some games, two (or more) classes are needed. Say your kid gets overly excited from Roblox and Super Mario Bros. X and you want to restrict those more than games in general. You would set up a second class "exciting games" with a classification rule of `"Roblox|Super Mario Bros. X"` and remove those two from the regular "games" class.
+If you want to apply different limits for some games, two (or more) classes are needed. Say your kid gets overly excited from Roblox and Super Mario Bros. X and you want to restrict those more than games in general. You would set up a second class "exciting games" with a classification rule of `"Roblox|Super Mario Bros. X"` and remove those two from the regular "games" class.
 
 #### Web Sites
 
@@ -109,49 +109,52 @@ To classify web sites, it is easiest to first block all installed browsers excep
 
 #### Priorities
 
-You may want to distinguish between a game and YouTube videos about this game. Assume you have set up a class "online videos" with a classification rule of `"- YouTube - Mozilla Firefox"` and the "games" class as described above. A window title of "Playing Super Mario Bros. X - YouTube - Mozilla Firefox" would match both the "online videos" class and the "games" class. The classification would be random in this case. To fix that, you can give the more specific rule - "online videos" in this case - a higher priority.
+You may want to distinguish, say, between a game and YouTube videos about this game. Assume you have set up a class "online videos" with a classification rule of `"- YouTube - Mozilla Firefox"` and the "games" class as described above. A window title of "Playing Super Mario Bros. X - YouTube - Mozilla Firefox" would match both the "online videos" class and the "games" class. The classification would be random in this case. To fix that, you can give the more specific rule - "online videos" in this case - a higher priority.
 
 #### Blacklisting And Whitelisting
 
-It may be helpful to create one class for all forbidden programs, e.g. browsers you don't want to be used, web sites you want to block etc. (blacklisting). Using a higher priority, you can still whitelist specific exceptions, e.g. allow a certain browser, but only for the one site that is broken on the preferred browser.
+It may be helpful to create one class for all forbidden programs, e.g. browsers you don't want to be used, web sites you want to block etc. (blacklisting). Using a higher priority, you can then whitelist specific exceptions, e.g. allow a certain browser, but only for the one site that is broken on the preferred browser.
 
 #### Default Class
 
-If a program does not match any of the classification rules you set up, it belongs to a class named "default_class". This means Wasted Youth Tracker does not know what this program is, i.e. this class is a catch-all bucket for "anything else". Initially this class will always be used because no rules are set up yet. As you configure rules for the programs your kid uses, the default class should become less common.
+If a program does not match any of the classification rules you set up, it belongs to a class named "default_class". This means Wasted Youth Tracker does not know what this program is, i.e. this class is a catch-all bucket for "anything else". Initially this class will always be used because no rules are set up yet. As you configure rules for the programs your kid uses, the default class should become less common. The "Classification" tab in the UI lists window titles that were "unclassified", i.e. classified as "default_class". Check this from time to time to see if your kid has started using new programs/web sites.
 
 #### Multiple Users
 
-Classes are valid for all users. This is relevant if you have multiple users/kids. If it is sufficient for one of them to classify any browser usage as "web browsing", but for the other you want to distinguish between "school research" and "online shopping", then the latter is what you need to reflect in the classes you create.
+Classes are valid for all users. This is relevant if you have multiple users/kids. If it is sufficient for one of them to classify any browser usage as "web browsing", but for the other you want to distinguish between "school research" and "online shopping", then the latter is what you need to reflect in the classes you create. In other words, classification needs to reflect the finest granularity required across all users.
 
 #### Maintenance
 
-Configuring a set of classification rules is usually a bit of work and may require periodic updates, but it is the foundation for being able to set up limits in the exact way you want. Keep the number of classes as low as possible, but as high as necessary. Don't be afraid to add, update or remove classes later. The UI provides some insight into the classification process to help with this.
+Configuring a set of classification rules is usually a bit of work and may require periodic updates, but it is the foundation for being able to set up limits in the exact way you want. Keep the number of classes as low as possible, but as high as necessary. Don't be afraid to add, update or remove classes later. Check the unclassified window titles as described [above](#default-class).
 
 ### Limits
 
-Limits impose restrictions on the use of the classes set up above. See ["How It Works"](#how-it-works) for an overview. Classes are mapped to the applicable limit by hand in the UI.
+Limits impose restrictions on the use of the classes set up above. See section [How It Works](#how-it-works) for an overview. Classes are mapped to the applicable limit by hand in the UI.
 
-A limit can have multiple restrictions, e.g. 30 minutes per day and 2 hours per week, and times between 1 p.m. and 6 p.m. Restrictions can only reduce available time, but never extend it. In this example the weekly time contingent would be used up after four days of 30 minutes each, and no more time would be available until the next week.
+A limit can have multiple restrictions, e.g. 30 minutes per day and 2 hours per week, and times between 1 p.m. and 6 p.m. Restrictions can only reduce available time, but never extend it. In this example the weekly time contingent would be used up after four days of 30 minutes each, and no more time would be available until the next week. Similarly, if usage starts at 5:45 p.m then only 15 minutes will be available.
 
 A class can be subject to mutliple limits. If any one limit is reached the class is blocked, even if there are other limits that are not yet reached. In other words, like restrictions above, additional limits can only reduce the available time, but never extend it.
 
-There is always a limit called "Total" that applies to all classes, i.e. everything. This can be used to simply track the total time spent (because time is tracked per limit), or to limit it. E.g. by setting the time of day for the Total limit to `10:00 a.m. - 7:30 p.m.`, all classes are limited to these times, or even less in case additional restrictions in other limits apply.
+There is always a limit called "Total" that applies to all classes, i.e. everything. This can be used to simply track the total time spent (because time is tracked per limit), or to limit it. E.g. by setting the time of day for the Total limit to `10:00 a.m. - 7:30 p.m.`, all classes are limited to these times, or less in case additional restrictions in other limits apply.
 
 #### Configuring Limits
 
-Limits are configured by setting a key, which identifies the type of restriction, to a desired value. For example, to specify "30 minutes per day", set the key `minutes_day` to `30`.
+Limits are configured by setting a key, which identifies the type of restriction, to the desired value. For example, to specify "30 minutes per day", set the key `minutes_day` to `30`.
 
 The following keys are supported:
 
-| Key | Values |
-| --- | ------ |
-| enabled                        | 0, 1   |
-| require_unlock                 | 0, 1   |
-| weekly_limit_minutes           | 0..inf |
-| daily_limit_minutes_default    | 0..inf |
-| daily_limit_minutes_{mon..sun} | 0..inf |
+| Key | Description | Values |
+| --- | ----------- | ------ |
+| `minutes_day`      | Time available per day | Time in minutes, 0 or more |
+| `minutes_mon` etc. | Overrides `minutes_day` for specific day of week | Time in minutes, 0 or more |
+| `minutes_week`     | Time available per week, overrides time per day if used up first | Time in minutes, 0 or more |
+| `times`            | Allowed time(s) of day, one or more ranges separated by comma (12/24h both supported) | e.g. `10-13:30, 2:45pm-8pm` |
+| `times_mon` etc.   | Overides `times` for specific day of week | e.g. `10-13:30, 2:45pm-8pm` |
+| `locked`           | Require [manual unlocking](#overrides) by parent in the web UI | 0/1 (for no/yes) |
 
 #### Overrides
+
+Under the "Control" tab you can override the time and/or time of day allowed for a given limit on a specific day (e.g. today or tomorrow). This is also where you unlock limits configured with `locked=1` above. Overrides always have highest priority within the limit. For example, overriding time per day will take effect even if the weekly time is used up. However, if classes are subject to multiple limits, it may be necessary to override/unlock those as well. The UI will display a reminder in this case.
 
 #### #user_config
 
@@ -165,4 +168,8 @@ The following keys are supported:
 | --- | ------ |
 | log_level | emergency, alert, critical, error, warning, notice, info, debug |
 
+### Plans/Ideas
 
+* Android
+* Consoles
+* Linux

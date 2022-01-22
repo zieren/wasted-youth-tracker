@@ -137,17 +137,17 @@ A class can be subject to mutliple limits. If any one limit is reached the class
 
 There is always a limit called "Total" that applies to all classes, i.e. everything. This can be used to simply track the total time spent (because time is tracked per limit), or to limit it. E.g. by setting the time of day for the Total limit to `10:00 a.m. - 7:30 p.m.`, all classes are limited to these times, or less in case additional restrictions in other limits apply.
 
-#### Configuring Limits
+#### Configuration
 
 Limits are configured by setting a key, which identifies the type of restriction, to the desired value. For example, to specify "30 minutes per day", set the key `minutes_day` to `30`.
 
 The following keys are supported:
 
-| Key | Description | Values |
-| --- | ----------- | ------ |
-| `minutes_day`      | Time available per day | Time in minutes, 0 or more |
-| `minutes_mon` etc. | Overrides `minutes_day` for specific day of week | Time in minutes, 0 or more |
-| `minutes_week`     | Time available per week, overrides time per day if used up first | Time in minutes, 0 or more |
+| Key | Description | Value |
+| --- | ----------- | ----- |
+| `minutes_day`      | Time available per day | minutes, 0 or more |
+| `minutes_mon` etc. | Overrides `minutes_day` for specific day of week | minutes, 0 or more |
+| `minutes_week`     | Time available per week, overrides time per day if used up first | minutes, 0 or more |
 | `times`            | Allowed time(s) of day, one or more ranges separated by comma (12/24h both supported) | e.g. `10-13:30, 2:45pm-8pm` |
 | `times_mon` etc.   | Overides `times` for specific day of week | e.g. `10-13:30, 2:45pm-8pm` |
 | `locked`           | Require [manual unlocking](#overrides) by parent in the web UI | 0/1 (for no/yes) |
@@ -156,20 +156,32 @@ The following keys are supported:
 
 Under the "Control" tab you can override the time and/or time of day allowed for a given limit on a specific day (e.g. today or tomorrow). This is also where you unlock limits configured with `locked=1` above. Overrides always have highest priority within the limit. For example, overriding time per day will take effect even if the weekly time is used up. However, if classes are subject to multiple limits, it may be necessary to override/unlock those as well. The UI will display a reminder in this case.
 
-#### #user_config
+### System Configuration
 
-| Key | Values | Explanation |
-| --- | ------ | ----------- |
-| disable_enforcement | 0, 1 | Don't close windows/kill processes, just notify (for debugging). |
+The system has several configuration options that can be set either per user or globally (i.e. for all users). These can usually be left alone. You can press Ctrl-Shift-F12 on the client to 
 
-##### global_config
+| Key | Description | Value | Default |
+| --- | ----------- | ----- | ------- |
+| `sample_interval_seconds` | Sample interval on the client, smaller values increase accuracy at the cost of more requests to the server | approx. 2-60 | 15 |
+| `grace_period_seconds`    | Time the kid has to close a program before it is closed | approx. 5-60 | 30 |
+| `disable_enforcement`     | Don't close windows/kill processes, just notify (for debugging) | 0/1 | 0 |
+| `kill_after_seconds`      | If the program fails to close, kill its process after this time | approx. 5-30 | 10 |
+| `ignore_process...`       | Processes with windows that should be ignored (use any suffix to specify more) | process name | `explorer.exe`, `AutoHotkey.exe`, `Wasted Youth Tracker.exe`, `LogiOverlay.exe` |
+| `watch_process...`        | Processes that don't show a regular window (e.g. audio players) are given a synthetic window title | process_name=title | `Minecraft.Windows.exe=Minecraft` |
+| `log_level` | Server log level (global config only) | emergency, alert, critical, error, warning, notice, info, debug | debug |
 
-| Key | Values |
-| --- | ------ |
-| log_level | emergency, alert, critical, error, warning, notice, info, debug |
+## Troubleshooting
 
-### Plans/Ideas
+You can press Ctrl-Shift-F12 on the client to show a list of detected window titles, config settings and internal status.
 
-* Android
-* Consoles
-* Linux
+Feel free to contact me if you have any problems. Be sure to check the [open issues](https://github.com/zieren/wasted-youth-tracker/issues).
+
+## Plans/Ideas
+
+The biggest deficit from a user's perspective is that, to the best of my knowledge, all existing parental control systems only cover a single platform. So far Wasted Youth Tracker is no exception, but the design puts most complexity on the server so that an extension to other platforms should be viable. The following platforms are on my radar:
+
+* Android phone/tablet, Amazon Fire Kids Tablet (I'm not sure if Android is flexible enough to support the client's requirements, i.e. query foreground apps and close them.)
+* Consoles like PS4, XBox etc. (Sony has its own parental control system that tracks time, maybe querying that from the server would work.)
+* Linux (This would be very straightforward, but I don't think many kids use Linux.)
+
+

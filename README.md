@@ -178,10 +178,20 @@ Feel free to contact me if you have any problems. Be sure to check the [open iss
 
 ## Plans/Ideas
 
-The biggest deficit from a user's perspective is that, to the best of my knowledge, all existing parental control systems only cover a single platform. So far Wasted Youth Tracker is no exception, but the design puts most complexity on the server so that an extension to other platforms should be viable. The following platforms are on my radar:
+Help with any of the following would be most welcome.
 
-* Android phone/tablet, Amazon Fire Kids Tablet (I'm not sure if Android is flexible enough to support the client's requirements, i.e. query foreground apps and close them.)
+### Platforms
+
+The biggest deficit from a user's perspective is that Wasted Youth Tracker currently only covers the Windows platform. But the design puts most complexity on the server to simiplify porting the client to other platforms. The following platforms are on my radar:
+
+* Android phone/tablet, Amazon Fire Kids Tablet
 * Consoles like PS4, XBox etc. (Sony has its own parental control system that tracks time, maybe querying that from the server would work.)
 * Linux (This would be very straightforward, but I don't think many kids use Linux.)
 
+### Web UI
 
+The web UI should be polished and be easier to use. It currently surfaces complex concepts, like free form key/value configuration, directly, instead of showing the user proper UI elements.
+
+### Features
+
+There are lots of smaller features/improvements that I try to [keep track of](https://github.com/zieren/wasted-youth-tracker/issues).

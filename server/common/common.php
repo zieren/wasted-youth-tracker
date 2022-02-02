@@ -72,7 +72,7 @@ function dumpArrayToString($a) {
  * $date lies.
  */
 function getWeekStart($date) {
-  // TODO: This assumes the week starts on Monday.
+  // TODO: This assumes the week starts on Monday. (#107)
   $dayOfWeek = ($date->format('w') + 6) % 7; // 0 = Sun
   $weekStart = clone $date;
   $weekStart->setTime(0, 0);

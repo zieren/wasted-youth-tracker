@@ -163,7 +163,7 @@ The system has several configuration options that can be set either per user or 
 | Key | Description | Value | Default |
 | --- | ----------- | ----- | ------- |
 | `sample_interval_seconds` | Sample interval on the client, smaller values increase accuracy at the cost of more requests to the server | approx. 2-60 | 15 |
-| `grace_period_seconds`    | Time the kid has to close a program before it is closed | approx. 5-60 | 30 |
+| `grace_period_seconds`    | Time the kid has to close a program before it is closed by the client | approx. 5-60 | 30 |
 | `disable_enforcement`     | Don't close windows/kill processes, just notify (for debugging) | 0/1 | 0 |
 | `kill_after_seconds`      | If the program fails to close, kill its process after this time | approx. 5-30 | 10 |
 | `ignore_process...`       | Processes with windows that should be ignored (use any suffix to specify more) | process name | `explorer.exe`, `AutoHotkey.exe`, `Wasted Youth Tracker.exe`, `LogiOverlay.exe` |

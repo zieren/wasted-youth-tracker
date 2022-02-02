@@ -558,7 +558,7 @@ echo '</figure></div>'; // from div setup
 // ----- Footer -----
 
 echo '
-<p>&copy; 2021 <a href="https://zieren.de">J&ouml;rg Zieren</a>
+<p>&copy; 2021-2022 <a href="https://zieren.de">J&ouml;rg Zieren</a>
 (<a href="https://github.com/zieren">github</a>), GNU GPL v3.
 Components:
 <a href="https://www.autohotkey.com/">AutoHotkey</a> by The AutoHotkey Foundation, GNU GPL v2;

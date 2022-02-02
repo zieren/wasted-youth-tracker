@@ -40,10 +40,11 @@ global GRACE_PERIOD_SECONDS := "grace_period_seconds"
 CFG[GRACE_PERIOD_SECONDS] := 30
 ; Time the script allows for closing the window. After this time the process is killed.
 global KILL_AFTER_SECONDS := "kill_after_seconds"
-CFG[KILL_AFTER_SECONDS] := 30
+CFG[KILL_AFTER_SECONDS] := 10
 ; Special processes that should never be closed.
 global IGNORE_PROCESSES := "ignore_processes"
 CFG[IGNORE_PROCESSES] := {}
+; TODO: Consider moving these defaults to the server.
 CFG[IGNORE_PROCESSES]["explorer.exe"] := 1 ; also runs the task bar and the start menu
 CFG[IGNORE_PROCESSES]["AutoHotkey.exe"] := 1 ; this script itself as .ahk (and other AHK scripts)
 CFG[IGNORE_PROCESSES]["Wasted Youth Tracker.exe"] := 1 ; this script itself as .exe
@@ -336,7 +337,7 @@ ShowStatusGui(limits, limitsToTitles) {
       bottomRows.Push([limit, ""])
     }
   }
-  
+
   listLimitAndTitle := topRows
   listLimitAndTitle.Push(bottomRows*) ; pass as variadic args
 
@@ -398,10 +399,11 @@ SoundTimeLow() {
 
 CreateRequest() {
   return ComObjCreate("MSXML2.XMLHTTP.6.0")
+  ; TODO: This will always use caching. Is this a problem (for config retrieval)?
 }
 
 OpenRequest(method, request, path) {
-  request.open(method, URL "/" path, false, HTTP_USER, HTTP_PASS)
+  request.open(method, URL "/" path, /* async= */ false, HTTP_USER, HTTP_PASS)
   return request
 }
 

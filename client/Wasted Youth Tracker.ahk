@@ -403,7 +403,8 @@ CreateRequest() {
 }
 
 OpenRequest(method, request, path) {
-  request.open(method, URL "/" path, /* async= */ false, HTTP_USER, HTTP_PASS)
+  ; 3rd arg: async=false
+  request.open(method, URL "/" path, false, HTTP_USER, HTTP_PASS)
   return request
 }
 

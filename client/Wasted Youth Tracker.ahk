@@ -234,7 +234,7 @@ DoTheThing(showStatusGui) {
         limits[s[1]] := {"id": s[1]}
         limits[s[1]]["locked"] := s[2]
         limits[s[1]]["remaining"] := s[3]
-        limits[s[1]]["total"] := s[4] ; ? rename this and the above
+        limits[s[1]]["total"] := s[4]
         limits[s[1]]["currentSlot"] := s[5]
         limits[s[1]]["nextSlot"] := s[6]
         limits[s[1]]["name"] := s[7]

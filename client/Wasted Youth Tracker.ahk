@@ -604,6 +604,7 @@ DebugShowStatus() {
     text .= "process: " name "`n"
   t := FormatSeconds(EpochSeconds() - LAST_SUCCESSFUL_REQUEST)
   text .= "Last successful request: " t " ago, duration " LAST_REQUEST_DURATION_MS "ms`n"
+  text .= "Log file: " LOGFILE "`n"
   text .= "Last error: " LAST_ERROR
 
   ShowDebugGui(text)

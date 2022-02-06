@@ -14,15 +14,19 @@ function toggleCollapsed(tr) {
   }
 };
 function setup() {
-  const trs = document.querySelectorAll("table.collapsible tr");
-  trs.forEach(function(tr, index) {
-    tr.addEventListener("click", function() { toggleCollapsed(tr); });
-  });
-  const header = document.querySelector("#idTableActivity").rows[0];
+  const tableActivity = document.querySelector("#idTableActivity");
+  if (!tableActivity) {
+    return; // preconditions failed, page wasn't rendered
+  }
+  const header = tableActivity.rows[0];
   for (var i = 0; i < header.cells.length; i++) {
     const f = function(ii) { return function() { sortActivityTable(ii); }; };
     header.cells[i].addEventListener("click", f(i));
   }
+  const trs = document.querySelectorAll("table.collapsible tr");
+  trs.forEach(function(tr, index) {
+    tr.addEventListener("click", function() { toggleCollapsed(tr); });
+  });
   sortActivityTable(0);
 }
 function setToday(id) {
@@ -119,25 +123,42 @@ function sortActivityTable(column) {
 }
 </script>
 <?php
-require_once 'common/common.php';
-require_once 'common/html_util.php';
+
+require_once 'common/base.php';
+
+define('PHP_MIN_VERSION', '7.3');
 
 function checkRequirements() {
-  $unmet = array();
+  $unmet = [];
   if (version_compare(PHP_VERSION, PHP_MIN_VERSION) < 0) {
     $unmet[] = 'PHP version '.PHP_MIN_VERSION.' is required, but this is '.PHP_VERSION.'.';
   }
   if (!function_exists('mysqli_connect')) {
     $unmet[] = 'The mysqli extension is missing.';
   }
+  if (!file_exists('common/config.php')) {
+    $unmet[] = 'The file <code>common/config.php</code> is missing.';
+  }
+  try {
+    // Logger must be initialized before used in wastedFatalErrorHandler; see
+    // http://stackoverflow.com/questions/4242534
+    // We do this here to trigger an exception if the logs/ directory is inaccessible (new install).
+    Logger::Instance();
+  } catch (Exception $e) {
+    $unmet[] = 'Failed to initialize logger: "'.$e->getMessage()
+        .'". Is the <code>logs/</code> directory writable (<code>chmod a+w logs</code>)?';
+  }
   if (!$unmet) {
     return;
   }
   echo '<p><b>The following requirements are not met:</b></p>'
   . '<ul><li>' . implode('</li><li>', $unmet) . '</li></ul><hr />';
-  throw new Exception(implode($unmet));
+  exit(1);
 }
 checkRequirements();
+
+require_once 'common/common.php';
+require_once 'common/html_util.php';
 
 Wasted::initialize(true);
 $users = Wasted::getUsers();

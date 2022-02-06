@@ -73,7 +73,7 @@ Then:
 
 1. Copy the file `client/wasted.ini.example` to the kid's user directory (`c:\users\<username>\`) and rename it to `wasted.ini`.
 2. Fill out `wasted.ini` with the name of the user you created above, the URL of the directory on your server, and the credentials used to access that directory (if applicable).
-3. Log in to Windows with the kid's account. Press Ctrl-F12 to invoke the client's status display. This should show a list of all running applications.
+3. Log in to Windows with the kid's account. Press Ctrl-F12 to invoke the client's status display. This should show a list of all current window titles.
 4. On the server, click the "Activity" tab (you may need to reload). You should see the applications running on the kid's machine.
 
 ## Configuration

@@ -246,6 +246,9 @@ class Wasted {
     $conditionActivity = $forRemoval ? 'activity.class_id = %i0' : 'to_ts > %i0';
     // Classes available for reclassification.
     $conditionClassification = $forRemoval ? 'classification.class_id != %i0' : 'true';
+    // The LIMIT clause below is a hack: Without it, the preceding ORDER BY has no effect on the
+    // subquery's result. The LIMIT tricks the optimizer to apply ordering after all.
+    // https://mariadb.com/kb/en/why-is-order-by-in-a-from-subquery-ignored/
     return "
         REPLACE INTO activity (user, seq, from_ts, to_ts, class_id, title)
           SELECT user, seq, from_ts, to_ts, reclassification.class_id, activity.title
@@ -265,6 +268,7 @@ class Wasted {
                 JOIN classification ON title REGEXP re
                 WHERE $conditionClassification
                 ORDER BY title, priority DESC
+                LIMIT 18446744073709551615
               ) reclassification_all_prios
               HAVING first = 1
             ) reclassification

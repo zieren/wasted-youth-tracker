@@ -1,6 +1,7 @@
 <?php
 
-declare(strict_types=1);
+// TODO: Figure out how to get this to not choke on the Pi.
+// declare(strict_types=1);
 ini_set('assert.exception', '1');
 
 require_once '../common/base.php'; // For class loader.

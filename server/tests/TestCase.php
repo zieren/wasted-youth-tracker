@@ -1,6 +1,7 @@
 <?php
 
-declare(strict_types=1);
+// TODO: Figure out how to get this to not choke on the Pi.
+// declare(strict_types=1);
 ini_set('assert.exception', '1');
 
 require_once('../common/base.php');
@@ -9,7 +10,13 @@ define('TESTS_LOG', 'tests_log.txt');
 if (file_exists(TESTS_LOG)) {
   unlink(TESTS_LOG);
 }
-Logger::initializeForTest(TESTS_LOG);
+try {
+  Logger::initializeForTest(TESTS_LOG);
+} catch (Exception $e) {
+  echo 'Failed to initialize logger: "'.$e->getMessage()
+      .'". Is the <code>tests/</code> directory writable (<code>chmod a+w tests</code>)?';
+  exit(1);
+}
 
 abstract class TestCase {
 
@@ -132,5 +139,4 @@ abstract class TestCase {
     $this->tearDownTestCase();
     $this->dumpAndClearLog();
   }
-
 }

@@ -752,6 +752,8 @@ class Wasted {
    * recorded for the computation of the previous interval.
    */
   public static function insertActivity($user, $lastError, $titles): array {
+    // Crop titles to avoid DB error when VARCHAR(256) is not enough.
+    $titles = array_map(function($t) { return substr($t, 0, 256); }, $titles);
     $ts = self::$now->getTimestamp();
     if ($lastError) {
       DB::update('users', ['last_error' => $lastError], 'id = %s', $user);

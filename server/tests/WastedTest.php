@@ -2655,6 +2655,10 @@ final class WastedTest extends WastedTestBase {
         $limitId => [$day2 => 2]]);
   }
 
+  public function testLongTitle(): void {
+    Wasted::insertActivity('u1', '', [str_repeat("x", 666)]);
+  }
+
   // TODO: Test new toTime argument in queryTimeSpentByLimitAndDate (and others).
   // TODO: Test getClassesToClassificationTable.
   // TODO: Test queryOverrides.

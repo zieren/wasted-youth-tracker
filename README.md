@@ -1,6 +1,6 @@
 # Wasted Youth Tracker
 
-Wasted Youth Tracker is a flexible parental control system. It limits the time kids spend on their Windows PC and provides insight into what they are doing.
+Wasted Youth Tracker is a flexible parental control system for Windows. It limits the time kids spend on their PC and provides insight into what they are doing.
 
 Wasted Youth Tracker covers all programs/apps, not just online activity. It is very configurable and supports multiple types of limitations. For example, the following rules can be in effect together:
 
@@ -17,7 +17,7 @@ This means Wasted Youth Tracker takes a bit of work to set up, but it can classi
 
 Parents can see a history of the window titles of all programs the kid has been running. You can discuss what your kid was up to with your spouse and/or the kid themselves.
 
-Wasted Youth Tracker is a client/server application with a web UI for the parents and a small client application for the kid. The client runs on Microsoft Windows, the server is written in PHP (requires PHP 7.3+) and uses a MySQL database. The server can run on a Raspberry Pi.
+Wasted Youth Tracker is a client/server application with a web UI for the parents and a small client application for the kid. The client runs on Microsoft Windows, the server is written in PHP (requires PHP 7.3+) and uses a MySQL database. You can use regular server hosting or a Raspberry Pi in your home network (which avoids sending usage data to any remote system).
 
 ## How It Works
 
@@ -40,7 +40,7 @@ If a limit is reached the client will ask the kid to terminate the affected prog
 
 This software is a work in progress, but it's reliable enough for a beta test. We do use it daily in our family :-)
 
-As you can tell by a single glance, the design of the web UI has not been a high priority so far. That should eventually be addressed. So far the focus has been on features.
+As you can tell by a single glance, the design of the web UI has not been a high priority so far. That should eventually be addressed.
 
 I am happy to accept contributions to the project. Please get in touch before embarking on anything beyond a simple fix so we can sync ideas.
 
@@ -52,29 +52,29 @@ Since the procject is in flux, these instructions are somewhat general and will 
 
 ### Web Server
 
-The server component can be installed on a standard shared web server. You can also run your own server; a simple option would be a Raspberry Pi.
+The server component can be installed on a standard shared web server. You can also run your own server, e.g. a Raspberry Pi.
 
 1. Make sure PHP 7.3+ is supported.
 1. Create a new database on your server.
 2. Download the latest [release](https://github.com/zieren/wasted-youth-tracker/releases) and unzip it.
 3. Upload the contents of the `server/` directory to a directory on your web server.
 4. Rename the file `common/config-sample.php` to `common/config.php` and fill in the login parameters for the database created above.
-5. Set up access control e.g. via `.htaccess`. This may be skipped if the server is only accessible by the parents.
-6. Chmod the `logs` directory to be writable by the PHP user.
+5. Set up access control e.g. via `.htaccess`. This may be skipped if the server is only accessible by the parents due to some other mechanism.
+6. Chmod the `logs/` directory to be writable by the PHP user (e.g. `chmod a+w logs`).
 7. Visit the directory on your web server to verify that the installation was successful. You should see no error messages.
 8. In the web UI, click the `System` tab to add a new user for your kid (use all lower case, no spaces and no special characters). Verify the created user shows up in the selector at the top.
 
 ### Client Application
 
-If you are not concerned that the kid will kill the client process from the task manager, simply copy the file `client/Wasted Youth Tracker.exe` to the kid's startup directory. If you prefer to run the source file directly instead of the `.exe`, install [AutoHotkey](https://www.autohotkey.com/) and use `client/Wasted Youth Tracker.ahk` instead.
+If you are not concerned that the kid will kill the client process from the task manager, simply copy the file `client/Wasted Youth Tracker.exe` to the kid's startup directory. If you prefer to run the source file directly instead of the `.exe`, install [AutoHotkey](https://www.autohotkey.com/) and use `client/Wasted Youth Tracker.ahk`.
 
-If you do need to prevent your kid from killing the process, copy the `client/Wasted Youth Tracker.exe` file to a location the kid cannot access, place a link to it in the startup directory and configure that link to run the application as administrator. This assumes the kid's account is *not* an administrator. You may also need to restrict permissions on the link to prevent the kid from deleting it. (Other options for starting the client on logon are the registry and the task schedule.)
+If you do need to prevent your kid from killing the process, copy the `client/Wasted Youth Tracker.exe` file to a location the kid cannot access, place a link to it in the startup directory and configure that link to run the application as administrator. This assumes the kid's account is *not* an administrator. You may also need to restrict permissions on the link to prevent the kid from deleting it. (Other options for starting the client on logon are the registry and the task scheduler.)
 
 Then:
 
 1. Copy the file `client/wasted.ini.example` to the kid's user directory (`c:\users\<username>\`) and rename it to `wasted.ini`.
 2. Fill out `wasted.ini` with the name of the user you created above, the URL of the directory on your server, and the credentials used to access that directory (if applicable).
-3. Log in to Windows with the kid's account. Press Ctrl-F12 to invoke the client's status display. This should show a list of all current window titles.
+3. Log in to Windows with the kid's account. Press Ctrl-F12 to invoke the client's status display (note that the first request may take several seconds if you use a slow Raspberry Pi). This should show a list of all current window titles.
 4. On the server, click the "Activity" tab (you may need to reload). You should see the applications running on the kid's machine.
 
 ## Configuration
@@ -126,11 +126,11 @@ Classes are valid for all users. This is relevant if you have multiple users/kid
 
 #### Maintenance
 
-Configuring a set of classification rules is usually a bit of work and may require periodic updates, but it is the foundation for being able to set up limits in the exact way you want. Keep the number of classes as low as possible, but as high as necessary. Don't be afraid to add, update or remove classes later. Check the unclassified window titles as described [above](#default-class).
+Configuring a set of classification rules is usually a bit of work and may require periodic updates, but it is the foundation for being able to set up limits in the exact way you want. Keep the number of classes as low as possible, but as high as necessary. Don't be afraid to add, update or remove classes later. Check the unclassified window titles as described [above](#default-class) to see if more classes or classification rules are needed.
 
 ### Limits
 
-Limits impose restrictions on the use of the classes set up above. See section [How It Works](#how-it-works) for an overview. Classes are mapped to the applicable limit by hand in the UI.
+Limits impose restrictions on the use of the classes set up above. Classes are mapped to the applicable limit by hand in the UI.
 
 A limit can have multiple restrictions, e.g. 30 minutes per day and 2 hours per week, and times between 1 p.m. and 6 p.m. Restrictions can only reduce available time, but never extend it. In this example the weekly time contingent would be used up after four days of 30 minutes each, and no more time would be available until the next week. Similarly, if usage starts at 5:45 p.m then only 15 minutes will be available.
 
@@ -147,10 +147,10 @@ The following keys are supported:
 | Key | Description | Value |
 | --- | ----------- | ----- |
 | `minutes_day`      | Time available per day | minutes, 0 or more |
-| `minutes_mon` etc. | Overrides `minutes_day` for specific day of week | minutes, 0 or more |
-| `minutes_week`     | Time available per week, overrides time per day if used up first | minutes, 0 or more |
+| `minutes_mon` etc. | Overrides `minutes_day` for specific day of week | ditto |
+| `minutes_week`     | Time available per week, restricts time per day if used up first | ditto |
 | `times`            | Allowed time(s) of day, one or more ranges separated by comma (12/24h both supported) | e.g. `10-13:30, 2:45pm-8pm` |
-| `times_mon` etc.   | Overides `times` for specific day of week | e.g. `10-13:30, 2:45pm-8pm` |
+| `times_mon` etc.   | Overides `times` for specific day of week | ditto |
 | `locked`           | Require [manual unlocking](#overrides) by parent in the web UI | 0/1 (for no/yes) |
 
 #### Overrides

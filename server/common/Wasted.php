@@ -759,12 +759,12 @@ class Wasted {
       DB::update('users', ['last_error' => $lastError], 'id = %s', $user);
     }
     $config = self::getClientConfig($user);
-    // Grace period is always 30s. It accounts for the client being slow to send its request. A
-    // higher value means that we tend towards interpreting an observation as a continuation of the
-    // current session rather than a gap and a new session. We argue that 30s means at most the user
-    // logged out and right back in without even rebooting, which can be viewed as a continuation.
-    // Note that the sample interval can be much larger or smaller. In the latter case we simply
-    // update measurements more frequently.
+    // Continuation period is always 30s. It accounts for the client being slow to send its request.
+    // A higher value means that we tend towards interpreting an observation as a continuation of
+    // the current session rather than a gap and a new session. We argue that 30s means at most the
+    // user logged out and right back in without even rebooting, which can be viewed as a
+    // continuation. Note that the sample interval can be much larger or smaller. In the latter case
+    // we simply update measurements more frequently.
     // ==========>>> KEEP THE DEFAULT IN SYNC WITH THE CLIENT CODE!!! <<<==========
     $maxInterval = getOrDefault($config, 'sample_interval_seconds', 15) + 30;
 

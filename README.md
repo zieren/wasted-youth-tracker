@@ -13,7 +13,7 @@ Wasted Youth Tracker covers all programs/apps, not just online activity. It is v
 
 Parents need to configure the system to correctly classify the programs run by the kid, e.g. as "game", "video", "school" etc. Classification compares the window title against a regular expression. If the kid uses e.g. LibreOffice and Wikipedia for school work, you can configure something like `school=LibreOffice|Wikipedia.*(Mozilla Firefox|Google Chrome)`.
 
-This means Wasted Youth Tracker takes a bit of work to set up, but it can classify anything. It is powerful enough to enforce most limitations, e.g. "1 hour for games, but no more than 30 minutes of that for Minecraft".
+This means Wasted Youth Tracker takes a bit of work to set up, but it can classify anything. It is powerful enough to enforce most limitations, e.g. "1 hour for games, but no more than 30 minutes of that for Roblox".
 
 Parents can see a history of the window titles of all programs the kid has been running. You can discuss what your kid was up to with your spouse and/or the kid themselves.
 
@@ -21,7 +21,7 @@ Wasted Youth Tracker is a client/server application with a web UI for the parent
 
 ## How It Works
 
-Wasted Youth Tracker classifies every program by its window title. For web sites this will be the site's title and the browser name. Classification uses rules that you set up manually on the server. Classes could be e.g. "games", "videos" and "school", where the "games" class contains Minecraft and Solitaire, "videos" contains YouTube and Twitch, and "school" contains LibreOffice and Wikipedia. Note that there is no distinction between programs and web sites; the client simply looks at the window title. It does not monitor network connections.
+Wasted Youth Tracker classifies every program by its window title. For web sites this will be the site's title and the browser name. Classification uses rules that you set up manually on the server. Classes could be e.g. "games", "videos" and "school", where the "games" class contains Roblox and Solitaire, "videos" contains YouTube and Twitch, and "school" contains LibreOffice and Wikipedia. Note that there is no distinction between programs and web sites; the client simply looks at the window title. It does not monitor network connections.
 
 On the server you set up limits that restrict the use of specific classes. For example, a limit "entertainment" would contain the classes "games" and "videos". Limits restrict the use of the classes to which they apply. There are four types of restrictions:
 
@@ -169,16 +169,16 @@ If classes are subject to multiple limits, it may be necessary to override/unloc
 
 ### System Configuration
 
-The system has several configuration options that can be set either per user or globally (i.e. for all users). These can usually be left alone.
+The system has several configuration options that can be set either per user or globally (i.e. for all users). Most of these can be left alone, except for `ignore_process...` and `watch_process...`.
 
 | Key | Description | Value | Default |
 | --- | ----------- | ----- | ------- |
+| `ignore_process...`       | Processes with windows that should be ignored (use any suffix to specify more) | process name | `explorer.exe`, `AutoHotkey.exe`, `Wasted Youth Tracker.exe`, `LogiOverlay.exe` |
+| `watch_process...`        | Processes that don't show a regular window (e.g. audio players, Minecraft) are given a synthetic window title | process_name=title (e.g. `Minecraft.Windows.exe=Minecraft`) | |
 | `sample_interval_seconds` | Sample interval on the client, smaller values increase accuracy at the cost of more requests to the server | approx. 2-60 | 15 |
 | `grace_period_seconds`    | Time the kid has to close a program before it is closed by the client | approx. 5-60 | 30 |
 | `disable_enforcement`     | Don't close windows/kill processes, just notify (for debugging) | 0/1 | 0 |
 | `kill_after_seconds`      | If the program fails to close, kill its process after this time | approx. 5-30 | 10 |
-| `ignore_process...`       | Processes with windows that should be ignored (use any suffix to specify more) | process name | `explorer.exe`, `AutoHotkey.exe`, `Wasted Youth Tracker.exe`, `LogiOverlay.exe` |
-| `watch_process...`        | Processes that don't show a regular window (e.g. audio players) are given a synthetic window title | process_name=title (e.g. `Minecraft.Windows.exe=Minecraft`) | |
 | `log_level` | Server log level (global config only) | emergency, alert, critical, error, warning, notice, info, debug | debug |
 
 ## Troubleshooting
@@ -193,7 +193,7 @@ Help with any of the following would be most welcome.
 
 ### Platforms
 
-The biggest deficit from a user's perspective is that Wasted Youth Tracker currently only covers the Windows platform. But the design puts most complexity on the server to simiplify porting the client to other platforms. The following platforms are on my radar:
+The biggest deficit from a user's perspective is that Wasted Youth Tracker currently only covers the Windows platform. But the design puts most complexity on the server to simplify porting the client to other platforms. The following platforms are on my radar:
 
 * Android phone/tablet, Amazon Fire Kids Tablet
 * Consoles like PS4, XBox etc. (Sony has its own parental control system that tracks time, maybe querying that from the server would work.)

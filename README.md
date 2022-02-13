@@ -173,8 +173,8 @@ The system has several configuration options that can be set either per user or 
 
 | Key | Description | Value | Default |
 | --- | ----------- | ----- | ------- |
-| `ignore_process...`       | Processes with windows that should be ignored (use any suffix to specify more) | process name | `explorer.exe`, `AutoHotkey.exe`, `Wasted Youth Tracker.exe`, `LogiOverlay.exe` |
-| `watch_process...`        | Processes that don't show a regular window (e.g. audio players, Minecraft) are given a synthetic window title | process_name=title (e.g. `Minecraft.Windows.exe=Minecraft`) | |
+| `ignore_process...`       | Processes that are detected as activity but should be ignored (use any suffix to specify more) | process name | `explorer.exe`, `AutoHotkey.exe`, `Wasted Youth Tracker.exe`, `LogiOverlay.exe` |
+| `watch_process...`        | Processes that are not detected because they don't show a regular window (e.g. audio players, also Minecraft). These are given a synthetic window title. | process_name=title (e.g. `Minecraft.Windows.exe=Minecraft`) | |
 | `sample_interval_seconds` | Sample interval on the client, smaller values increase accuracy at the cost of more requests to the server | approx. 2-60 | 15 |
 | `grace_period_seconds`    | Time the kid has to close a program before it is closed by the client | approx. 5-60 | 30 |
 | `disable_enforcement`     | Don't close windows/kill processes, just notify (for debugging) | 0/1 | 0 |

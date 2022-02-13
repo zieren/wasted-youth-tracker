@@ -153,13 +153,23 @@ The following keys are supported:
 | `times_mon` etc.   | Overides `times` for specific day of week | ditto |
 | `locked`           | Require [manual unlocking](#overrides) by parent in the web UI | 0/1 (for no/yes) |
 
+Newly created limits have the following defaults:
+
+* Restricted to zero minutes
+* Time of day is not restricted
+* Unlock is not required
+
+The "Total" limit is initially not restricted and does not require unlock. It can be configured like any other limit, but not be deleted.
+
 #### Overrides
 
-Under the "Control" tab you can override the time and/or time of day allowed for a given limit on a specific day (e.g. today or tomorrow). This is also where you unlock limits configured with `locked=1` above. Overrides always have highest priority within the limit. For example, overriding time per day will take effect even if the weekly time is used up. However, if classes are subject to multiple limits, it may be necessary to override/unlock those as well. The UI will display a reminder in this case.
+Under the "Control" tab you can override the time and/or time of day allowed for a given limit on a specific day (e.g. today or tomorrow). This is also where you unlock limits configured with `locked=1` above. Overrides always have highest priority within the limit. For example, overriding time per day will take effect even if the weekly time is used up.
+
+If classes are subject to multiple limits, it may be necessary to override/unlock those as well. The UI will display a reminder in this case.
 
 ### System Configuration
 
-The system has several configuration options that can be set either per user or globally (i.e. for all users). These can usually be left alone. You can press Ctrl-Shift-F12 on the client to 
+The system has several configuration options that can be set either per user or globally (i.e. for all users). These can usually be left alone.
 
 | Key | Description | Value | Default |
 | --- | ----------- | ----- | ------- |
@@ -168,7 +178,7 @@ The system has several configuration options that can be set either per user or 
 | `disable_enforcement`     | Don't close windows/kill processes, just notify (for debugging) | 0/1 | 0 |
 | `kill_after_seconds`      | If the program fails to close, kill its process after this time | approx. 5-30 | 10 |
 | `ignore_process...`       | Processes with windows that should be ignored (use any suffix to specify more) | process name | `explorer.exe`, `AutoHotkey.exe`, `Wasted Youth Tracker.exe`, `LogiOverlay.exe` |
-| `watch_process...`        | Processes that don't show a regular window (e.g. audio players) are given a synthetic window title | process_name=title | `Minecraft.Windows.exe=Minecraft` |
+| `watch_process...`        | Processes that don't show a regular window (e.g. audio players) are given a synthetic window title | process_name=title (e.g. `Minecraft.Windows.exe=Minecraft`) | |
 | `log_level` | Server log level (global config only) | emergency, alert, critical, error, warning, notice, info, debug | debug |
 
 ## Troubleshooting

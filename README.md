@@ -60,8 +60,9 @@ The server component can be installed on a standard shared web server. You can a
 3. Upload the contents of the `server/` directory to a directory on your web server.
 4. Rename the file `common/config-sample.php` to `common/config.php` and fill in the login parameters for the database created above.
 5. Set up access control e.g. via `.htaccess`. This may be skipped if the server is only accessible by the parents.
-6. Visit the directory on your web server to verify that the installation was successful. You should see no error messages.
-7. In the web UI, click the `System` tab to add a new user for your kid (use all lower case, no spaces and no special characters). Verify the created user shows up in the selector at the top.
+6. Chmod the `logs` directory to be writable by the PHP user.
+7. Visit the directory on your web server to verify that the installation was successful. You should see no error messages.
+8. In the web UI, click the `System` tab to add a new user for your kid (use all lower case, no spaces and no special characters). Verify the created user shows up in the selector at the top.
 
 ### Client Application
 
@@ -82,7 +83,7 @@ Configuration consists of two parts: Setting up classification rules and configu
 
 ### Classifiation
 
-Wasted Youth Tracker classifies each program running on the kid's computer into exactly one class. This classification process works by applying a set of rules that are matched against the window title. Classification rules use [Regular Expressions](https://www.regular-expressions.info/). Classes are then assigned to limits in the next step.
+Wasted Youth Tracker classifies each program running on the kid's computer into exactly one class. This classification process works by applying a set of rules that are matched against the window title. Classification rules use [MySQL Regular Expressions](https://dev.mysql.com/doc/refman/8.0/en/regexp.html) ([gentle introduction](https://www.regular-expressions.info/) to standard regular expressions, but note that for character classes MySQL uses different syntax). Classes are then assigned to limits in the next step.
 
 A class represents the finest granularity to which limits can be applied. What classes are needed depends on what the kid is allowed to do on their computer, i.e. what limitations you intend to apply. For example, consider the window titles of some games:
 

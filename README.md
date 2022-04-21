@@ -169,11 +169,11 @@ If classes are subject to multiple limits, it may be necessary to override/unloc
 
 ### System Configuration
 
-The system has several configuration options that can be set either per user or globally (i.e. for all users). Most of these can be left alone, except for `ignore_process...` and `watch_process...`.
+The system has several configuration options that can be set either per user or globally (i.e. for all users). Most of these can be left alone, except for `ignore_process...` and `watch_process...`. The `...` means you can use any suffix to specify multiple key/value pairs.
 
 | Key | Description | Value | Default |
 | --- | ----------- | ----- | ------- |
-| `ignore_process...`       | Processes that are detected as activity but should be ignored (use any suffix to specify more) | process name | `explorer.exe`, `AutoHotkey.exe`, `Wasted Youth Tracker.exe`, `LogiOverlay.exe` |
+| `ignore_process...`       | Processes that are detected as activity but should be ignored. | process name | `explorer.exe`, `AutoHotkey.exe`, `Wasted Youth Tracker.exe`, `LogiOverlay.exe` |
 | `watch_process...`        | Processes that are not detected because they don't show a regular window (e.g. audio players, also Minecraft). These are given a synthetic window title. | process_name=title (e.g. `Minecraft.Windows.exe=Minecraft`) | |
 | `sample_interval_seconds` | Sample interval on the client, smaller values increase accuracy at the cost of more requests to the server | approx. 2-60 | 15 |
 | `grace_period_seconds`    | Time the kid has to close a program before it is closed by the client | approx. 5-60 | 30 |

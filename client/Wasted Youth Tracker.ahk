@@ -1,16 +1,16 @@
 ; Get config for contacting server.
 EnvGet, USERPROFILE, USERPROFILE ; e.g. c:\users\johndoe
 INI_FILE := USERPROFILE "\wasted.ini"
-global URL, HTTP_USER, HTTP_PASS, USER, LOGFILE, LAST_ERROR, APP_NAME
-APP_NAME := "Wasted Youth Tracker 0.1.0"
+global URL, HTTP_USER, HTTP_PASS, USER
+global APP_NAME := "Wasted Youth Tracker 0.1.1"
+global LOGFILE := A_Temp "\wasted.log"
+global LAST_ERROR := GetLastLogLine() ; possibly empty
 IniRead, URL, %INI_FILE%, server, url
 IniRead, HTTP_USER, %INI_FILE%, server, username
 IniRead, HTTP_PASS, %INI_FILE%, server, password
 IniRead, USER, %INI_FILE%, account, user
-LOGFILE := A_Temp "\wasted.log"
-LAST_ERROR := GetLastLogLine() ; possibly empty
 
-OnError("LogErrorHandler") ; The handler logs some of the config read above.
+OnError("LogErrorHandler") ; The handler depends on some of the config read above.
 
 ; Shared variables should be safe since AutoHotkey simulates concurrency
 ; using a single thread: https://www.autohotkey.com/docs/misc/Threads.htm
@@ -19,6 +19,9 @@ OnError("LogErrorHandler") ; The handler logs some of the config read above.
 ; threshold, we assume the network is down and will doom everything because
 ; we can no longer enforce limits.
 global LAST_SUCCESSFUL_REQUEST := EpochSeconds() ; allow offline grace period on startup
+; We detect offline status by consecutive failed requests (and wall time). Note that a
+; single failed request can occur when resuming from Windows standby/hibernation.
+global NUM_CONSECUTIVE_FAILED_REQUESTS := 0
 ; Purely informational metric for server processing time. Shown in debug window.
 global LAST_REQUEST_DURATION_MS := 0
 ; Track windows for which a "please close" message was already shown.
@@ -208,8 +211,10 @@ DoTheThing(showStatusGui) {
     CheckStatus200(request)
     LAST_REQUEST_DURATION_MS := A_TickCount - requestStart
     LAST_SUCCESSFUL_REQUEST := EpochSeconds()
-    LAST_ERROR := "" ; successfully reported error to server
+    LAST_ERROR := "" ; successfully reported error (if any) to server
+    NUM_CONSECUTIVE_FAILED_REQUESTS := 0
   } catch exception {
+    NUM_CONSECUTIVE_FAILED_REQUESTS++
     HandleOffline(exception, windows)
     return ; Better luck next time!
   }
@@ -418,16 +423,12 @@ HandleOffline(exception, windows) {
   ; Server may be temporarily unavailable, so initially we only log silently.
   LogError(ExceptionToString(exception), false)
   offlineSeconds := EpochSeconds() - LAST_SUCCESSFUL_REQUEST
-  if (offlineSeconds > CFG[OFFLINE_GRACE_PERIOD_SECONDS]) {
+  if (NUM_CONSECUTIVE_FAILED_REQUESTS >= 2 && offlineSeconds > CFG[OFFLINE_GRACE_PERIOD_SECONDS]) {
     anyNewlyDoomed := false
     for title, window in windows
       anyNewlyDoomed |= DoomWindow(window, "")
     if (anyNewlyDoomed) {
-      ; Build a variant of the TimeUp GUI.
-      Gui, TimeUp:New, AlwaysOnTop, %APP_NAME% - Server Unreachable
-      Gui, Add, Text,, Server is unreachable`, please close all programs!
-      Gui, Add, Button, w80 x210, &OK
-      Gui, Show, w500 xCenter Y42 NoActivate
+      ShowErrorGui("Server is unreachable`, please close all programs!")
       SoundTimeUp()
     }
   }

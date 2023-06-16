@@ -19,7 +19,7 @@ function echoTableAssociative($data) {
 }
 
 function html($text) {
-  return nl2br(htmlentities($text, ENT_COMPAT | ENT_HTML401, 'ISO-8859-1'));
+  return nl2br(htmlentities($text ?? '', ENT_COMPAT | ENT_HTML401, 'ISO-8859-1'));
 }
 
 function action($name) {

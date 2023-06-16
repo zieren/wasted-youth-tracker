@@ -620,8 +620,9 @@ class Wasted {
         DEFAULT_CLASS_ID);
     $table = [];
     foreach ($rows as $r) {
-      $samples = strlen($r['samples']) <= 1024
-          ? $r['samples'] : (substr($r['samples'], 0, 1021) . '...');
+      $samples = $r['samples']
+          ? (strlen($r['samples']) <= 1024 ? $r['samples'] : (substr($r['samples'], 0, 1021) . '...'))
+          : '';
       $re = strlen($r['re']) <= 150 ? $r['re'] : (substr($r['re'], 0, 147) . '...');
       $table[] = [$r['name'], $re, intval($r['priority']), intval($r['n']), $samples];
     }

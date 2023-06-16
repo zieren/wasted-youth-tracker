@@ -1,6 +1,7 @@
 <?php
 
 require_once '../common/common.php';
+require_once 'RX.php';
 
 // TODO: Make sure warnings and errors are surfaced appropriately. Catch exceptions.
 

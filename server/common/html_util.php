@@ -79,7 +79,7 @@ function classSelector($classes, $includeDefault = false) {
   return $select;
 }
 
-function _arrayUtf8Encode(&$v, &$k) {
+function _arrayUtf8Encode(&$v, $k) {
   $v = mb_convert_encoding($v, 'UTF-8', 'ISO-8859-1');
 }
 

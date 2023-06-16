@@ -219,10 +219,10 @@ if (action('setUserConfig')) {
   Wasted::removeClassification($classificationId);
 } else if (action('addClassification')) {
   Wasted::addClassification(
-      $classId, postInt('classificationPriority'), postRaw('classificationRegEx'));
+      $classId, postInt('classificationPriority'), postString('classificationRegEx'));
 } else if (action('changeClassification')) {
   Wasted::changeClassification(
-      $classificationId, postRaw('classificationRegEx'), postRaw('classificationPriority'));
+      $classificationId, postString('classificationRegEx'), postString('classificationPriority'));
 } else if (action('removeClass')) {
   Wasted::removeClass($classId);
 } else if (action('renameClass')) {
@@ -579,7 +579,7 @@ echo '</figure></div>'; // from div setup
 // ----- Footer -----
 
 echo '
-<p>&copy; 2021-2022 <a href="https://zieren.de">J&ouml;rg Zieren</a>
+<p>&copy; 2021-2023 <a href="https://zieren.de">J&ouml;rg Zieren</a>
 (<a href="https://github.com/zieren">github</a>), GNU GPL v3.
 Components:
 <a href="https://www.autohotkey.com/">AutoHotkey</a> by The AutoHotkey Foundation, GNU GPL v2;

@@ -11,6 +11,7 @@ require_once 'config_tests.php';
 require_once '../common/db.class.php';
 require_once '../rx/RX.php';
 require_once '../cfg/Config.php';
+require_once 'WastedTestBase.php';
 
 final class WastedTest extends WastedTestBase {
 
@@ -2208,11 +2209,9 @@ final class WastedTest extends WastedTestBase {
       Wasted::addClassification($classId, 0, '*');
       throw new AssertionError('Should not be able to add invalid RegEx');
     } catch (Exception $e) {
-      // expected
-      $s = "Got error '";
-      $this->assertEquals(substr($e->getMessage(), 0, strlen($s)), $s);
-      $s = "' from regexp";
-      $this->assertEquals(substr($e->getMessage(), -strlen($s)), $s);
+      $this->assertEquals(
+          $e->getMessage(), 
+          "Regex error 'quantifier does not follow a repeatable item at offset 0'");
       WastedTestBase::$lastDbError = null; // don't fail the test
     }
   }

@@ -16,8 +16,9 @@ trait LoggerTrait
      * System is unusable.
      *
      * @param string $message
-     * @param array $context
-     * @return null
+     * @param array  $context
+     *
+     * @return void
      */
     public function emergency($message, array $context = array())
     {
@@ -31,8 +32,9 @@ trait LoggerTrait
      * trigger the SMS alerts and wake you up.
      *
      * @param string $message
-     * @param array $context
-     * @return null
+     * @param array  $context
+     *
+     * @return void
      */
     public function alert($message, array $context = array())
     {
@@ -45,8 +47,9 @@ trait LoggerTrait
      * Example: Application component unavailable, unexpected exception.
      *
      * @param string $message
-     * @param array $context
-     * @return null
+     * @param array  $context
+     *
+     * @return void
      */
     public function critical($message, array $context = array())
     {
@@ -58,8 +61,9 @@ trait LoggerTrait
      * be logged and monitored.
      *
      * @param string $message
-     * @param array $context
-     * @return null
+     * @param array  $context
+     *
+     * @return void
      */
     public function error($message, array $context = array())
     {
@@ -73,8 +77,9 @@ trait LoggerTrait
      * that are not necessarily wrong.
      *
      * @param string $message
-     * @param array $context
-     * @return null
+     * @param array  $context
+     *
+     * @return void
      */
     public function warning($message, array $context = array())
     {
@@ -85,8 +90,9 @@ trait LoggerTrait
      * Normal but significant events.
      *
      * @param string $message
-     * @param array $context
-     * @return null
+     * @param array  $context
+     *
+     * @return void
      */
     public function notice($message, array $context = array())
     {
@@ -99,8 +105,9 @@ trait LoggerTrait
      * Example: User logs in, SQL logs.
      *
      * @param string $message
-     * @param array $context
-     * @return null
+     * @param array  $context
+     *
+     * @return void
      */
     public function info($message, array $context = array())
     {
@@ -111,8 +118,9 @@ trait LoggerTrait
      * Detailed debug information.
      *
      * @param string $message
-     * @param array $context
-     * @return null
+     * @param array  $context
+     *
+     * @return void
      */
     public function debug($message, array $context = array())
     {
@@ -122,10 +130,13 @@ trait LoggerTrait
     /**
      * Logs with an arbitrary level.
      *
-     * @param mixed $level
+     * @param mixed  $level
      * @param string $message
-     * @param array $context
-     * @return null
+     * @param array  $context
+     *
+     * @return void
+     *
+     * @throws \Psr\Log\InvalidArgumentException
      */
     abstract public function log($level, $message, array $context = array());
 }

@@ -9,6 +9,7 @@ require_once 'TestCase.php'; // Must initialize Logger before...
 require_once '../common/common.php'; // ... Logger is used here.
 require_once 'config_tests.php';
 require_once '../common/db.class.php';
+require_once 'WastedTestBase.php';
 
 DB::$dbName = TEST_DB_NAME;
 DB::$user = TEST_DB_USER;
@@ -34,7 +35,7 @@ final class WastedSlowTest extends WastedTestBase {
   public function testCreateTablesWorksAndIsIdempotent(): void {
     for ($i = 0; $i < 2; $i++) {
       $this->onFailMessage("i=$i");
-      Wasted::createForTest(TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS, $this->mockTime, true);
+      Wasted::initializeForTest(TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS);
       $this->setErrorHandler();
 
       $classification = DB::query('SELECT * FROM classification');

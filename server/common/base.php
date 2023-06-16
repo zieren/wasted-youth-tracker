@@ -1,5 +1,5 @@
 <?php
 
 spl_autoload_register(function ($class) {
-  include str_replace('\\', '/', $class) . '.php';
+  include dirname(__FILE__) . '/' . str_replace('\\', '/', $class) . '.php';
 });

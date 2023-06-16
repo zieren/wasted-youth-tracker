@@ -21,7 +21,8 @@ final class Logger {
       throw new AssertionError('already initialized');
     }
     self::$logDir = '.';
-    self::$instance = new Katzgrau\KLogger\Logger(self::$logDir, $filename);
+    self::$instance = new Katzgrau\KLogger\Logger(
+        self::$logDir, Psr\Log\LogLevel::DEBUG, ['filename' => $filename]);
   }
 
   public static function getLogDir(): string {

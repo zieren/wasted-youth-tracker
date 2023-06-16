@@ -27,12 +27,7 @@ function action($name) {
 }
 
 function postString($key) {
-  $s = filter_input(INPUT_POST, $key, FILTER_SANITIZE_STRING);
-  return is_null($s) ? null : trim($s);
-}
-
-function postRaw($key) {
-  $s = filter_input(INPUT_POST, $key, FILTER_UNSAFE_RAW);
+  $s = filter_input(INPUT_POST, $key);
   return is_null($s) ? null : trim($s);
 }
 
@@ -42,7 +37,7 @@ function postInt($key, $default = 0) {
 }
 
 function getString($key) {
-  $s = filter_input(INPUT_GET, $key, FILTER_SANITIZE_STRING);
+  $s = filter_input(INPUT_GET, $key);
   return is_null($s) ? null : trim($s);
 }
 
@@ -84,9 +79,8 @@ function classSelector($classes, $includeDefault = false) {
   return $select;
 }
 
-
 function _arrayUtf8Encode(&$v, &$k) {
-  $v = utf8_encode($v);
+  $v = mb_convert_encoding($v, 'UTF-8', 'ISO-8859-1');
 }
 
 function classificationSelectorJs($classificationsLatin1) {

@@ -99,7 +99,7 @@ abstract class TestCase {
     Logger::Instance()->info('----- setUpTestCase');
     $this->setUpTestCase();
 
-    $filter = '/'.(filter_input(INPUT_GET, 'filter', FILTER_SANITIZE_STRING) ?? '').'/';
+    $filter = '/'.(filter_input(INPUT_GET, 'filter') ?? '').'/';
     $tests = array_filter(get_class_methods(get_class($this)), function($k) use ($filter) {
       return !substr_compare($k, 'test', 0, 4) && preg_match($filter, $k);
     });

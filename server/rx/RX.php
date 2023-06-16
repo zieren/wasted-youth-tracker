@@ -61,7 +61,7 @@ class RX {
     $titles = array_slice($lines, 2); // could be empty, but we still need to insert a timestamp
     // AutoHotkey sends strings in utf8, but we use latin1 because MySQL's RegExp library doesn't
     // support utf8. https://github.com/zieren/kids-freedom-control/issues/33
-    $titles = array_map('utf8_decode', $titles);
+    $titles = array_map('RX::_utf8Decode', $titles);
 
     $classifications = Wasted::insertActivity($user, $lastError, $titles);
 
@@ -83,5 +83,9 @@ class RX {
     }
 
     return implode("\n", $response);
+  }
+
+  public static function _utf8Decode($s): array|bool|string {
+    return mb_convert_encoding($s, 'ISO-8859-1', 'UTF-8');
   }
 }

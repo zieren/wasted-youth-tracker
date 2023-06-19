@@ -271,12 +271,12 @@ if ($considerUnlocking) {
   $limitIdToName = getLimitIdToNameMap($configs);
   echo '
     <p class="notice">Further locked limits affecting classes in "'
-      .$limitIdToName[$limitId].'": <b>'.html(implode($considerUnlocking, ', ')).'</b>';
+      .$limitIdToName[$limitId].'": <b>'.html(implode(', ', $considerUnlocking)).'</b>';
 } else if ($furtherLimits) {
   $limitIdToName = getLimitIdToNameMap($configs);
   echo '
     <p class="notice">Further limits affecting classes in "'
-      .$limitIdToName[$limitId].'": <b>'.html(implode($furtherLimits, ', ')).'</b>';
+      .$limitIdToName[$limitId].'": <b>'.html(implode(', ', $furtherLimits)).'</b>';
 }
 echo '
   <p>

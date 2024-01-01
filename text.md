@@ -4,7 +4,7 @@ title: 'Wasted Youth Tracker'
 
 ## Resources
 
-* Download the latest version: [Wasted Youth Tracker 0.1.1](https://github.com/zieren/wasted-youth-tracker/releases/tag/v0.1.1) (2023-06-29)
+* [Download the latest version](https://github.com/zieren/wasted-youth-tracker/releases/latest)
 * [GitHub page](https://github.com/zieren/wasted-youth-tracker) with [version history](https://github.com/zieren/wasted-youth-tracker/releases/) and [issue tracker](https://github.com/zieren/wasted-youth-tracker/issues)
 
 ## Overview
@@ -76,6 +76,8 @@ The server component can be installed on a standard shared web server. You can a
 #### Client Application
 
 If you are not concerned that the kid will kill the client process from the task manager, simply copy the file `client/Wasted Youth Tracker.exe` to the kid's startup directory. If you prefer to run the source file directly instead of the `.exe`, install [AutoHotkey](https://www.autohotkey.com/) and use `client/Wasted Youth Tracker.ahk`.
+
+!! Windows Defender may classify AutoHotkey scripts (both compiled and source) as malware and silently delete them. If this happens to you, configure an exception in Windows Defender.
 
 If you do need to prevent your kid from killing the process, copy the `client/Wasted Youth Tracker.exe` file to a location the kid cannot access, place a link to it in the startup directory and configure that link to run the application as administrator. This assumes the kid's account is *not* an administrator. You may also need to restrict permissions on the link to prevent the kid from deleting it. (Other options for starting the client on logon are the registry and the task scheduler.)
 
